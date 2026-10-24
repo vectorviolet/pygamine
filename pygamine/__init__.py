@@ -39,6 +39,7 @@ if TYPE_CHECKING:
     from pygamine.app.splash_screen import (
         SplashScreen as SplashScreen, SplashMedia as SplashMedia,
         ImageMedia as ImageMedia, ImageSequenceMedia as ImageSequenceMedia,
+        standard_splash_media as standard_splash_media,
     )
 
     # ECS core
@@ -126,6 +127,7 @@ _EXPORTS: dict[str, str] = {
     "SplashMedia": "pygamine.app.splash_screen",
     "ImageMedia": "pygamine.app.splash_screen",
     "ImageSequenceMedia": "pygamine.app.splash_screen",
+    "standard_splash_media": "pygamine.app.splash_screen",
     # ECS core
     "GameObject": "pygamine.ecs.game_object",
     "GameObjectDict": "pygamine.ecs.game_object_dict",

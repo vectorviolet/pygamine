@@ -105,6 +105,28 @@ def test_pausing_twice_is_a_no_op(sound_path):
     assert audio.is_music_paused is True
 
 
+def test_stop_music_frees_the_channel_and_clears_paused(sound_path):
+    """Unlike pause, stop leaves nothing playing -- a paused channel still
+    counts as busy, so it would stay occupied indefinitely."""
+    audio = GameAudio(music_path=sound_path)
+    audio.pause_music()
+
+    audio.stop_music()
+
+    assert mixer.Channel(MUSIC_CHANNEL).get_busy() is False
+    assert audio.is_music_paused is False
+
+
+def test_sound_manager_stop_ends_playback_on_that_channel_only(sound_path):
+    SoundManager.play_sound(OTHER_CHANNEL_A, sound_path, loops=-1)
+    SoundManager.play_sound(OTHER_CHANNEL_B, sound_path, loops=-1)
+
+    SoundManager.stop(OTHER_CHANNEL_A)
+
+    assert mixer.Channel(OTHER_CHANNEL_A).get_busy() is False
+    assert mixer.Channel(OTHER_CHANNEL_B).get_busy() is True
+
+
 def test_resuming_when_not_paused_is_a_no_op():
     audio = GameAudio()
     audio.resume_music()  # never paused -- must not raise

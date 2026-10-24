@@ -9,10 +9,17 @@ from typing import Protocol, Union
 import pygame
 
 from pygamine.assets.asset_path import SequencePath
+from pygamine.ecs.game_audio import GameAudio
 
 PathArg = Union[str, "os.PathLike[str]"]
 
 DEFAULT_SEQUENCE_FPS = 30.0
+
+# The shared splash assets every game opens with. Resolved next to this
+# package rather than a game's cwd-relative assets/, so one copy serves
+# every consumer; a frozen build must bundle this folder as
+# "pygamine/branding" (see standard_splash_media()).
+BRANDING_DIR = Path(__file__).resolve().parent.parent / "branding"
 
 
 class SplashMedia(Protocol):
@@ -240,8 +247,33 @@ class ImageSequenceMedia:
                 break
 
     def _stop_audio(self) -> None:
-        if self._audio and not self._audio.is_music_paused:
-            self._audio.pause_music()
+        # Stop, not pause: a paused channel stays occupied, and nothing
+        # would ever resume this clip's audio.
+        if self._audio and self._audio_path:
+            self._audio.stop_music()
+
+
+def standard_splash_media(audio_manager: GameAudio | None = None) -> list[SplashMedia]:
+    """The splash every game opens with: the publisher clip (with its
+    audio), then the pygame logo -- so it stays identical across projects
+    and changes in one place. Append a game's own items after it, e.g.
+    `SplashScreen([*standard_splash_media(self.audio), title_card])`.
+
+    Pass the game's GameAudio so the clip plays at its music volume; without
+    one it plays through a GameAudio of its own. Either way the clip stops
+    its audio when it ends, so start a game's music after the splash.
+
+    A frozen (PyInstaller) build must bundle BRANDING_DIR as data, e.g.
+    `(str(ROOT / "src/pygamine/pygamine/branding"), "pygamine/branding")`.
+    """
+    return [
+        ImageSequenceMedia(
+            BRANDING_DIR / "publisher_splash",
+            audio_path=BRANDING_DIR / "publisher_splash.ogg",
+            audio_manager=audio_manager if audio_manager is not None else GameAudio(),
+        ),
+        ImageMedia(BRANDING_DIR / "pygame_logo.png"),
+    ]
 
 
 class SplashScreen:

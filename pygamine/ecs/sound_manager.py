@@ -31,3 +31,7 @@ class SoundManager:
     @staticmethod
     def unpause(channel: int) -> None:
         mixer.Channel(channel).unpause()
+
+    @staticmethod
+    def stop(channel: int) -> None:
+        mixer.Channel(channel).stop()

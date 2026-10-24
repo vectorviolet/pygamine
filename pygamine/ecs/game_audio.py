@@ -44,6 +44,12 @@ class GameAudio:
         SoundManager.unpause(MUSIC_CHANNEL)
         self._music_paused = False
 
+    def stop_music(self) -> None:
+        """Stops the music outright, freeing its channel -- unlike pause_music(),
+        there's nothing left to resume."""
+        SoundManager.stop(MUSIC_CHANNEL)
+        self._music_paused = False
+
     def toggle_music(self) -> None:
         if self._music_paused:
             self.resume_music()

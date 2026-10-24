@@ -12,7 +12,10 @@ import time
 import pygame
 import pytest
 
-from pygamine.app.splash_screen import DEFAULT_SEQUENCE_FPS, ImageMedia, ImageSequenceMedia, SplashScreen
+from pygamine.app.splash_screen import (
+    BRANDING_DIR, DEFAULT_SEQUENCE_FPS, ImageMedia, ImageSequenceMedia, SplashScreen, standard_splash_media,
+)
+from pygamine.ecs.game_audio import GameAudio
 from pygamine.assets.asset_path import SequencePath
 
 
@@ -103,14 +106,14 @@ def test_image_media_draw(image_paths):
 class FakeAudio:
     def __init__(self):
         self.played = []
-        self.is_music_paused = False
+        self.stopped = False
 
     def play_music(self, path, loops=-1):
         self.played.append((path, loops))
-        self.is_music_paused = False
+        self.stopped = False
 
-    def pause_music(self):
-        self.is_music_paused = True
+    def stop_music(self):
+        self.stopped = True
 
 
 @pytest.fixture
@@ -227,7 +230,7 @@ def test_image_sequence_finishes_on_time_and_stops_audio(frames_dir, fake_ticks)
     fake_ticks["t"] = 1000  # 10 frames at 10 fps
     media.update()
     assert media.is_finished() is True
-    assert audio.is_music_paused is True
+    assert audio.stopped is True
     media._loader.join(timeout=1)
     assert not media._loader.is_alive()
 
@@ -246,7 +249,47 @@ def test_image_sequence_skip_stops_loader_blocked_on_full_buffer(frames_dir, fak
     assert not media._loader.is_alive()
     assert media._frame_queue.empty()
     assert media.is_finished() is True
-    assert audio.is_music_paused is True
+    assert audio.stopped is True
+
+
+# ── standard_splash_media ──────────────────────────────────────────────
+
+
+@pytest.fixture
+def display():
+    pygame.display.set_mode((1, 1))  # ImageMedia's convert_alpha() needs a display mode set
+
+
+def test_standard_splash_is_the_publisher_clip_then_the_pygame_logo(display):
+    clip, logo = standard_splash_media(FakeAudio())
+    assert isinstance(clip, ImageSequenceMedia)
+    assert isinstance(logo, ImageMedia)
+
+
+def test_standard_splash_uses_the_bundled_branding_assets(display):
+    """The real shipped assets: all frames found, the frame rate read from
+    meta.yaml (the clip is 24 fps, not the 30 fps default), audio present."""
+    clip, _logo = standard_splash_media(FakeAudio())
+
+    assert clip._total_frames == 240
+    assert clip._fps == 24
+    assert clip._audio_path is not None and (BRANDING_DIR / "publisher_splash.ogg").is_file()
+    assert (BRANDING_DIR / "pygame_logo.png").is_file()
+
+
+def test_standard_splash_plays_through_the_given_audio_manager(display):
+    audio = FakeAudio()
+    clip, _logo = standard_splash_media(audio)
+    clip.fit((32, 18))
+    clip.skip()
+
+    assert audio.played == [(str(BRANDING_DIR / "publisher_splash.ogg"), 0)]
+    assert audio.stopped is True
+
+
+def test_standard_splash_brings_its_own_audio_without_one(display):
+    clip, _logo = standard_splash_media()
+    assert isinstance(clip._audio, GameAudio)
 
 
 # ── SplashScreen Tests ─────────────────────────────────────────────────
@@ -355,6 +398,6 @@ def test_skip_completely_stops_the_current_media(frames_dir, image_paths, fake_t
 
     assert splash.is_done is True
     assert sequence.is_finished() is True
-    assert audio.is_music_paused is True
+    assert audio.stopped is True
     sequence._loader.join(timeout=1)
     assert not sequence._loader.is_alive()

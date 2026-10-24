@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "pygamine"
-version = "0.17.1"
+version = "0.18.0"
 description = "Shared pygame utilities for personal game projects"
 readme = "README.md"
 license = { file = "LICENSE" }
@@ -50,7 +50,9 @@ include = ["pygamine*"]
 # PEP 561 marker -- lets type checkers (mypy/pyright) pick up this
 # package's inline type hints when it's installed, not just when it's
 # vendored on sys.path inside the same checkout being type-checked.
-pygamine = ["py.typed"]
+# branding/ -- the shared splash assets standard_splash_media() plays --
+# isn't a package (no __init__.py), so it must be listed to ship at all.
+pygamine = ["py.typed", "branding/**/*"]
 
 [dependency-groups]
 dev = ["pytest>=8", "pytest-cov>=5", "ruff>=0.8", "mypy>=1.13", "types-PyYAML", "moviepy>=2"]

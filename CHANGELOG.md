@@ -13,8 +13,21 @@ together rather than reconstructing a commit-by-commit rationale for every
 change. Anything before `e5c1fa6` (the commit that first introduced
 `pyproject.toml` itself) isn't versioned at all; see `git log` for that era.
 
-## [Unreleased]
+## [0.18.0] — 2026-10-24
 
+- **Added** `standard_splash_media(audio_manager=None)`: the splash every
+  game opens with -- the publisher clip (with its audio), then the pygame
+  logo -- so it's identical across projects and changes in one place.
+  Its assets ship in `pygamine/branding/` (240 frames + `meta.yaml`, the
+  clip's `.ogg`, the logo), resolved next to the package, not a game's
+  `assets/`. A frozen build must bundle that folder as data:
+  `(str(ROOT / "src/pygamine/pygamine/branding"), "pygamine/branding")`.
+  Without an audio manager it plays the clip through its own `GameAudio`.
+- **Added** `GameAudio.stop_music()` and `SoundManager.stop(channel)`.
+- **Changed** `ImageSequenceMedia` stops its audio when it ends or is
+  skipped, instead of pausing it: a paused channel stays busy forever,
+  since nothing ever resumes a splash clip's audio. Start a game's own
+  music after the splash, as before.
 - The repository moved from `umutcanekinci/pygamine` to
   **`https://github.com/vectorviolet/pygamine`**, alongside the games that
   use it. GitHub redirects the old URL, but consumers should point their
