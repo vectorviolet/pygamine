@@ -78,15 +78,26 @@ class Camera:
         if event.type == pygame.MOUSEWHEEL and self._inside_viewport(mouse_pos):
             self._zoom_at(mouse_pos, self.scale * (1.0 + self._zoom_step * event.y))
 
-    def update_with_mouse(self, mouse_pos) -> None:
+    def center_on(self, world_pos) -> None:
+        """Scroll so `world_pos` sits at the viewport centre, as far as the
+        map edges allow (the offset is clamped like any other scroll)."""
+        self._offset.x = self.rect.width  / 2 - world_pos[0] * self.scale
+        self._offset.y = self.rect.height / 2 - world_pos[1] * self.scale
+        self._clamp_offset()
+
+    def update_with_mouse(self, mouse_pos, frames: float = 1.0) -> None:
+        """Edge-scroll by `speed` px per frame. `frames` is how many frames'
+        worth of motion this call covers -- pass elapsed_ms / frame_ms to
+        keep the scroll rate independent of the actual frame rate."""
         if not self.scroll_rect.collidepoint(mouse_pos):
             return
         mx, my = mouse_pos
+        step = self._speed * frames
         dx = dy = 0
-        if mx > self.scroll_rect.right  - self._edge_scroll_zone: dx = -self._speed
-        if mx < self.scroll_rect.left   + self._edge_scroll_zone: dx = +self._speed
-        if my > self.scroll_rect.bottom - self._edge_scroll_zone: dy = -self._speed
-        if my < self.scroll_rect.top    + self._edge_scroll_zone: dy = +self._speed
+        if mx > self.scroll_rect.right  - self._edge_scroll_zone: dx = -step
+        if mx < self.scroll_rect.left   + self._edge_scroll_zone: dx = +step
+        if my > self.scroll_rect.bottom - self._edge_scroll_zone: dy = -step
+        if my < self.scroll_rect.top    + self._edge_scroll_zone: dy = +step
         if dx or dy:
             self._offset.x += dx
             self._offset.y += dy

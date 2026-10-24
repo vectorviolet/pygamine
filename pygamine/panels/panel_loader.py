@@ -110,7 +110,11 @@ class PanelLoader:
         bottom-center, ...) are edge-relative insets, not absolute authored-
         canvas coordinates -- centre-remapping those would move them off the
         edge they're anchored to, so they're scaled directly instead, same as
-        an already-parented child's offset. Non-numeric values ("CENTER",
+        an already-parented child's offset. A window-parented object sized
+        "WINDOW" (a full-screen overlay) fills the actual window, so its
+        position is scaled directly too -- remapping [0, 0] about the centre
+        would shift it off the top-left whenever the window's aspect ratio
+        differs from the authored one. Non-numeric values ("CENTER",
         "WINDOW", ...) pass through untouched.
         """
         k = self.scale
@@ -141,7 +145,8 @@ class PanelLoader:
 
         pos = obj_def.get("position")
         if isinstance(pos, list) and len(pos) == 2:
-            if window_parented and obj_def.get("anchor", "top-left") == "top-left":
+            fills_window = obj_def.get("size") == "WINDOW"
+            if window_parented and not fills_window and obj_def.get("anchor", "top-left") == "top-left":
                 # Map authored-window coords → actual-window coords about centre.
                 acx, acy = self.window_transform.width / 2, self.window_transform.height / 2
                 ocx, ocy = authored[0] / 2, authored[1] / 2

@@ -13,7 +13,20 @@ together rather than reconstructing a commit-by-commit rationale for every
 change. Anything before `e5c1fa6` (the commit that first introduced
 `pyproject.toml` itself) isn't versioned at all; see `git log` for that era.
 
-## [0.19.0] â€” 2026-10-24
+## [0.20.0] — 2026-10-25
+
+- **Added** `Camera.center_on(world_pos)`: scrolls so a world point sits
+  at the viewport centre, clamped at the map edges like any scroll.
+- **Added** a `frames` argument to `Camera.update_with_mouse()` (default
+  1.0, the old behaviour): how many frames' worth of edge scroll the call
+  covers, so a host can keep the scroll rate independent of its frame
+  rate by passing elapsed_ms / frame_ms.
+- **Fixed** full-window objects (`size: WINDOW`, e.g. a popup's dim
+  overlay) being shifted off the window's top-left when the window's
+  aspect ratio differs from the authored layout's (16:10 vs 16:9 left a
+  60px uncovered strip): their position is now scaled, not centre-remapped.
+
+## [0.19.0] — 2026-10-24
 
 - **Added** `pygamine.devtools.smoke.run_briefly(app, frames=30)` for host
   projects' smoke tests: runs the app's real `run()` -- splash, any `run()`

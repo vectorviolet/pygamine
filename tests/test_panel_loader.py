@@ -313,3 +313,20 @@ def test_scale_def_still_centre_remaps_the_default_top_left_anchor():
     ld._scale_def(obj_def, window_parented=True)
 
     assert obj_def["position"] == [700, 450]
+
+
+def test_scale_def_keeps_a_window_sized_overlay_at_the_window_origin():
+    """A full-screen overlay (size: WINDOW, position [0, 0]) must cover the
+    actual window. Centre-remapping its position for a canvas with a
+    different aspect ratio than the authored one (here 16:10 vs 16:9)
+    pushed it 60px down, leaving an uncovered strip along the top."""
+    window_transform = Transform(position=(0, 0), size=(1920, 1200))
+    ld = PanelLoader(PanelManager(), window_transform, AssetManager())
+    ld.scale = 1.0
+    ld.authored_size = (1920, 1080)
+
+    obj_def = {"position": [0, 0], "size": "WINDOW"}
+    ld._scale_def(obj_def, window_parented=True)
+
+    assert obj_def["position"] == [0, 0]
+    assert obj_def["size"] == "WINDOW"

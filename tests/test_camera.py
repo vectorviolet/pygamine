@@ -352,3 +352,49 @@ def test_info_reports_rounded_offset_and_scale(camera):
     assert label == "Camera Info:"
     assert data["offset"] == (-10.5, 20.8)
     assert data["scale"] == 1.23
+
+
+def test_edge_scroll_distance_scales_with_frames():
+    """frames lets a caller keep the scroll rate frame-rate independent:
+    half a frame's worth of time moves half as far, two frames' twice."""
+    rect = pygame.Rect(0, 0, 800, 600)
+    cam = Camera(rect, map_width=1600, map_height=1200)
+
+    cam.update_with_mouse((780, 300), frames=0.5)
+    assert cam._offset.x == -5
+
+    cam.update_with_mouse((780, 300), frames=2.0)
+    assert cam._offset.x == -25
+
+
+# ── center_on ────────────────────────────────────────────────────────
+
+
+def test_center_on_puts_the_world_point_at_the_viewport_centre():
+    rect = pygame.Rect(0, 0, 800, 600)
+    cam = Camera(rect, map_width=1600, map_height=1200)
+
+    cam.center_on((800, 600))
+
+    assert cam.world_to_screen((800, 600)) == pygame.math.Vector2(400, 300)
+
+
+def test_center_on_is_clamped_at_the_map_edges():
+    """A point near a corner can't be centred without showing past the
+    map edge, so the offset stops at the boundary like an edge scroll."""
+    rect = pygame.Rect(0, 0, 800, 600)
+    cam = Camera(rect, map_width=1600, map_height=1200)
+
+    cam.center_on((1590, 10))  # top-right corner
+
+    assert (cam._offset.x, cam._offset.y) == (-800, 0)
+
+
+def test_center_on_accounts_for_zoom():
+    rect = pygame.Rect(0, 0, 800, 600)
+    cam = Camera(rect, map_width=1600, map_height=1200)
+    cam.scale = 2.0
+
+    cam.center_on((800, 600))
+
+    assert cam.world_to_screen((800, 600)) == pygame.math.Vector2(400, 300)
