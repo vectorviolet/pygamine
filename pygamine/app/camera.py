@@ -93,7 +93,7 @@ class Camera:
             return
         mx, my = mouse_pos
         step = self._speed * frames
-        dx = dy = 0
+        dx = dy = 0.0
         if mx > self.scroll_rect.right  - self._edge_scroll_zone: dx = -step
         if mx < self.scroll_rect.left   + self._edge_scroll_zone: dx = +step
         if my > self.scroll_rect.bottom - self._edge_scroll_zone: dy = -step
