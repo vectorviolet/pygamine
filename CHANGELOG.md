@@ -13,6 +13,20 @@ together rather than reconstructing a commit-by-commit rationale for every
 change. Anything before `e5c1fa6` (the commit that first introduced
 `pyproject.toml` itself) isn't versioned at all; see `git log` for that era.
 
+## [0.17.0] — 2026-10-24
+
+- **Added** the `pygamine-mp4-converter` devtool
+  (`pygamine.devtools.mp4_converter`): turns a video into numbered `.jpg`
+  frames plus a `meta.yaml` (fps, frame_count, size) in `frames/`, and its
+  audio into an `.ogg` -- exactly what `ImageSequenceMedia` plays. Rerunning
+  clears stale frames. Needs moviepy (which bundles ffmpeg), the new
+  optional `video` extra; from a host project:
+  `uv run --with moviepy pygamine-mp4-converter intro.mp4 -o out`.
+  Previously a loose script outside any repo.
+- **Changed** `PanelLoader` scales a numeric `speed` (px/s) by the UI
+  scale, like positions and sizes, so a `ScrollingPanel` keeps pace with
+  its scaled layout instead of crossing smaller windows faster.
+
 ## [0.16.0] — 2026-10-24
 
 - **Added** a `sequences:` section to the asset manifest, for image
