@@ -13,6 +13,18 @@ together rather than reconstructing a commit-by-commit rationale for every
 change. Anything before `e5c1fa6` (the commit that first introduced
 `pyproject.toml` itself) isn't versioned at all; see `git log` for that era.
 
+## [0.19.0] â€” 2026-10-24
+
+- **Added** `pygamine.devtools.smoke.run_briefly(app, frames=30)` for host
+  projects' smoke tests: runs the app's real `run()` -- splash, any `run()`
+  override, main loop -- for a few frames, then stops it. Building a
+  `Game()` and rendering panels never exercised that path, which is how
+  0.15.0's second-splash-run crash reached highrise's releases unseen. The
+  splash plays through to its natural end (the clock is fast-forwarded
+  while it's up) rather than being skipped, since skipping a
+  `skip_completely` splash never reaches that crash; a hang raises instead
+  of stalling CI.
+
 ## [0.18.0] — 2026-10-24
 
 - **Added** `standard_splash_media(audio_manager=None)`: the splash every
