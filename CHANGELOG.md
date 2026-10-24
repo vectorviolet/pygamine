@@ -13,6 +13,38 @@ together rather than reconstructing a commit-by-commit rationale for every
 change. Anything before `e5c1fa6` (the commit that first introduced
 `pyproject.toml` itself) isn't versioned at all; see `git log` for that era.
 
+## [0.15.0] — 2026-10-24
+
+- **Breaking:** `SplashScreen` now plays a list of `SplashMedia` items
+  instead of loading image paths itself:
+  `SplashScreen(image_paths, fade_ms, hold_ms)` becomes
+  `SplashScreen([ImageMedia(path, fade_ms=..., hold_ms=...), ...])`.
+  `ImageMedia` keeps the old per-image fade-in/hold behaviour.
+- **Breaking:** Escape no longer ends the whole splash; like a click,
+  Space or Enter it skips only the current item. Pass
+  `skip_completely=True` to make any skip end the whole splash (which also
+  stops the current item, so its audio doesn't keep playing).
+- **Added** `ImageSequenceMedia`: plays a folder of numbered `.jpg` frames
+  as a video, with optional audio through `GameAudio`. Frames stream from a
+  background thread into a small bounded buffer; the frame shown is derived
+  from elapsed time, so it stays in sync with the audio and drops late
+  frames rather than drifting. No video-decoding dependency -- convert a
+  video to frames + `.ogg` ahead of time.
+- **Added** `ScrollingPanel` (`type: scrolling_panel` via the new
+  `make_scrolling_panel_factory`): a clipped viewport (its `position` /
+  `size`) that adopts the panel objects named in `targets` and scrolls them
+  upward at `speed` px/s, looping or stopping (`loop: false`, then
+  `is_finished`). Adopted objects are removed from the panel, so the
+  scroller alone updates, draws and forwards events to them.
+- **Added** `PanelLoader` calls `on_panel_loaded(panel)` on each object of a
+  panel once the whole panel has loaded, for objects that need siblings
+  declared after them. **Added** `GameObjectDict.pop()`.
+- **Changed** `AssetManager.load_manifest()` and the `*_path()` lookups
+  share one helper per concern; unknown-key errors for fonts and sounds
+  now list known keys too, like images already did.
+- `SplashMedia`, `ImageMedia`, `ImageSequenceMedia`, `ScrollingPanel` and
+  `make_scrolling_panel_factory` are exported from the package root.
+
 ## [0.14.1] — 2026-07-30
 
 - **Fixed** `test_resource_root_falls_back_to_project_root_when_not_frozen`,
