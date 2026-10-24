@@ -227,6 +227,13 @@ def test_scale_def_scales_size_and_font_size(loader):
     assert obj_def["text_size"] == 6
 
 
+def test_scale_def_scales_speed_without_rounding(loader):
+    loader.scale = 0.5
+    obj_def = {"speed": 45}
+    loader._scale_def(obj_def, window_parented=True)
+    assert obj_def["speed"] == 22.5
+
+
 def test_scale_def_font_size_never_rounds_to_zero(loader):
     loader.scale = 0.1
     obj_def = {"font_size": 2}

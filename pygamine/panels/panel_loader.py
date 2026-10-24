@@ -97,7 +97,9 @@ class PanelLoader:
     def _scale_def(self, obj_def: dict, window_parented: bool) -> None:
         """Apply the global UI scale (self.scale) to one object's geometry, in place.
 
-        size / font_size / text_size always scale by `scale`. Positions parented
+        size / font_size / text_size always scale by `scale`, as does `speed`
+        (a px/s rate, e.g. ScrollingPanel's) so motion keeps pace with the
+        scaled layout instead of crossing a smaller window faster. Positions parented
         to another object scale about that parent's origin, so child offsets grow
         with the (also-scaled) parent box. Window-parented positions with the
         default top-left anchor are remapped from the authored centre to the
@@ -132,6 +134,10 @@ class PanelLoader:
             v = obj_def.get(key)
             if isinstance(v, (int, float)):
                 obj_def[key] = max(1, round(v * k))
+
+        speed = obj_def.get("speed")
+        if isinstance(speed, (int, float)):
+            obj_def["speed"] = speed * k
 
         pos = obj_def.get("position")
         if isinstance(pos, list) and len(pos) == 2:

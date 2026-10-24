@@ -20,7 +20,8 @@ class ScrollingPanel(GameObject):
     their `active` flag, and interactive content keeps working.
 
     Content starts just below the viewport and moves up at `speed` px/s,
-    independent of frame rate. Once it has fully left the top it starts over
+    independent of frame rate. Loaded from YAML, `speed` is in authored
+    pixels and scales with the UI like positions and sizes do. Once it has fully left the top it starts over
     (`loop=True`) or stops and sets `is_finished`.
     """
 
