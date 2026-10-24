@@ -255,7 +255,7 @@ class ImageSequenceMedia:
 
 def standard_splash_media(audio_manager: GameAudio | None = None) -> list[SplashMedia]:
     """The splash every game opens with: the publisher clip (with its
-    audio), then the pygame logo -- so it stays identical across projects
+    audio), then the pygame-ce logo -- so it stays identical across projects
     and changes in one place. Append a game's own items after it, e.g.
     `SplashScreen([*standard_splash_media(self.audio), title_card])`.
 

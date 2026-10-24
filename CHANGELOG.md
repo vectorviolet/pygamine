@@ -13,6 +13,14 @@ together rather than reconstructing a commit-by-commit rationale for every
 change. Anything before `e5c1fa6` (the commit that first introduced
 `pyproject.toml` itself) isn't versioned at all; see `git log` for that era.
 
+## [0.20.1] — 2026-10-25
+
+- **Changed** the shared splash's second slide (`branding/pygame_logo.png`)
+  from the original pygame logo to pygame-ce's "powered" logo, rendered
+  from the SVG at https://pyga.me/docs/logos.html ("These logos are
+  available for use in your own game projects"). It sits on a transparent 1920x1080 canvas so
+  the fit-to-screen scaling shows it at about 60% of the screen width.
+
 ## [0.20.0] — 2026-10-25
 
 - **Added** `Camera.center_on(world_pos)`: scrolls so a world point sits
