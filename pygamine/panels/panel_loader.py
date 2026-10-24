@@ -49,6 +49,20 @@ class PanelLoader:
                 self._add_object(tab, obj_name, obj_def)
         for obj_name, obj_def in (panel_def.get("objects", {}) or {}).items():
             self._add_object(tab, obj_name, obj_def)
+        self._notify_panel_loaded(tab)
+
+    def _notify_panel_loaded(self, tab: str) -> None:
+        """Calls `on_panel_loaded(panel)` on every object of the just-loaded
+        panel that defines it -- for objects that need their siblings, which
+        may be declared after them (e.g. ScrollingPanel adopting its targets).
+        Iterates a snapshot, since a hook may remove objects from the panel."""
+        if tab not in self.pm:
+            return
+        panel = self.pm[tab]
+        for obj in list(panel.values()):
+            hook = getattr(obj, "on_panel_loaded", None)
+            if hook is not None:
+                hook(panel)
 
     def _add_object(self, tab: str, name: str, obj_def: dict) -> None:
         obj_def = dict(obj_def)

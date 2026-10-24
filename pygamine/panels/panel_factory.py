@@ -14,6 +14,7 @@ from pygamine.assets.font import load_font
 from pygamine.assets.sprite_sheet import SpriteSheet
 from pygamine.ui_widgets.text_object import TextObject
 from pygamine.ui_widgets.slider import Slider
+from pygamine.ui_widgets.scrolling_panel import ScrollingPanel
 from pygamine.ecs.animated_sprite import AnimatedSprite
 from pygamine.ecs.components.transform import Transform
 from pygamine.ecs.state_object import StateObject, HoverableStateObject
@@ -78,6 +79,21 @@ def make_slider_factory(assets):
             anchor=cfg.get("anchor", "top-left"),
         )
     return make_slider
+
+
+def make_scrolling_panel_factory(assets):
+    def make_scrolling_panel(cfg: dict, parent: Transform) -> ScrollingPanel:
+        size = tuple(cfg["size"]) if cfg.get("size", "WINDOW") != "WINDOW" else parent.size
+        return ScrollingPanel(
+            parent=parent,
+            pos=cfg.get("position", (0, 0)),
+            size=size,
+            targets=cfg.get("targets", []),
+            speed=cfg.get("speed", 60.0),
+            loop=cfg.get("loop", True),
+            anchor=cfg.get("anchor", "top-left"),
+        )
+    return make_scrolling_panel
 
 
 def make_text_factory(assets):

@@ -79,9 +79,11 @@ if TYPE_CHECKING:
     from pygamine.panels.panel_factory import (
         make_factory as make_factory, make_animated_factory as make_animated_factory,
         make_slider_factory as make_slider_factory, make_text_factory as make_text_factory,
+        make_scrolling_panel_factory as make_scrolling_panel_factory,
     )
     from pygamine.ui_widgets.text_object import TextObject as TextObject
     from pygamine.ui_widgets.slider import Slider as Slider
+    from pygamine.ui_widgets.scrolling_panel import ScrollingPanel as ScrollingPanel
     from pygamine.ui_widgets.input_box import InputBox as InputBox
     from pygamine.ui_widgets.menu_controller import MenuController as MenuController
 
@@ -166,8 +168,10 @@ _EXPORTS: dict[str, str] = {
     "make_animated_factory": "pygamine.panels.panel_factory",
     "make_slider_factory": "pygamine.panels.panel_factory",
     "make_text_factory": "pygamine.panels.panel_factory",
+    "make_scrolling_panel_factory": "pygamine.panels.panel_factory",
     "TextObject": "pygamine.ui_widgets.text_object",
     "Slider": "pygamine.ui_widgets.slider",
+    "ScrollingPanel": "pygamine.ui_widgets.scrolling_panel",
     "InputBox": "pygamine.ui_widgets.input_box",
     "MenuController": "pygamine.ui_widgets.menu_controller",
     # Utils

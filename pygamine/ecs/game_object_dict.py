@@ -23,6 +23,9 @@ class GameObjectDict:
     def values(self):
         return self._objects.values()
 
+    def pop(self, key: str) -> Any:
+        return self._objects.pop(key)
+
     def handle_event(self, event: pygame.event.Event, mouse_position) -> None:
         dispatch_handle_event(self._objects.values(), event, mouse_position)
 
