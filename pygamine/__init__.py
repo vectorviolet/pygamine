@@ -63,7 +63,7 @@ if TYPE_CHECKING:
     # Assets
     from pygamine.assets.asset_path import (
         AssetPath as AssetPath, ImagePath as ImagePath, FontPath as FontPath,
-        SoundPath as SoundPath, PathLike as PathLike,
+        SoundPath as SoundPath, SequencePath as SequencePath, PathLike as PathLike,
     )
     from pygamine.assets.asset_manager import AssetManager as AssetManager
     from pygamine.assets.sprite_sheet import SpriteSheet as SpriteSheet
@@ -152,6 +152,7 @@ _EXPORTS: dict[str, str] = {
     "ImagePath": "pygamine.assets.asset_path",
     "FontPath": "pygamine.assets.asset_path",
     "SoundPath": "pygamine.assets.asset_path",
+    "SequencePath": "pygamine.assets.asset_path",
     "PathLike": "pygamine.assets.asset_path",
     "AssetManager": "pygamine.assets.asset_manager",
     "SpriteSheet": "pygamine.assets.sprite_sheet",

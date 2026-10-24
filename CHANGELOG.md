@@ -13,6 +13,22 @@ together rather than reconstructing a commit-by-commit rationale for every
 change. Anything before `e5c1fa6` (the commit that first introduced
 `pyproject.toml` itself) isn't versioned at all; see `git log` for that era.
 
+## [0.16.0] — 2026-10-24
+
+- **Added** a `sequences:` section to the asset manifest, for image
+  sequences (folders of numbered frames): `{folder, name, extension}`
+  resolves to the folder `assets/images/<folder>/<name>/` holding
+  `*.<extension>` frames (default `jpg`). Backed by the new
+  `SequencePath` (with `frame_paths()`) and
+  `AssetManager.sequence_path(key)`; `validate()` reports a sequence
+  whose folder has no frames, not just a missing path.
+- **Changed** `ImageSequenceMedia` reads its frame rate from a
+  `meta.yaml` (`fps: ...`) in the frames folder when `fps` isn't passed,
+  falling back to `DEFAULT_SEQUENCE_FPS` (30) as before. A mismatched
+  rate makes the picture drift from the audio and end early or late.
+  It also accepts a `SequencePath`, taking its frames (of its
+  `extension`) from it.
+
 ## [0.15.0] — 2026-10-24
 
 - **Breaking:** `SplashScreen` now plays a list of `SplashMedia` items

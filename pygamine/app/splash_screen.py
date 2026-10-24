@@ -8,7 +8,11 @@ from typing import Protocol, Union
 
 import pygame
 
+from pygamine.assets.asset_path import SequencePath
+
 PathArg = Union[str, "os.PathLike[str]"]
+
+DEFAULT_SEQUENCE_FPS = 30.0
 
 
 class SplashMedia(Protocol):
@@ -82,7 +86,13 @@ class ImageMedia:
 
 
 class ImageSequenceMedia:
-    """Plays a folder of numbered .jpg frames as a video, with optional audio.
+    """Plays a folder of numbered frames as a video, with optional audio.
+
+    `folder_path` is a SequencePath (frames of its `extension`) or a plain
+    folder of .jpg frames. The frame rate is, in order: the `fps` argument,
+    the `fps` key of a `meta.yaml` in the folder (written by the mp4
+    converter), else DEFAULT_SEQUENCE_FPS. It must match the source video,
+    or the picture drifts from the audio and ends early or late.
 
     Frames are loaded and scaled on a background thread into a small bounded
     queue, so playback starts at once and memory stays flat. The frame shown
@@ -94,13 +104,16 @@ class ImageSequenceMedia:
     _BUFFER_FRAMES = 30
     _PUT_TIMEOUT_S = 0.05
 
-    def __init__(self, folder_path, fps=30, audio_path=None, audio_manager=None) -> None:
+    def __init__(self, folder_path, fps: float | None = None, audio_path=None, audio_manager=None) -> None:
         self._folder = Path(str(folder_path))
-        self._fps = fps
+        self._fps = fps if fps is not None else self._read_meta_fps(self._folder) or DEFAULT_SEQUENCE_FPS
         self._audio_path = str(audio_path) if audio_path else None
         self._audio = audio_manager
 
-        self._frame_paths = sorted(self._folder.glob("*.jpg"))
+        if isinstance(folder_path, SequencePath):
+            self._frame_paths = folder_path.frame_paths()
+        else:
+            self._frame_paths = sorted(self._folder.glob("*.jpg"))
         self._total_frames = len(self._frame_paths)
 
         self._frame_queue: queue.Queue[tuple[int, pygame.Surface]] = queue.Queue(maxsize=self._BUFFER_FRAMES)
@@ -112,6 +125,17 @@ class ImageSequenceMedia:
         self._finished = self._total_frames == 0
         self._current_surface: pygame.Surface | None = None
         self._target_size: tuple[int, int] | None = None
+
+    @staticmethod
+    def _read_meta_fps(folder: Path) -> float | None:
+        meta_path = folder / "meta.yaml"
+        if not meta_path.is_file():
+            return None
+        import yaml  # deferred like the package's other optional-subsystem imports
+
+        meta = yaml.safe_load(meta_path.read_text(encoding="utf-8")) or {}
+        fps = meta.get("fps")
+        return float(fps) if fps else None
 
     def fit(self, target_size: tuple[int, int]) -> None:
         if self._finished or self._loader is not None:

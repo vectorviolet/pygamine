@@ -12,7 +12,8 @@ import time
 import pygame
 import pytest
 
-from pygamine.app.splash_screen import ImageMedia, ImageSequenceMedia, SplashScreen
+from pygamine.app.splash_screen import DEFAULT_SEQUENCE_FPS, ImageMedia, ImageSequenceMedia, SplashScreen
+from pygamine.assets.asset_path import SequencePath
 
 
 def _save_png(path, size, color):
@@ -148,6 +149,36 @@ def test_image_sequence_finds_jpg_frames_in_order(frames_dir):
 
 def test_image_sequence_empty_folder_is_finished(tmp_path):
     assert ImageSequenceMedia(tmp_path).is_finished() is True
+
+
+def test_image_sequence_fps_defaults_without_meta(frames_dir):
+    assert ImageSequenceMedia(frames_dir)._fps == DEFAULT_SEQUENCE_FPS
+
+
+def test_image_sequence_fps_comes_from_meta_yaml(frames_dir):
+    (frames_dir / "meta.yaml").write_text("fps: 24\nframe_count: 10\n")
+    media = ImageSequenceMedia(frames_dir)
+    assert media._fps == 24
+    assert media._total_frames == 10  # meta.yaml isn't mistaken for a frame
+
+
+def test_image_sequence_fps_argument_overrides_meta_yaml(frames_dir):
+    (frames_dir / "meta.yaml").write_text("fps: 24\n")
+    assert ImageSequenceMedia(frames_dir, fps=12)._fps == 12
+
+
+def test_image_sequence_takes_frames_from_a_sequence_path(frames_dir, monkeypatch):
+    monkeypatch.chdir(frames_dir.parent)
+    png_folder = frames_dir.parent / "assets" / "images" / "intro"
+    png_folder.mkdir(parents=True)
+    for i in range(3):
+        pygame.image.save(pygame.Surface((4, 4)), str(png_folder / f"{i + 1:04d}.png"))
+    (png_folder / "meta.yaml").write_text("fps: 15\n")
+
+    media = ImageSequenceMedia(SequencePath("intro", extension="png"))
+
+    assert [p.name for p in media._frame_paths] == ["0001.png", "0002.png", "0003.png"]
+    assert media._fps == 15
 
 
 def test_image_sequence_frame_follows_elapsed_time(frames_dir, fake_ticks):

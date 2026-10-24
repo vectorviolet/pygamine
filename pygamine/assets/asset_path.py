@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+from pathlib import Path
 from typing import Union
 
 
@@ -56,6 +57,33 @@ class FontPath(AssetPath):
 class SoundPath(AssetPath):
     def __init__(self, name: str, folder: str = "", extension: str = "ogg"):
         super().__init__(name, folder, extension, base="assets/sounds")
+
+
+class SequencePath(AssetPath):
+    """A folder of numbered frames played as a video (an image sequence),
+    e.g. assets/images/branding/publisher_splash/0001.jpg, 0002.jpg, ...
+
+    Points at the folder itself; `extension` is the frames' file type.
+    The folder may also hold a `meta.yaml` (see ImageSequenceMedia).
+    """
+
+    def __init__(self, name: str, folder: str = "", extension: str = "jpg"):
+        super().__init__(name, folder, extension, base="assets/images")
+
+    @property
+    def full_path(self) -> str:
+        parts = [self.base]
+        if self.folder:
+            parts.append(self.folder)
+        parts.append(self.name)
+        return os.path.abspath("/".join(parts))  # absolute: see AssetPath.full_path
+
+    def frame_paths(self) -> list[Path]:
+        """The frame files, in playback (file name) order."""
+        return sorted(Path(self.full_path).glob(f"*.{self.extension}"))
+
+    def __repr__(self) -> str:
+        return f"SequencePath({self.full_path!r})"
 
 
 PathLike = Union[str, "os.PathLike[str]"]

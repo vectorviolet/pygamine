@@ -5,7 +5,7 @@ from typing import Callable, TypeVar
 import pygame
 import yaml
 
-from pygamine.assets.asset_path import AssetPath, ImagePath, FontPath, SoundPath
+from pygamine.assets.asset_path import AssetPath, ImagePath, FontPath, SoundPath, SequencePath
 
 T = TypeVar('T')
 
@@ -17,6 +17,7 @@ class AssetManager:
         self._images: dict[str, ImagePath] = {}
         self._fonts: dict[str, FontPath] = {}
         self._sounds: dict[str, SoundPath] = {}
+        self._sequences: dict[str, SequencePath] = {}
         self._image_cache: dict[str, pygame.Surface] = {}
 
     def load_manifest(self, path: str | Path) -> None:
@@ -30,6 +31,7 @@ class AssetManager:
         self._load_category(data.get("images"), self._images, ImagePath, "png")
         self._load_category(data.get("fonts"), self._fonts, FontPath, "ttf")
         self._load_category(data.get("sounds"), self._sounds, SoundPath, "ogg")
+        self._load_category(data.get("sequences"), self._sequences, SequencePath, "jpg")
 
     @staticmethod
     def _load_category(config: dict | None, target_dict: dict, path_class: Callable[..., AssetPath], default_ext: str) -> None:
@@ -47,6 +49,9 @@ class AssetManager:
         for key, path in all_paths.items():
             if not Path(str(path)).exists():
                 missing.append(f"{key} → {path}")
+        for key, sequence in self._sequences.items():
+            if not sequence.frame_paths():
+                missing.append(f"{key} → {sequence} (no *.{sequence.extension} frames)")
         return missing
 
     @staticmethod
@@ -69,3 +74,6 @@ class AssetManager:
 
     def sound_path(self, key: str) -> SoundPath:
         return self._get_path(self._sounds, key, "sound")
+
+    def sequence_path(self, key: str) -> SequencePath:
+        return self._get_path(self._sequences, key, "sequence")

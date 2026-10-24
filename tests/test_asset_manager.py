@@ -199,3 +199,44 @@ def test_get_image_loads_and_caches_same_surface_instance(tmp_path, monkeypatch)
 def test_get_image_unknown_key_raises_keyerror():
     with pytest.raises(KeyError):
         AssetManager().get_image("does_not_exist")
+
+
+# ── sequences ────────────────────────────────────────────────────────────
+
+
+def test_sequences_load_with_jpg_default_and_resolve_by_key(tmp_path):
+    path = _write_manifest(tmp_path, "sequences:\n  intro: {folder: branding, name: intro}\n")
+    mgr = AssetManager()
+    mgr.load_manifest(path)
+
+    sequence = mgr.sequence_path("intro")
+
+    assert sequence.extension == "jpg"
+    assert str(sequence).replace("\\", "/").endswith("assets/images/branding/intro")
+
+
+def test_sequence_path_unknown_key_raises_keyerror():
+    with pytest.raises(KeyError, match="sequence"):
+        AssetManager().sequence_path("nope")
+
+
+def test_validate_reports_a_sequence_folder_without_frames(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    path = _write_manifest(
+        tmp_path,
+        "sequences:\n"
+        "  filled: {name: filled}\n"
+        "  empty: {name: empty}\n"
+        "  absent: {name: absent}\n",
+    )
+    (tmp_path / "assets" / "images" / "filled").mkdir(parents=True)
+    (tmp_path / "assets" / "images" / "filled" / "0001.jpg").write_text("")
+    (tmp_path / "assets" / "images" / "empty").mkdir(parents=True)
+    mgr = AssetManager()
+    mgr.load_manifest(path)
+
+    missing = mgr.validate()
+
+    assert len(missing) == 2
+    assert any(m.startswith("empty") for m in missing)
+    assert any(m.startswith("absent") for m in missing)

@@ -5,7 +5,7 @@ from __future__ import annotations
 
 import os
 
-from pygamine.assets.asset_path import AssetPath, FontPath, ImagePath, SoundPath
+from pygamine.assets.asset_path import AssetPath, FontPath, ImagePath, SequencePath, SoundPath
 
 
 def test_full_path_without_folder():
@@ -59,3 +59,30 @@ def test_sound_path_defaults():
 def test_subclass_extension_override():
     path = SoundPath(name="music", extension="mp3")
     assert path.full_path.endswith("music.mp3")
+
+
+# ── SequencePath ────────────────────────────────────────────────────────────
+
+
+def test_sequence_path_points_at_the_folder_without_an_extension():
+    path = SequencePath(name="intro", folder="branding")
+    assert path.full_path.replace(os.sep, "/").endswith("assets/images/branding/intro")
+    assert os.path.isabs(path.full_path)
+    assert path.extension == "jpg"
+
+
+def test_sequence_frame_paths_are_its_frames_in_name_order(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    folder = tmp_path / "assets" / "images" / "intro"
+    folder.mkdir(parents=True)
+    for name in ("0002.png", "0001.png", "0010.png", "meta.yaml", "cover.jpg"):
+        (folder / name).write_text("")
+
+    frames = SequencePath(name="intro", extension="png").frame_paths()
+
+    assert [f.name for f in frames] == ["0001.png", "0002.png", "0010.png"]
+
+
+def test_sequence_frame_paths_of_a_missing_folder_is_empty(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    assert SequencePath(name="nope").frame_paths() == []
