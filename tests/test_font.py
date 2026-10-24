@@ -83,6 +83,20 @@ def test_bold_and_italic_passthrough_to_sysfont(assets):
     assert font.get_italic() is True
 
 
+def test_bold_and_italic_also_apply_to_a_registered_font_file(assets):
+    """Previously dropped silently for manifest fonts -- only the SysFont
+    fallback honoured them."""
+    font = load_font({"font": "registered_font", "bold": True, "italic": True}, assets)
+    assert font.get_bold() is True
+    assert font.get_italic() is True
+
+
+def test_registered_font_file_is_plain_by_default(assets):
+    font = load_font({"font": "registered_font"}, assets)
+    assert font.get_bold() is False
+    assert font.get_italic() is False
+
+
 # ── custom key names ────────────────────────────────────────────────────
 
 

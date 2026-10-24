@@ -13,6 +13,16 @@ together rather than reconstructing a commit-by-commit rationale for every
 change. Anything before `e5c1fa6` (the commit that first introduced
 `pyproject.toml` itself) isn't versioned at all; see `git log` for that era.
 
+## [0.17.1] — 2026-10-24
+
+- **Fixed** `load_font` silently ignoring `bold` / `italic` for fonts
+  registered in the asset manifest -- only the SysFont fallback honoured
+  them, so switching a panel from a system font to a bundled file quietly
+  dropped its bold. Font files now get pygame's synthetic bold/italic;
+  for a real weight, register its own file (e.g. `*-Bold.ttf`) and leave
+  the flag off. No current consumer combines a manifest font with these
+  flags, so nothing renders differently today.
+
 ## [0.17.0] — 2026-10-24
 
 - **Added** the `pygamine-mp4-converter` devtool
