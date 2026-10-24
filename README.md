@@ -1,7 +1,7 @@
 # pygamine
 
-![tests](https://github.com/umutcanekinci/pygamine/actions/workflows/tests.yml/badge.svg)
-![Coverage](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/umutcanekinci/pygamine/main/.github/badges/coverage.json)
+![tests](https://github.com/vectorviolet/pygamine/actions/workflows/tests.yml/badge.svg)
+![Coverage](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/vectorviolet/pygamine/main/.github/badges/coverage.json)
 
 Shared pygame-ce utilities used across personal game projects. Provides an `Application` base, a component-based game-object layer, a YAML-driven panel/UI system, asset loaders, and a handful of helpers (camera, sprite sheet, audio, database).
 
@@ -12,7 +12,7 @@ See [CHANGELOG.md](CHANGELOG.md) for what changed between versions — useful be
 This package is consumed as a **git submodule** by the host project — typically vendored under `src/pygamine/` and added to `PYTHONPATH` (or `sys.path`) by the host's entry point.
 
 ```bash
-git submodule add https://github.com/umutcanekinci/pygamine.git src/pygamine
+git submodule add https://github.com/vectorviolet/pygamine.git src/pygamine
 ```
 
 Then in the host's entry script:
@@ -31,7 +31,7 @@ The package's public API is re-exported at the top level (`pygamine/__init__.py`
 It can also be installed via pip directly from GitHub:
 
 ```bash
-pip install git+https://github.com/umutcanekinci/pygamine.git
+pip install git+https://github.com/vectorviolet/pygamine.git
 ```
 
 Requires Python 3.12+ and `pygame-ce`.

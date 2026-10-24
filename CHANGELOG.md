@@ -13,6 +13,14 @@ together rather than reconstructing a commit-by-commit rationale for every
 change. Anything before `e5c1fa6` (the commit that first introduced
 `pyproject.toml` itself) isn't versioned at all; see `git log` for that era.
 
+## [Unreleased]
+
+- The repository moved from `umutcanekinci/pygamine` to
+  **`https://github.com/vectorviolet/pygamine`**, alongside the games that
+  use it. GitHub redirects the old URL, but consumers should point their
+  `.gitmodules` at the new one (then `git submodule sync`) rather than rely
+  on the redirect, which breaks if a new repo ever takes the old name.
+
 ## [0.17.1] — 2026-10-24
 
 - **Fixed** `load_font` silently ignoring `bold` / `italic` for fonts
