@@ -24,6 +24,11 @@ change. Anything before `e5c1fa6` (the commit that first introduced
   `(str(ROOT / "src/pygamine/pygamine/branding"), "pygamine/branding")`.
   Without an audio manager it plays the clip through its own `GameAudio`.
 - **Added** `GameAudio.stop_music()` and `SoundManager.stop(channel)`.
+- **Fixed** `SplashScreen.run()` crashing with `IndexError` when called on
+  a splash that already finished (regression from 0.15.0's rewrite; the
+  old version returned at once). A game that shows the splash itself and
+  then reaches `Application.run()`, which shows it again -- highrise does
+  -- crashed on startup.
 - **Changed** `ImageSequenceMedia` stops its audio when it ends or is
   skipped, instead of pausing it: a paused channel stays busy forever,
   since nothing ever resumes a splash clip's audio. Start a game's own

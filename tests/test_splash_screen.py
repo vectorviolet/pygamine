@@ -401,3 +401,17 @@ def test_skip_completely_stops_the_current_media(frames_dir, image_paths, fake_t
     assert audio.stopped is True
     sequence._loader.join(timeout=1)
     assert not sequence._loader.is_alive()
+
+
+def test_running_a_finished_splash_again_is_a_no_op(media_items, monkeypatch):
+    """A game can show the splash itself and then reach Application.run(),
+    which shows it again -- the second run must not index past the end."""
+    splash = SplashScreen(media_items)
+    monkeypatch.setattr(pygame.event, "get", lambda: [pygame.event.Event(pygame.MOUSEBUTTONDOWN, button=1)])
+    surface = pygame.Surface((20, 10))
+    splash.run(surface, pygame.time.Clock(), fps=0)
+    assert splash.is_done is True
+
+    splash.run(surface, pygame.time.Clock(), fps=0)  # must not raise
+
+    assert splash.is_done is True

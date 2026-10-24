@@ -294,6 +294,10 @@ class SplashScreen:
         self.skip_completely = skip_completely
 
     def run(self, surface: pygame.Surface, clock: pygame.time.Clock, fps: int) -> None:
+        # Re-running a finished splash is a no-op: a game may show it itself
+        # and then reach Application.run(), which shows it again.
+        if self.is_done:
+            return
         if not self._media_items:
             self.is_done = True
             return
