@@ -36,7 +36,10 @@ if TYPE_CHECKING:
     from pygamine.app.mouse import Mouse as Mouse
     from pygamine.app.camera import Camera as Camera, Drawable as Drawable
     from pygamine.app.debug import Debug as Debug
-    from pygamine.app.splash_screen import SplashScreen as SplashScreen
+    from pygamine.app.splash_screen import (
+        SplashScreen as SplashScreen, SplashMedia as SplashMedia,
+        ImageMedia as ImageMedia, ImageSequenceMedia as ImageSequenceMedia,
+    )
 
     # ECS core
     from pygamine.ecs.game_object import GameObject as GameObject
@@ -118,6 +121,9 @@ _EXPORTS: dict[str, str] = {
     "Drawable": "pygamine.app.camera",
     "Debug": "pygamine.app.debug",
     "SplashScreen": "pygamine.app.splash_screen",
+    "SplashMedia": "pygamine.app.splash_screen",
+    "ImageMedia": "pygamine.app.splash_screen",
+    "ImageSequenceMedia": "pygamine.app.splash_screen",
     # ECS core
     "GameObject": "pygamine.ecs.game_object",
     "GameObjectDict": "pygamine.ecs.game_object_dict",

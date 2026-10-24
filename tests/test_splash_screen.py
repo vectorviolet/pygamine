@@ -1,16 +1,18 @@
-"""Unit tests for SplashScreen: a fade-in/hold image sequence, advanced by
-elapsed time, a click, or a keypress (except Escape, which the run() loop
-itself intercepts to bail out early).
-
-Timing is driven through the fake_ticks fixture (patches
-pygame.time.get_ticks) for deterministic, instant tests.
+"""Unit tests for SplashScreen, ImageMedia and ImageSequenceMedia:
+- ImageMedia handles individual image fade-in/hold sequences.
+- ImageSequenceMedia plays a folder of frames in sync with elapsed time.
+- SplashScreen manages sequences of SplashMedia items (images/videos),
+  advancing via elapsed time, clicks, or Space/Enter/Escape; with
+  skip_completely, a skip ends the whole splash instead.
 """
 from __future__ import annotations
+
+import time
 
 import pygame
 import pytest
 
-from pygamine.app.splash_screen import SplashScreen
+from pygamine.app.splash_screen import ImageMedia, ImageSequenceMedia, SplashScreen
 
 
 def _save_png(path, size, color):
@@ -30,230 +32,270 @@ def image_paths(tmp_path):
     return paths
 
 
-# ── construction ────────────────────────────────────────────────────────
+@pytest.fixture
+def media_items(image_paths):
+    return [ImageMedia(p, fade_ms=100, hold_ms=100) for p in image_paths]
 
 
-def test_construction_loads_all_images(image_paths):
-    splash = SplashScreen(image_paths)
-    assert len(splash._images) == 3
+# ── ImageMedia Tests ───────────────────────────────────────────────────
 
 
-def test_construction_defaults():
-    splash = SplashScreen([])
-    assert splash._fade_ms == 1500
-    assert splash._hold_ms == 1000
+def test_image_media_construction(image_paths):
+    media = ImageMedia(image_paths[0], fade_ms=200, hold_ms=100)
+    assert media._fade_ms == 200
+    assert media._hold_ms == 100
+    assert media._finished is False
+    assert media._start_time is None
+
+
+def test_image_media_fit(image_paths):
+    media = ImageMedia(image_paths[0])
+    media.fit((100, 100))
+    assert media._image.get_size() == (100, 50)
+    assert media._start_time is not None
+
+
+def test_image_media_update_fade_and_hold(image_paths, fake_ticks):
+    media = ImageMedia(image_paths[0], fade_ms=100, hold_ms=100)
+    fake_ticks["t"] = 0
+    media.fit((20, 10))
+
+    # Halfway through fade
+    fake_ticks["t"] = 50
+    media.update()
+    assert media._current_alpha == 127
+    assert media.is_finished() is False
+
+    # Within hold
+    fake_ticks["t"] = 150
+    media.update()
+    assert media._current_alpha == 255
+    assert media.is_finished() is False
+
+    # Past fade + hold
+    fake_ticks["t"] = 250
+    media.update()
+    assert media.is_finished() is True
+
+
+def test_image_media_skip(image_paths):
+    media = ImageMedia(image_paths[0])
+    media.fit((20, 10))
+    assert media.is_finished() is False
+    media.skip()
+    assert media.is_finished() is True
+
+
+def test_image_media_draw(image_paths):
+    media = ImageMedia(image_paths[0])
+    media.fit((20, 10))
+    media._current_alpha = 255
+
+    surface = pygame.Surface((20, 10))
+    media.draw(surface)
+    assert surface.get_at((10, 5)) == (255, 0, 0, 255)
+
+
+# ── ImageSequenceMedia Tests ───────────────────────────────────────────
+
+
+class FakeAudio:
+    def __init__(self):
+        self.played = []
+        self.is_music_paused = False
+
+    def play_music(self, path, loops=-1):
+        self.played.append((path, loops))
+        self.is_music_paused = False
+
+    def pause_music(self):
+        self.is_music_paused = True
+
+
+@pytest.fixture
+def frames_dir(tmp_path):
+    pygame.display.set_mode((1, 1))  # convert_alpha() needs a display mode set
+    folder = tmp_path / "frames"
+    folder.mkdir()
+    # Frame i is filled with red value i, so a drawn pixel identifies its frame
+    for i in range(10):
+        surf = pygame.Surface((20, 10))
+        surf.fill((i * 20, 0, 0))
+        pygame.image.save(surf, str(folder / f"{i + 1:04d}.jpg"))
+    return folder
+
+
+def _wait_for_buffer(media, count, timeout_s=2.0):
+    """Waits until the loader thread has buffered `count` frames."""
+    deadline = time.monotonic() + timeout_s
+    while media._frame_queue.qsize() < count:
+        assert time.monotonic() < deadline, "loader thread never buffered the frames"
+        time.sleep(0.005)
+
+
+def _shown_red(media):
+    surface = pygame.Surface((20, 10))
+    media.draw(surface)
+    return surface.get_at((10, 5)).r
+
+
+def test_image_sequence_finds_jpg_frames_in_order(frames_dir):
+    media = ImageSequenceMedia(frames_dir)
+    assert [p.name for p in media._frame_paths][:2] == ["0001.jpg", "0002.jpg"]
+    assert media._total_frames == 10
+    assert media.is_finished() is False
+
+
+def test_image_sequence_empty_folder_is_finished(tmp_path):
+    assert ImageSequenceMedia(tmp_path).is_finished() is True
+
+
+def test_image_sequence_frame_follows_elapsed_time(frames_dir, fake_ticks):
+    media = ImageSequenceMedia(frames_dir, fps=10)  # one frame per 100 ms
+    fake_ticks["t"] = 1000
+    media.fit((20, 10))
+    _wait_for_buffer(media, 10)
+
+    fake_ticks["t"] = 1000
+    media.update()
+    assert media._shown_frame_idx == 0
+
+    # Updates far apart must not slow playback: 350 ms in is frame 3,
+    # even though update() only ran once since frame 0
+    fake_ticks["t"] = 1350
+    media.update()
+    assert media._shown_frame_idx == 3
+    assert abs(_shown_red(media) - 60) <= 8  # jpg is lossy
+    media.skip()
+
+
+def test_image_sequence_never_consumes_frames_ahead_of_time(frames_dir, fake_ticks):
+    media = ImageSequenceMedia(frames_dir, fps=10)
+    fake_ticks["t"] = 0
+    media.fit((20, 10))
+    _wait_for_buffer(media, 10)
+
+    fake_ticks["t"] = 250
+    media.update()
+    assert media._shown_frame_idx == 2
+    assert media._frame_queue.qsize() == 7  # frames 3..9 still buffered
+    media.skip()
+
+
+def test_image_sequence_finishes_on_time_and_stops_audio(frames_dir, fake_ticks):
+    audio = FakeAudio()
+    media = ImageSequenceMedia(frames_dir, fps=10, audio_path="intro.ogg", audio_manager=audio)
+    fake_ticks["t"] = 0
+    media.fit((20, 10))
+    assert audio.played == [("intro.ogg", 0)]
+
+    fake_ticks["t"] = 999
+    media.update()
+    assert media.is_finished() is False
+
+    fake_ticks["t"] = 1000  # 10 frames at 10 fps
+    media.update()
+    assert media.is_finished() is True
+    assert audio.is_music_paused is True
+    media._loader.join(timeout=1)
+    assert not media._loader.is_alive()
+
+
+def test_image_sequence_skip_stops_loader_blocked_on_full_buffer(frames_dir, fake_ticks, monkeypatch):
+    monkeypatch.setattr(ImageSequenceMedia, "_BUFFER_FRAMES", 2)
+    audio = FakeAudio()
+    media = ImageSequenceMedia(frames_dir, audio_path="intro.ogg", audio_manager=audio)
+    fake_ticks["t"] = 0
+    media.fit((20, 10))
+    _wait_for_buffer(media, 2)  # buffer full: the loader is now waiting to put
+
+    media.skip()
+
+    media._loader.join(timeout=1)
+    assert not media._loader.is_alive()
+    assert media._frame_queue.empty()
+    assert media.is_finished() is True
+    assert audio.is_music_paused is True
+
+
+# ── SplashScreen Tests ─────────────────────────────────────────────────
+
+
+def test_splash_screen_construction(media_items):
+    splash = SplashScreen(media_items)
+    assert len(splash._media_items) == 3
     assert splash._index == 0
-    assert splash._current_alpha == 0
-    assert splash._start_time is None
     assert splash.is_done is False
 
 
-def test_construction_custom_timings(image_paths):
-    splash = SplashScreen(image_paths, fade_ms=200, hold_ms=100)
-    assert splash._fade_ms == 200
-    assert splash._hold_ms == 100
-
-
-# ── _fit_images ─────────────────────────────────────────────────────
-
-
-def test_fit_images_scales_down_preserving_aspect_ratio_width_constrained(image_paths):
-    """Source is 20x10 (2:1); fitting into a 100x100 target is width-
-    constrained (100/20=5 < 100/10=10), so the result uses the smaller
-    factor on both axes."""
-    splash = SplashScreen(image_paths)
-    splash._fit_images((100, 100))
-    assert splash._images[0].get_size() == (100, 50)
-
-
-def test_fit_images_scales_down_preserving_aspect_ratio_height_constrained(image_paths):
-    splash = SplashScreen(image_paths)
-    splash._fit_images((100, 20))  # 100/20=5 > 20/10=2 -- height-constrained
-    assert splash._images[0].get_size() == (40, 20)
-
-
-# ── start ─────────────────────────────────────────────────────────────
-
-
-def test_start_sets_start_time(fake_ticks):
+def test_splash_screen_empty():
     splash = SplashScreen([])
-    fake_ticks["t"] = 500
-    splash.start()
-    assert splash._start_time == 500
+    surface = pygame.Surface((20, 10))
+    clock = pygame.time.Clock()
+    splash.run(surface, clock, fps=0)
+    assert splash.is_done is True
 
 
-# ── advance ─────────────────────────────────────────────────────────
+def test_splash_screen_handle_event_skips_current(media_items):
+    splash = SplashScreen(media_items)
+    splash._media_items[0].fit((20, 10))
+
+    splash.handle_event(pygame.event.Event(pygame.MOUSEBUTTONDOWN, button=1))
+    assert splash._media_items[0].is_finished() is True
 
 
-def test_advance_moves_to_the_next_image(image_paths, fake_ticks):
-    splash = SplashScreen(image_paths)
-    splash._current_alpha = 200
-    fake_ticks["t"] = 1000
+def test_splash_screen_update_advances_sequence(media_items, fake_ticks):
+    splash = SplashScreen(media_items)
+    surface_size = (20, 10)
 
-    splash.advance()
+    # Start first media
+    splash._media_items[0].fit(surface_size)
+    fake_ticks["t"] = 0
+
+    # Finish first media
+    fake_ticks["t"] = 300
+    splash.update(surface_size)
 
     assert splash._index == 1
-    assert splash._start_time == 1000
-    assert splash._current_alpha == 0
     assert splash.is_done is False
 
 
-def test_advance_on_the_last_image_marks_done(image_paths):
-    splash = SplashScreen(image_paths)
-    splash._index = len(splash._images) - 1
+def test_splash_screen_completes_all(media_items, fake_ticks):
+    splash = SplashScreen(media_items)
+    surface_size = (20, 10)
 
-    splash.advance()
+    splash._media_items[0].fit(surface_size)
+
+    for i in range(3):
+        fake_ticks["t"] = (i + 1) * 300
+        splash.update(surface_size)
 
     assert splash.is_done is True
-    assert splash._index == len(splash._images) - 1  # unchanged
 
 
-# ── handle_event ────────────────────────────────────────────────────
+def test_escape_skips_only_the_current_media(media_items):
+    splash = SplashScreen(media_items)
+    splash._media_items[0].fit((20, 10))
 
-
-def test_mousebuttondown_advances(image_paths):
-    splash = SplashScreen(image_paths)
-    splash.handle_event(pygame.event.Event(pygame.MOUSEBUTTONDOWN, button=1))
-    assert splash._index == 1
-
-
-def test_keydown_advances(image_paths):
-    splash = SplashScreen(image_paths)
-    splash.handle_event(pygame.event.Event(pygame.KEYDOWN, key=pygame.K_a))
-    assert splash._index == 1
-
-
-def test_escape_key_does_not_advance(image_paths):
-    splash = SplashScreen(image_paths)
     splash.handle_event(pygame.event.Event(pygame.KEYDOWN, key=pygame.K_ESCAPE))
-    assert splash._index == 0
+    splash.update((20, 10))
 
-
-def test_unrelated_event_does_not_advance(image_paths):
-    splash = SplashScreen(image_paths)
-    splash.handle_event(pygame.event.Event(pygame.MOUSEMOTION, pos=(0, 0)))
-    assert splash._index == 0
-
-
-# ── update ──────────────────────────────────────────────────────────
-
-
-def test_update_is_a_no_op_when_done(image_paths, fake_ticks):
-    splash = SplashScreen(image_paths, fade_ms=100, hold_ms=100)
-    splash.is_done = True
-    splash.start()
-    fake_ticks["t"] = 50
-
-    splash.update()
-
-    assert splash._current_alpha == 0
-
-
-def test_update_is_a_no_op_before_start_is_called(image_paths):
-    splash = SplashScreen(image_paths)
-    splash.update()  # _start_time is still None
-    assert splash._current_alpha == 0
-
-
-def test_update_computes_partial_fade_alpha(image_paths, fake_ticks):
-    splash = SplashScreen(image_paths, fade_ms=100, hold_ms=100)
-    fake_ticks["t"] = 0
-    splash.start()
-
-    fake_ticks["t"] = 50  # halfway through the fade
-    splash.update()
-
-    assert splash._current_alpha == 127  # int(255 * 50 / 100)
-
-
-def test_update_holds_at_full_alpha_after_fade_completes(image_paths, fake_ticks):
-    splash = SplashScreen(image_paths, fade_ms=100, hold_ms=100)
-    fake_ticks["t"] = 0
-    splash.start()
-
-    fake_ticks["t"] = 150  # fade done, still within the hold window
-    splash.update()
-
-    assert splash._current_alpha == 255
-
-
-def test_update_auto_advances_once_fade_and_hold_elapse(image_paths, fake_ticks):
-    splash = SplashScreen(image_paths, fade_ms=100, hold_ms=100)
-    fake_ticks["t"] = 0
-    splash.start()
-
-    fake_ticks["t"] = 250  # past fade(100) + hold(100)
-    splash.update()
-
+    assert splash._media_items[0].is_finished() is True
     assert splash._index == 1
-    assert splash._start_time == 250  # reset by advance()
+    assert splash.is_done is False
 
 
-# ── draw ────────────────────────────────────────────────────────────
+def test_escape_with_skip_completely_ends_the_splash(media_items):
+    splash = SplashScreen(media_items, skip_completely=True)
+    splash._media_items[0].fit((20, 10))
+
+    splash.handle_event(pygame.event.Event(pygame.KEYDOWN, key=pygame.K_ESCAPE))
+
+    assert splash.is_done is True
 
 
-def test_draw_is_a_no_op_when_done(image_paths):
-    splash = SplashScreen(image_paths)
-    splash.is_done = True
-    surface = pygame.Surface((20, 20))
-    surface.fill((123, 45, 67))
-
-    splash.draw(surface)
-
-    assert surface.get_at((10, 10)) == (123, 45, 67, 255)  # untouched
-
-
-def test_draw_at_full_alpha_shows_the_frame_unmodified(image_paths):
-    splash = SplashScreen(image_paths)
-    splash._fit_images((20, 10))
-    splash._current_alpha = 255
-
-    surface = pygame.Surface((20, 10))
-    splash.draw(surface)
-
-    assert surface.get_at((10, 5)) == (255, 0, 0, 255)  # first image is red
-
-
-def test_draw_at_zero_alpha_shows_pure_black(image_paths):
-    splash = SplashScreen(image_paths)
-    splash._fit_images((20, 10))
-    splash._current_alpha = 0
-
-    surface = pygame.Surface((20, 10))
-    splash.draw(surface)
-
-    assert surface.get_at((10, 5)) == (0, 0, 0, 255)
-
-
-def test_draw_shows_the_current_index_not_the_first(image_paths):
-    splash = SplashScreen(image_paths)
-    splash._fit_images((20, 10))
-    splash._index = 1  # green
-    splash._current_alpha = 255
-
-    surface = pygame.Surface((20, 10))
-    splash.draw(surface)
-
-    assert surface.get_at((10, 5)) == (0, 255, 0, 255)
-
-
-# ── run() ─────────────────────────────────────────────────────────────
-
-
-def test_run_returns_immediately_on_escape(image_paths, monkeypatch, fake_ticks):
-    splash = SplashScreen(image_paths)
-    monkeypatch.setattr(
-        pygame.event, "get", lambda: [pygame.event.Event(pygame.KEYDOWN, key=pygame.K_ESCAPE)]
-    )
-    surface = pygame.Surface((20, 10))
-
-    splash.run(surface, pygame.time.Clock(), fps=0)
-
-    assert splash.is_done is False  # bailed out via `return`, not via completion
-
-
-def test_run_raises_systemexit_on_quit_event(image_paths, monkeypatch, fake_ticks):
-    splash = SplashScreen(image_paths)
+def test_run_raises_systemexit_on_quit_event(media_items, monkeypatch):
+    splash = SplashScreen(media_items)
     monkeypatch.setattr(pygame.event, "get", lambda: [pygame.event.Event(pygame.QUIT)])
     surface = pygame.Surface((20, 10))
 
@@ -261,8 +303,8 @@ def test_run_raises_systemexit_on_quit_event(image_paths, monkeypatch, fake_tick
         splash.run(surface, pygame.time.Clock(), fps=0)
 
 
-def test_run_advances_through_all_images_via_a_click_and_completes(image_paths, monkeypatch, fake_ticks):
-    splash = SplashScreen(image_paths)
+def test_run_advances_through_all_media_via_click(media_items, monkeypatch):
+    splash = SplashScreen(media_items)
     monkeypatch.setattr(
         pygame.event, "get", lambda: [pygame.event.Event(pygame.MOUSEBUTTONDOWN, button=1)]
     )
@@ -271,3 +313,17 @@ def test_run_advances_through_all_images_via_a_click_and_completes(image_paths, 
     splash.run(surface, pygame.time.Clock(), fps=0)
 
     assert splash.is_done is True
+
+def test_skip_completely_stops_the_current_media(frames_dir, image_paths, fake_ticks):
+    audio = FakeAudio()
+    sequence = ImageSequenceMedia(frames_dir, audio_path="intro.ogg", audio_manager=audio)
+    splash = SplashScreen([sequence, ImageMedia(image_paths[0])], skip_completely=True)
+    sequence.fit((20, 10))
+
+    splash.skip()
+
+    assert splash.is_done is True
+    assert sequence.is_finished() is True
+    assert audio.is_music_paused is True
+    sequence._loader.join(timeout=1)
+    assert not sequence._loader.is_alive()
