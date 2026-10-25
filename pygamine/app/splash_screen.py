@@ -8,18 +8,17 @@ from typing import Protocol, Union
 
 import pygame
 
-from pygamine.assets.asset_path import SequencePath
+from pygamine.assets.asset_path import BRANDING_DIR, SequencePath
 from pygamine.ecs.game_audio import GameAudio
 
 PathArg = Union[str, "os.PathLike[str]"]
 
 DEFAULT_SEQUENCE_FPS = 30.0
 
-# The shared splash assets every game opens with. Resolved next to this
-# package rather than a game's cwd-relative assets/, so one copy serves
-# every consumer; a frozen build must bundle this folder as
-# "pygamine/branding" (see standard_splash_media()).
-BRANDING_DIR = Path(__file__).resolve().parent.parent / "branding"
+# The shared splash assets every game opens with live under BRANDING_DIR
+# (imported above): resolved next to the package rather than a game's
+# cwd-relative assets/, so one copy serves every consumer; a frozen build
+# must bundle that folder as "pygamine/branding" (see standard_splash_media()).
 
 
 class SplashMedia(Protocol):
@@ -268,11 +267,11 @@ def standard_splash_media(audio_manager: GameAudio | None = None) -> list[Splash
     """
     return [
         ImageSequenceMedia(
-            BRANDING_DIR / "publisher_splash",
-            audio_path=BRANDING_DIR / "publisher_splash.ogg",
+            BRANDING_DIR / "vectorviolet" / "publisher_splash",
+            audio_path=BRANDING_DIR / "vectorviolet" / "publisher_splash.ogg",
             audio_manager=audio_manager if audio_manager is not None else GameAudio(),
         ),
-        ImageMedia(BRANDING_DIR / "pygame_logo.png"),
+        ImageMedia(BRANDING_DIR / "pygame" / "pygame_logo.png"),
     ]
 
 

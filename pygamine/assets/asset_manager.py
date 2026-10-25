@@ -5,7 +5,7 @@ from typing import Callable, TypeVar
 import pygame
 import yaml
 
-from pygamine.assets.asset_path import AssetPath, ImagePath, FontPath, SoundPath, SequencePath
+from pygamine.assets.asset_path import BRANDING_DIR, AssetPath, ImagePath, FontPath, SoundPath, SequencePath
 
 T = TypeVar('T')
 
@@ -35,11 +35,19 @@ class AssetManager:
 
     @staticmethod
     def _load_category(config: dict | None, target_dict: dict, path_class: Callable[..., AssetPath], default_ext: str) -> None:
+        """An entry's `folder` is relative to the game's assets/<category>/,
+        or, with `source: branding`, to pygamine's bundled branding/ folder
+        (e.g. `{source: branding, folder: github, name: GitHub_Invertocat_White}`)."""
         for key, cfg in (config or {}).items():
+            source = cfg.get("source", "game")
+            if source not in ("game", "branding"):
+                raise ValueError(f"Asset '{key}': unknown source {source!r} (expected 'game' or 'branding')")
+            extra = {"base": str(BRANDING_DIR)} if source == "branding" else {}
             target_dict[key] = path_class(
                 name=cfg["name"],
                 folder=cfg.get("folder", ""),
                 extension=cfg.get("extension", default_ext),
+                **extra,
             )
 
     def validate(self) -> list[str]:

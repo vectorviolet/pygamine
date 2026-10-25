@@ -4,6 +4,12 @@ import os
 from pathlib import Path
 from typing import Union
 
+# pygamine's own bundled artwork -- the shared splash, platform logos --
+# next to the package rather than in a game's assets/. A manifest entry
+# reaches it with `source: branding` (see AssetManager.load_manifest), and
+# a frozen build bundles it as data at pygamine/branding.
+BRANDING_DIR = Path(__file__).resolve().parent.parent / "branding"
+
 
 class AssetPath(os.PathLike):
     """Game asset path — string-compatible but type-safe."""
@@ -45,18 +51,21 @@ class AssetPath(os.PathLike):
 
 
 class ImagePath(AssetPath):
-    def __init__(self, name: str, folder: str = "", extension: str = "png"):
-        super().__init__(name, folder, extension, base="assets/images")
+    def __init__(self, name: str, folder: str = "", extension: str = "png",
+                 base: str = "assets/images"):
+        super().__init__(name, folder, extension, base=base)
 
 
 class FontPath(AssetPath):
-    def __init__(self, name: str, folder: str = "", extension: str = "ttf"):
-        super().__init__(name, folder, extension, base="assets/fonts")
+    def __init__(self, name: str, folder: str = "", extension: str = "ttf",
+                 base: str = "assets/fonts"):
+        super().__init__(name, folder, extension, base=base)
 
 
 class SoundPath(AssetPath):
-    def __init__(self, name: str, folder: str = "", extension: str = "ogg"):
-        super().__init__(name, folder, extension, base="assets/sounds")
+    def __init__(self, name: str, folder: str = "", extension: str = "ogg",
+                 base: str = "assets/sounds"):
+        super().__init__(name, folder, extension, base=base)
 
 
 class SequencePath(AssetPath):
@@ -67,8 +76,9 @@ class SequencePath(AssetPath):
     The folder may also hold a `meta.yaml` (see ImageSequenceMedia).
     """
 
-    def __init__(self, name: str, folder: str = "", extension: str = "jpg"):
-        super().__init__(name, folder, extension, base="assets/images")
+    def __init__(self, name: str, folder: str = "", extension: str = "jpg",
+                 base: str = "assets/images"):
+        super().__init__(name, folder, extension, base=base)
 
     @property
     def full_path(self) -> str:

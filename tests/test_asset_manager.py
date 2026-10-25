@@ -240,3 +240,32 @@ def test_validate_reports_a_sequence_folder_without_frames(tmp_path, monkeypatch
     assert len(missing) == 2
     assert any(m.startswith("empty") for m in missing)
     assert any(m.startswith("absent") for m in missing)
+
+
+# ── source: branding ─────────────────────────────────────────────────────
+
+
+def test_branding_source_resolves_inside_pygamines_bundled_branding_folder(tmp_path):
+    """Lets a game show pygamine's shared artwork (platform logos, ...)
+    through its own manifest, wherever the game itself runs from."""
+    from pygamine.assets.asset_path import BRANDING_DIR
+    path = _write_manifest(
+        tmp_path,
+        "images:\n"
+        "  github: {source: branding, folder: github, name: GitHub_Invertocat_White}\n"
+        "  own: {folder: ui, name: button}\n",
+    )
+    mgr = AssetManager()
+    mgr.load_manifest(path)
+
+    github = mgr.image_path("github")
+    assert str(github) == str(BRANDING_DIR / "github" / "GitHub_Invertocat_White.png")
+    assert (BRANDING_DIR / "github" / "GitHub_Invertocat_White.png").is_file()
+    assert str(mgr.image_path("own")).replace("\\", "/").endswith("assets/images/ui/button.png")
+
+
+def test_unknown_asset_source_is_rejected(tmp_path):
+    path = _write_manifest(tmp_path, "images:\n  x: {source: elsewhere, name: x}\n")
+
+    with pytest.raises(ValueError, match="unknown source"):
+        AssetManager().load_manifest(path)

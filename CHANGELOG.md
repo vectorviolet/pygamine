@@ -13,6 +13,20 @@ together rather than reconstructing a commit-by-commit rationale for every
 change. Anything before `e5c1fa6` (the commit that first introduced
 `pyproject.toml` itself) isn't versioned at all; see `git log` for that era.
 
+## [0.21.0] — 2026-10-25
+
+- **Changed** `branding/` is organised by owner: `vectorviolet/` (the
+  publisher splash clip and audio), `pygame/` (the pygame-ce logo),
+  `github/` and `itch.io/` (their official logo files).
+  `standard_splash_media()` reads the new locations. Frozen builds still
+  bundle the whole folder as `pygamine/branding`.
+- **Added** `source: branding` for asset-manifest entries: the `folder`
+  is then relative to pygamine's `branding/` instead of the game's
+  `assets/<category>/`, so a game can show the bundled platform logos,
+  e.g. `{source: branding, folder: github, name: GitHub_Invertocat_White}`.
+  `BRANDING_DIR` now lives in `pygamine.assets.asset_path` (still
+  importable from `pygamine.app.splash_screen`).
+
 ## [0.20.1] — 2026-10-25
 
 - **Changed** the shared splash's second slide (`branding/pygame_logo.png`)
