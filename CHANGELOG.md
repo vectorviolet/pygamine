@@ -25,6 +25,11 @@ change. Anything before `e5c1fa6` (the commit that first introduced
 - **Changed** (breaking) `ImageMedia`'s `fade_ms` is renamed `fade_in_ms`,
   to pair with `fade_out_ms`.
 - **Changed** a negative fade duration raises `ValueError`.
+- **Changed** (breaking) the VectorViolet logos' `-light` / `-dark` suffixes
+  are swapped to name the background they are for, as the brand guide
+  defines them: `-dark` is now the white-artwork version for dark
+  backgrounds, `-light` the black-artwork one for light backgrounds. Swap
+  the suffix in any `source: branding` entry that uses them.
 
 ## [0.22.0] — 2026-10-25
 
