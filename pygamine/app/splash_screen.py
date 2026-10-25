@@ -21,6 +21,23 @@ DEFAULT_SEQUENCE_FPS = 30.0
 # must bundle that folder as "pygamine/branding" (see standard_splash_media()).
 
 
+def _fade_alpha(elapsed_ms: float, duration_ms: float, fade_in_ms: int, fade_out_ms: int) -> int:
+    """Opacity (0-255) `elapsed_ms` into an item lasting `duration_ms`: rising
+    over the first `fade_in_ms`, falling over the last `fade_out_ms`. The
+    splash clears to black each frame, so this fades to and from black."""
+    opacity = 1.0
+    if fade_in_ms > 0:
+        opacity = min(opacity, elapsed_ms / fade_in_ms)
+    if fade_out_ms > 0:
+        opacity = min(opacity, (duration_ms - elapsed_ms) / fade_out_ms)
+    return int(255 * max(0.0, min(1.0, opacity)))
+
+
+def _check_fades(fade_in_ms: int, fade_out_ms: int) -> None:
+    if fade_in_ms < 0 or fade_out_ms < 0:
+        raise ValueError(f"fade durations can't be negative (got {fade_in_ms}, {fade_out_ms})")
+
+
 class SplashMedia(Protocol):
     """One item of a SplashScreen sequence. `fit()` is called once, right
     before the item is shown, with the screen size; it starts the item's
@@ -38,16 +55,18 @@ class SplashMedia(Protocol):
 
 
 class ImageMedia:
-    """A single image, scaled to fit the screen, faded in over `fade_ms`
-    then held for `hold_ms`."""
+    """A single image, scaled to fit the screen: faded in over `fade_in_ms`,
+    held for `hold_ms`, then faded out over `fade_out_ms`."""
 
     def __init__(
-        self, image_path: PathArg, fade_ms: int = 1500, hold_ms: int = 1000
+        self, image_path: PathArg, fade_in_ms: int = 1500, hold_ms: int = 1000, fade_out_ms: int = 0
     ) -> None:
+        _check_fades(fade_in_ms, fade_out_ms)
         self._original_image = pygame.image.load(image_path).convert_alpha()
         self._image = self._original_image
-        self._fade_ms = fade_ms
+        self._fade_in_ms = fade_in_ms
         self._hold_ms = hold_ms
+        self._fade_out_ms = fade_out_ms
         self._start_time: int | None = None
         self._current_alpha = 0
         self._finished = False
@@ -65,14 +84,13 @@ class ImageMedia:
             return
 
         elapsed = pygame.time.get_ticks() - self._start_time
+        duration = self._fade_in_ms + self._hold_ms + self._fade_out_ms
 
-        if elapsed >= self._fade_ms + self._hold_ms:
+        if elapsed >= duration:
             self._finished = True
             return
 
-        self._current_alpha = (
-            255 if elapsed >= self._fade_ms else int(255 * elapsed / self._fade_ms)
-        )
+        self._current_alpha = _fade_alpha(elapsed, duration, self._fade_in_ms, self._fade_out_ms)
 
     def draw(self, surface: pygame.Surface) -> None:
         if self._finished:
@@ -100,6 +118,10 @@ class ImageSequenceMedia:
     converter), else DEFAULT_SEQUENCE_FPS. It must match the source video,
     or the picture drifts from the audio and ends early or late.
 
+    `fade_in_ms` / `fade_out_ms` fade the picture in from black at the start
+    and out to black at the end (0, the default, cuts straight in or out);
+    the audio plays at full volume throughout.
+
     Frames are loaded and scaled on a background thread into a small bounded
     queue, so playback starts at once and memory stays flat. The frame shown
     is derived from the time elapsed since fit(), not counted per update(),
@@ -110,7 +132,19 @@ class ImageSequenceMedia:
     _BUFFER_FRAMES = 30
     _PUT_TIMEOUT_S = 0.05
 
-    def __init__(self, folder_path, fps: float | None = None, audio_path=None, audio_manager=None) -> None:
+    def __init__(
+        self,
+        folder_path,
+        fps: float | None = None,
+        audio_path=None,
+        audio_manager=None,
+        fade_in_ms: int = 0,
+        fade_out_ms: int = 0,
+    ) -> None:
+        _check_fades(fade_in_ms, fade_out_ms)
+        self._fade_in_ms = fade_in_ms
+        self._fade_out_ms = fade_out_ms
+        self._alpha = 255
         self._folder = Path(str(folder_path))
         self._fps = fps if fps is not None else self._read_meta_fps(self._folder) or DEFAULT_SEQUENCE_FPS
         self._audio_path = str(audio_path) if audio_path else None
@@ -121,6 +155,7 @@ class ImageSequenceMedia:
         else:
             self._frame_paths = sorted(self._folder.glob("*.jpg"))
         self._total_frames = len(self._frame_paths)
+        self._duration_ms = self._total_frames * 1000 / self._fps
 
         self._frame_queue: queue.Queue[tuple[int, pygame.Surface]] = queue.Queue(maxsize=self._BUFFER_FRAMES)
         self._stop_event = threading.Event()
@@ -190,18 +225,16 @@ class ImageSequenceMedia:
                 continue
         return False
 
-    def _due_frame_idx(self, start_time: int) -> int:
-        elapsed = pygame.time.get_ticks() - start_time
-        return int(elapsed * self._fps / 1000)
-
     def update(self) -> None:
         if self._finished or self._start_time is None:
             return
 
-        due_idx = self._due_frame_idx(self._start_time)
+        elapsed = pygame.time.get_ticks() - self._start_time
+        due_idx = int(elapsed * self._fps / 1000)
         if due_idx >= self._total_frames:
             self._stop()
             return
+        self._alpha = _fade_alpha(elapsed, self._duration_ms, self._fade_in_ms, self._fade_out_ms)
 
         # Pull frames up to the one that's due, keeping only the newest; late
         # frames are dropped. Frames arrive in order, so this never consumes
@@ -219,6 +252,8 @@ class ImageSequenceMedia:
     def draw(self, surface: pygame.Surface) -> None:
         if self._finished or self._current_surface is None:
             return
+        # Surface-level alpha on top of the frame's own: cheap, no per-frame copy
+        self._current_surface.set_alpha(self._alpha)
         rect = self._current_surface.get_rect(center=surface.get_rect().center)
         surface.blit(self._current_surface, rect)
 
@@ -252,7 +287,11 @@ class ImageSequenceMedia:
             self._audio.stop_music()
 
 
-def standard_splash_media(audio_manager: GameAudio | None = None) -> list[SplashMedia]:
+def standard_splash_media(
+    audio_manager: GameAudio | None = None,
+    fade_in_ms: int | None = None,
+    fade_out_ms: int | None = None,
+) -> list[SplashMedia]:
     """The splash every game opens with: the publisher clip (with its
     audio), then the pygame-ce logo -- so it stays identical across projects
     and changes in one place. Append a game's own items after it, e.g.
@@ -262,16 +301,22 @@ def standard_splash_media(audio_manager: GameAudio | None = None) -> list[Splash
     one it plays through a GameAudio of its own. Either way the clip stops
     its audio when it ends, so start a game's music after the splash.
 
+    `fade_in_ms` / `fade_out_ms` apply to both items; left as None, each keeps
+    its own default (the clip cuts in and out, the logo fades in over 1.5 s
+    and cuts out).
+
     A frozen (PyInstaller) build must bundle BRANDING_DIR as data, e.g.
     `(str(ROOT / "src/pygamine/pygamine/branding"), "pygamine/branding")`.
     """
+    fades = {name: ms for name, ms in (("fade_in_ms", fade_in_ms), ("fade_out_ms", fade_out_ms)) if ms is not None}
     return [
         ImageSequenceMedia(
             BRANDING_DIR / "vectorviolet" / "splash",
             audio_path=BRANDING_DIR / "vectorviolet" / "splash.ogg",
             audio_manager=audio_manager if audio_manager is not None else GameAudio(),
+            **fades,
         ),
-        ImageMedia(BRANDING_DIR / "pygame" / "pygame_logo.png"),
+        ImageMedia(BRANDING_DIR / "pygame" / "pygame_logo.png", **fades),
     ]
 
 

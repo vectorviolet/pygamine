@@ -1,5 +1,5 @@
 """Unit tests for SplashScreen, ImageMedia and ImageSequenceMedia:
-- ImageMedia handles individual image fade-in/hold sequences.
+- ImageMedia handles individual image fade-in/hold/fade-out sequences.
 - ImageSequenceMedia plays a folder of frames in sync with elapsed time.
 - SplashScreen manages sequences of SplashMedia items (images/videos),
   advancing via elapsed time, clicks, or Space/Enter/Escape; with
@@ -38,15 +38,16 @@ def image_paths(tmp_path):
 
 @pytest.fixture
 def media_items(image_paths):
-    return [ImageMedia(p, fade_ms=100, hold_ms=100) for p in image_paths]
+    return [ImageMedia(p, fade_in_ms=100, hold_ms=100) for p in image_paths]
 
 
 # ── ImageMedia Tests ───────────────────────────────────────────────────
 
 
 def test_image_media_construction(image_paths):
-    media = ImageMedia(image_paths[0], fade_ms=200, hold_ms=100)
-    assert media._fade_ms == 200
+    media = ImageMedia(image_paths[0], fade_in_ms=200, hold_ms=100)
+    assert media._fade_in_ms == 200
+    assert media._fade_out_ms == 0
     assert media._hold_ms == 100
     assert media._finished is False
     assert media._start_time is None
@@ -60,7 +61,7 @@ def test_image_media_fit(image_paths):
 
 
 def test_image_media_update_fade_and_hold(image_paths, fake_ticks):
-    media = ImageMedia(image_paths[0], fade_ms=100, hold_ms=100)
+    media = ImageMedia(image_paths[0], fade_in_ms=100, hold_ms=100)
     fake_ticks["t"] = 0
     media.fit((20, 10))
 
@@ -80,6 +81,41 @@ def test_image_media_update_fade_and_hold(image_paths, fake_ticks):
     fake_ticks["t"] = 250
     media.update()
     assert media.is_finished() is True
+
+
+def test_image_media_fades_out_after_the_hold(image_paths, fake_ticks):
+    media = ImageMedia(image_paths[0], fade_in_ms=100, hold_ms=100, fade_out_ms=100)
+    fake_ticks["t"] = 0
+    media.fit((20, 10))
+
+    fake_ticks["t"] = 150  # holding
+    media.update()
+    assert media._current_alpha == 255
+
+    fake_ticks["t"] = 250  # halfway through the fade-out
+    media.update()
+    assert media._current_alpha == 127
+    assert media.is_finished() is False
+
+    fake_ticks["t"] = 300  # fade-in + hold + fade-out
+    media.update()
+    assert media.is_finished() is True
+
+
+def test_image_media_without_a_fade_in_shows_at_full_opacity(image_paths, fake_ticks):
+    media = ImageMedia(image_paths[0], fade_in_ms=0, hold_ms=100)
+    fake_ticks["t"] = 0
+    media.fit((20, 10))
+    media.update()
+    assert media._current_alpha == 255
+
+
+@pytest.mark.parametrize("fades", [{"fade_in_ms": -1}, {"fade_out_ms": -1}])
+def test_negative_fades_are_rejected(image_paths, frames_dir, fades):
+    with pytest.raises(ValueError, match="negative"):
+        ImageMedia(image_paths[0], **fades)
+    with pytest.raises(ValueError, match="negative"):
+        ImageSequenceMedia(frames_dir, **fades)
 
 
 def test_image_media_skip(image_paths):
@@ -235,6 +271,48 @@ def test_image_sequence_finishes_on_time_and_stops_audio(frames_dir, fake_ticks)
     assert not media._loader.is_alive()
 
 
+def test_image_sequence_plays_at_full_opacity_without_fades(frames_dir, fake_ticks):
+    media = ImageSequenceMedia(frames_dir, fps=10)
+    fake_ticks["t"] = 0
+    media.fit((20, 10))
+    _wait_for_buffer(media, 10)
+
+    fake_ticks["t"] = 0
+    media.update()
+    assert media._alpha == 255
+    fake_ticks["t"] = 950
+    media.update()
+    assert media._alpha == 255
+    media.skip()
+
+
+def test_image_sequence_fades_in_from_and_out_to_black(frames_dir, fake_ticks):
+    # 10 frames at 10 fps = 1000 ms; 200 ms fades at each end
+    media = ImageSequenceMedia(frames_dir, fps=10, fade_in_ms=200, fade_out_ms=200)
+    fake_ticks["t"] = 0
+    media.fit((20, 10))
+    _wait_for_buffer(media, 10)
+
+    fake_ticks["t"] = 100  # halfway into the fade-in
+    media.update()
+    assert media._alpha == 127
+
+    fake_ticks["t"] = 500  # between the fades
+    media.update()
+    assert media._alpha == 255
+    assert abs(_shown_red(media) - 100) <= 8  # frame 5, full brightness
+
+    fake_ticks["t"] = 900  # halfway into the fade-out
+    media.update()
+    assert media._alpha == 127
+    # drawn over black at half opacity: frame 9 (red 180) comes out at ~90
+    assert abs(_shown_red(media) - 90) <= 8
+
+    fake_ticks["t"] = 1000
+    media.update()
+    assert media.is_finished() is True
+
+
 def test_image_sequence_skip_stops_loader_blocked_on_full_buffer(frames_dir, fake_ticks, monkeypatch):
     monkeypatch.setattr(ImageSequenceMedia, "_BUFFER_FRAMES", 2)
     audio = FakeAudio()
@@ -285,6 +363,18 @@ def test_standard_splash_plays_through_the_given_audio_manager(display):
 
     assert audio.played == [(str(BRANDING_DIR / "vectorviolet" / "splash.ogg"), 0)]
     assert audio.stopped is True
+
+
+def test_standard_splash_keeps_each_items_own_fades_by_default(display):
+    clip, logo = standard_splash_media(FakeAudio())
+    assert (clip._fade_in_ms, clip._fade_out_ms) == (0, 0)
+    assert (logo._fade_in_ms, logo._fade_out_ms) == (1500, 0)
+
+
+def test_standard_splash_applies_given_fades_to_both_items(display):
+    clip, logo = standard_splash_media(FakeAudio(), fade_in_ms=400, fade_out_ms=600)
+    assert (clip._fade_in_ms, clip._fade_out_ms) == (400, 600)
+    assert (logo._fade_in_ms, logo._fade_out_ms) == (400, 600)
 
 
 def test_standard_splash_brings_its_own_audio_without_one(display):

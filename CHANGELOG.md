@@ -13,6 +13,19 @@ together rather than reconstructing a commit-by-commit rationale for every
 change. Anything before `e5c1fa6` (the commit that first introduced
 `pyproject.toml` itself) isn't versioned at all; see `git log` for that era.
 
+## [0.23.0] — 2026-10-25
+
+- **Added** fade-in / fade-out options for splash media.
+  `ImageSequenceMedia(..., fade_in_ms=0, fade_out_ms=0)` fades the clip in
+  from black and out to black; the audio stays at full volume.
+  `ImageMedia(..., fade_out_ms=0)` fades the image out after its hold.
+  `standard_splash_media(audio, fade_in_ms=None, fade_out_ms=None)` applies
+  the given fades to both items; left as None, each keeps its own default.
+  Defaults are unchanged, so existing splashes look the same.
+- **Changed** (breaking) `ImageMedia`'s `fade_ms` is renamed `fade_in_ms`,
+  to pair with `fade_out_ms`.
+- **Changed** a negative fade duration raises `ValueError`.
+
 ## [0.22.0] — 2026-10-25
 
 - **Changed** the publisher splash is renamed to `branding/vectorviolet/splash/`
