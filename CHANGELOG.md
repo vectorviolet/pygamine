@@ -13,6 +13,13 @@ together rather than reconstructing a commit-by-commit rationale for every
 change. Anything before `e5c1fa6` (the commit that first introduced
 `pyproject.toml` itself) isn't versioned at all; see `git log` for that era.
 
+## [0.24.0] — 2026-10-25
+
+- **Added** the solid VectorViolet lockup and wordmark
+  (`lockup-{dark,light}-solid.png`, `wordmark-{dark,light}-solid.png`) to
+  `branding/vectorviolet/`, beside the glitch ones: no glitch lines, for
+  small sizes and busy backgrounds.
+
 ## [0.23.0] — 2026-10-25
 
 - **Added** fade-in / fade-out options for splash media.
