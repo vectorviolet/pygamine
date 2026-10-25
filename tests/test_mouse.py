@@ -1,6 +1,7 @@
 """Unit tests for Mouse: position/tile-position tracking and an optional
 GameObject cursor that follows it.
 """
+
 from __future__ import annotations
 
 import pygame

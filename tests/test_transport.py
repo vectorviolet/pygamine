@@ -6,6 +6,7 @@ but without any game logic. Reliability rules followed here:
   * queue/Event with timeouts instead of sleeps, so a lost message fails the
     test fast instead of hanging.
 """
+
 from __future__ import annotations
 
 import queue

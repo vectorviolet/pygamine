@@ -3,6 +3,7 @@
 FakeSocket is the heart of the unit layer: it lets us test logic at the
 socket boundary (Protocol) without ever opening a real socket.
 """
+
 from __future__ import annotations
 
 import socket

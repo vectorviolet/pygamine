@@ -1,6 +1,7 @@
 """Unit tests for InputBox: a text-entry widget (click to focus, type,
 backspace, auto-widening), built like the rest of the package's widgets
 (GameObject-based, parent/pos/size/anchor)."""
+
 from __future__ import annotations
 
 import pygame
@@ -106,7 +107,9 @@ def test_typing_widens_rect_to_fit_long_text():
     box = InputBox(pos=(0, 0), size=(50, 32))
     box.focused = True
     for ch in "a very long string of text indeed":
-        box.handle_event(pygame.event.Event(pygame.KEYDOWN, key=pygame.K_a, unicode=ch), (0, 0))
+        box.handle_event(
+            pygame.event.Event(pygame.KEYDOWN, key=pygame.K_a, unicode=ch), (0, 0)
+        )
 
     text_width = box.font.render(box.text, True, box.text_color).get_width()
     assert box.rect.w == text_width + 10
@@ -115,7 +118,9 @@ def test_typing_widens_rect_to_fit_long_text():
 def test_never_shrinks_below_the_constructors_min_width():
     box = InputBox(pos=(0, 0), size=(500, 32), text="hi")
     box._redraw()
-    assert box.rect.w == 500  # short text, but width never drops below the constructor's size
+    assert (
+        box.rect.w == 500
+    )  # short text, but width never drops below the constructor's size
 
 
 def test_never_goes_below_the_constructors_floor_even_with_empty_text():

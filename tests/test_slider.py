@@ -5,6 +5,7 @@ No image files needed -- Slider draws with pygame.draw rather than loading
 assets, so these tests only need a display mode set (dummy SDL driver) for
 Surface/SRCALPHA operations.
 """
+
 from __future__ import annotations
 
 import pygame
@@ -87,7 +88,9 @@ def test_set_value_to_the_same_value_is_a_no_op(parent):
 
 def test_set_value_does_not_call_on_change(parent):
     calls = []
-    slider = Slider(parent=parent, pos=(0, 0), size=(300, 24), value=0.0, on_change=calls.append)
+    slider = Slider(
+        parent=parent, pos=(0, 0), size=(300, 24), value=0.0, on_change=calls.append
+    )
 
     slider.set_value(0.5)
 
@@ -99,7 +102,9 @@ def test_set_value_does_not_call_on_change(parent):
 
 def test_click_inside_the_track_jumps_to_that_position(parent):
     calls = []
-    slider = Slider(parent=parent, pos=(0, 0), size=(200, 24), value=0.0, on_change=calls.append)
+    slider = Slider(
+        parent=parent, pos=(0, 0), size=(200, 24), value=0.0, on_change=calls.append
+    )
 
     slider.handle_event(_down((100, 12)), (100, 12))  # 50% across
 
@@ -124,7 +129,9 @@ def test_click_past_the_right_edge_clamps_to_one(parent):
 
 def test_click_outside_the_track_does_not_start_dragging_or_change_value(parent):
     calls = []
-    slider = Slider(parent=parent, pos=(0, 0), size=(200, 24), value=0.3, on_change=calls.append)
+    slider = Slider(
+        parent=parent, pos=(0, 0), size=(200, 24), value=0.3, on_change=calls.append
+    )
 
     slider.handle_event(_down((999, 999)), (999, 999))
 
@@ -138,9 +145,13 @@ def test_click_outside_the_track_does_not_start_dragging_or_change_value(parent)
 
 def test_drag_follows_the_mouse_across_multiple_motion_events(parent):
     calls = []
-    slider = Slider(parent=parent, pos=(0, 0), size=(200, 24), value=0.0, on_change=calls.append)
+    slider = Slider(
+        parent=parent, pos=(0, 0), size=(200, 24), value=0.0, on_change=calls.append
+    )
 
-    slider.handle_event(_down((0, 12)), (0, 12))  # ratio 0.0 == current value -> no call
+    slider.handle_event(
+        _down((0, 12)), (0, 12)
+    )  # ratio 0.0 == current value -> no call
     slider.handle_event(_move((50, 12)), (50, 12))
     slider.handle_event(_move((150, 12)), (150, 12))
 
@@ -150,7 +161,9 @@ def test_drag_follows_the_mouse_across_multiple_motion_events(parent):
 
 def test_mouse_motion_without_a_prior_mouse_down_does_not_update_value(parent):
     calls = []
-    slider = Slider(parent=parent, pos=(0, 0), size=(200, 24), value=0.2, on_change=calls.append)
+    slider = Slider(
+        parent=parent, pos=(0, 0), size=(200, 24), value=0.2, on_change=calls.append
+    )
 
     slider.handle_event(_move((150, 12)), (150, 12))
 
@@ -160,7 +173,9 @@ def test_mouse_motion_without_a_prior_mouse_down_does_not_update_value(parent):
 
 def test_mouse_up_stops_the_drag(parent):
     calls = []
-    slider = Slider(parent=parent, pos=(0, 0), size=(200, 24), value=0.0, on_change=calls.append)
+    slider = Slider(
+        parent=parent, pos=(0, 0), size=(200, 24), value=0.0, on_change=calls.append
+    )
 
     slider.handle_event(_down((0, 12)), (0, 12))
     slider.handle_event(_up((0, 12)), (0, 12))

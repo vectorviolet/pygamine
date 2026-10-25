@@ -4,7 +4,9 @@ import pygame
 
 
 class AnimationClip:
-    def __init__(self, frames: list[pygame.Surface], fps: float = 12.0, loop: bool = True):
+    def __init__(
+        self, frames: list[pygame.Surface], fps: float = 12.0, loop: bool = True
+    ):
         if fps <= 0:
             raise ValueError(f"AnimationClip fps must be positive, got {fps!r}")
         self.frames = frames

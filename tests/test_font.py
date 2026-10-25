@@ -5,6 +5,7 @@ Dedicated, direct tests for this module -- it already had indirect coverage
 via panel_factory's make_text_factory tests, but those only exercise it
 through TextObject construction.
 """
+
 from __future__ import annotations
 
 import os
@@ -114,7 +115,9 @@ def test_custom_size_key_name(assets):
 def test_custom_bold_and_italic_key_names(assets):
     font = load_font(
         {"font": "Arial", "is_bold": True, "is_italic": True},
-        assets, bold_key="is_bold", italic_key="is_italic",
+        assets,
+        bold_key="is_bold",
+        italic_key="is_italic",
     )
     assert font.get_bold() is True
     assert font.get_italic() is True

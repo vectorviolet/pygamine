@@ -4,6 +4,7 @@ These pin the YAML-driven layout math every panel/UI object goes through
 (config/panels.yaml's `size`/`position`/`anchor` keys) -- a regression here
 silently misplaces or mis-sizes UI across every consuming project.
 """
+
 from __future__ import annotations
 
 import pytest
@@ -68,7 +69,9 @@ def test_resolve_pos_center_anchor_offsets_by_half_sizes():
 def test_resolve_pos_bottom_right_anchor_insets_from_parent_corner():
     """Docstring example: anchor='bottom-right', position=[-25, -25] insets the
     child's bottom-right corner by 25px from the parent's bottom-right."""
-    pos = Anchorable.resolve_pos((-25, -25), (200, 100), (20, 10), anchor="bottom-right")
+    pos = Anchorable.resolve_pos(
+        (-25, -25), (200, 100), (20, 10), anchor="bottom-right"
+    )
     assert pos == (155, 65)
 
 

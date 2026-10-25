@@ -25,8 +25,10 @@ def load_image(path, size=None, nine_slice: int = 0, return_size: bool = False):
     if size == [0, 0]:
         return (img, list(img.get_size())) if return_size else img
 
-    if size[0] == 0:   size[0] = img.get_width()
-    if size[1] == 0:   size[1] = img.get_height()
+    if size[0] == 0:
+        size[0] = img.get_width()
+    if size[1] == 0:
+        size[1] = img.get_height()
 
     if nine_slice > 0:
         result = nine_slice_scale(img, (size[0], size[1]), nine_slice)
@@ -42,12 +44,14 @@ def scale(image: pygame.Surface, size) -> pygame.Surface:
 def scale_by(surface: pygame.Surface, factor) -> pygame.Surface:
     if isinstance(factor, (int, float)):
         factor = (factor, factor)
-    w = int(surface.get_width()  * factor[0])
+    w = int(surface.get_width() * factor[0])
     h = int(surface.get_height() * factor[1])
     return scale(surface, (w, h))
 
 
-def nine_slice_scale(image: pygame.Surface, target_size: tuple[int, int], corner: int) -> pygame.Surface:
+def nine_slice_scale(
+    image: pygame.Surface, target_size: tuple[int, int], corner: int
+) -> pygame.Surface:
     """Scale image to target_size using 9-slice.
 
     corner: size of the corner region in the SOURCE image (pixels).
@@ -72,17 +76,16 @@ def nine_slice_scale(image: pygame.Surface, target_size: tuple[int, int], corner
     c = corner
 
     # corners (no scaling)
-    _blit(0,         0,         c, c,  0,         0,         c, c)
-    _blit(src_w - c, 0,         c, c,  dst_w - c, 0,         c, c)
-    _blit(0,         src_h - c, c, c,  0,         dst_h - c, c, c)
-    _blit(src_w - c, src_h - c, c, c,  dst_w - c, dst_h - c, c, c)
+    _blit(0, 0, c, c, 0, 0, c, c)
+    _blit(src_w - c, 0, c, c, dst_w - c, 0, c, c)
+    _blit(0, src_h - c, c, c, 0, dst_h - c, c, c)
+    _blit(src_w - c, src_h - c, c, c, dst_w - c, dst_h - c, c, c)
     # edges (stretch in one axis)
-    _blit(c,         0,         msx, c,   c,         0,         mdx, c)
-    _blit(c,         src_h - c, msx, c,   c,         dst_h - c, mdx, c)
-    _blit(0,         c,         c, msy,   0,         c,         c, mdy)
-    _blit(src_w - c, c,         c, msy,   dst_w - c, c,         c, mdy)
+    _blit(c, 0, msx, c, c, 0, mdx, c)
+    _blit(c, src_h - c, msx, c, c, dst_h - c, mdx, c)
+    _blit(0, c, c, msy, 0, c, c, mdy)
+    _blit(src_w - c, c, c, msy, dst_w - c, c, c, mdy)
     # center (stretch in both axes)
-    _blit(c, c, msx, msy,  c, c, mdx, mdy)
+    _blit(c, c, msx, msy, c, c, mdx, mdy)
 
     return result
-

@@ -2,6 +2,7 @@
 objects of its panel and scrolls them upward at a frame-rate-independent
 speed, looping or stopping once the content has left the top.
 """
+
 from __future__ import annotations
 
 import pygame
@@ -52,7 +53,9 @@ def _panel_with(**objects):
 
 def _scroller(parent, targets, **kwargs):
     # Viewport y 100..300; content gets adopted from a panel afterwards
-    return ScrollingPanel(parent=parent, pos=(0, 100), size=(200, 200), targets=targets, **kwargs)
+    return ScrollingPanel(
+        parent=parent, pos=(0, 100), size=(200, 200), targets=targets, **kwargs
+    )
 
 
 def _tick(scroller, fake_ticks, ms):
@@ -202,9 +205,9 @@ def test_draw_is_clipped_to_the_viewport(parent):
     scroller.draw(surface)
 
     assert surface.get_at((50, 150))[:3] == (255, 0, 0)  # inside viewport
-    assert surface.get_at((50, 50))[:3] == (0, 0, 0)     # above it
-    assert surface.get_at((50, 350))[:3] == (0, 0, 0)    # below it
-    assert surface.get_clip() == surface.get_rect()      # clip restored
+    assert surface.get_at((50, 50))[:3] == (0, 0, 0)  # above it
+    assert surface.get_at((50, 350))[:3] == (0, 0, 0)  # below it
+    assert surface.get_clip() == surface.get_rect()  # clip restored
 
 
 def test_presses_outside_the_viewport_are_not_forwarded(parent):
@@ -213,7 +216,7 @@ def test_presses_outside_the_viewport_are_not_forwarded(parent):
     scroller.on_panel_loaded(_panel_with(a=a))
 
     press = pygame.event.Event(pygame.MOUSEBUTTONDOWN, button=1)
-    scroller.handle_event(press, (50, 50))   # above the viewport
+    scroller.handle_event(press, (50, 50))  # above the viewport
     scroller.handle_event(press, (50, 150))  # inside it
     scroller.handle_event(pygame.event.Event(pygame.MOUSEMOTION), (50, 50))
 

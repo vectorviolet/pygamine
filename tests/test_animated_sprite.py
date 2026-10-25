@@ -1,6 +1,7 @@
 """Unit tests for AnimatedSprite and AnimatedSpriteFactory: a GameObject
 preconfigured with SpriteRenderer2D + Animator for sheet-based animation.
 """
+
 from __future__ import annotations
 
 import pygame
@@ -36,7 +37,9 @@ def test_default_size_uses_the_source_frame_size_without_scaling():
     sprite = AnimatedSprite(frames=frames)
 
     assert sprite.rect.size == (10, 10)
-    assert sprite.animator.clips["default"].frames[0] is frames[0]  # not rescaled/copied
+    assert (
+        sprite.animator.clips["default"].frames[0] is frames[0]
+    )  # not rescaled/copied
 
 
 def test_size_matching_source_does_not_rescale():
@@ -52,7 +55,12 @@ def test_size_different_from_source_scales_frames():
     scaled = sprite.animator.clips["default"].frames[0]
     assert scaled is not frames[0]
     assert scaled.get_size() == (20, 20)
-    assert scaled.get_at((5, 5)) == (255, 0, 0, 255)  # still the same color, just bigger
+    assert scaled.get_at((5, 5)) == (
+        255,
+        0,
+        0,
+        255,
+    )  # still the same color, just bigger
     assert sprite.rect.size == (20, 20)
 
 
@@ -63,7 +71,9 @@ def test_name_defaults_and_can_be_overridden():
 
 def test_pos_and_parent_position_the_rect():
     parent = Transform(position=(100, 50), size=(200, 100))
-    sprite = AnimatedSprite(parent=parent, pos=(10, 10), size=(10, 10), frames=_frames((1, 2, 3)))
+    sprite = AnimatedSprite(
+        parent=parent, pos=(10, 10), size=(10, 10), frames=_frames((1, 2, 3))
+    )
     assert sprite.rect.topleft == (110, 60)
 
 
@@ -200,7 +210,12 @@ def test_from_strip_builds_a_sprite_from_a_horizontal_strip(assets):
 
     frames = sprite.animator.clips["default"].frames
     assert len(frames) == 4
-    expected = [(255, 0, 0, 255), (0, 255, 0, 255), (0, 0, 255, 255), (255, 255, 0, 255)]
+    expected = [
+        (255, 0, 0, 255),
+        (0, 255, 0, 255),
+        (0, 0, 255, 255),
+        (255, 255, 0, 255),
+    ]
     for frame, color in zip(frames, expected):
         assert frame.get_at((1, 1)) == color
 
@@ -223,6 +238,11 @@ def test_from_grid_builds_a_sprite_from_a_grid(assets):
 
     frames = sprite.animator.clips["default"].frames
     assert len(frames) == 4
-    expected = [(255, 0, 0, 255), (0, 255, 0, 255), (0, 0, 255, 255), (255, 255, 0, 255)]
+    expected = [
+        (255, 0, 0, 255),
+        (0, 255, 0, 255),
+        (0, 0, 255, 255),
+        (255, 255, 0, 255),
+    ]
     for frame, color in zip(frames, expected):
         assert frame.get_at((1, 1)) == color

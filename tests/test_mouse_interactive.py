@@ -6,6 +6,7 @@ which never hit every branch (a non-left mouse button, visibility toggling
 mid-press, an unrelated event type) -- these pin the mixin's own contract
 directly.
 """
+
 from __future__ import annotations
 
 import pygame
@@ -112,7 +113,9 @@ def test_is_clicked_false_and_resets_press_state_when_not_visible():
     assert box.is_clicked(_mouseup((50, 50)), (50, 50)) is False
 
     box.visible = True
-    assert box.is_clicked(_mouseup((50, 50)), (50, 50)) is False  # press was discarded above
+    assert (
+        box.is_clicked(_mouseup((50, 50)), (50, 50)) is False
+    )  # press was discarded above
 
 
 def test_is_clicked_false_for_an_unrelated_event_type():

@@ -7,6 +7,7 @@ integration-style test of the loop wiring itself. sys.exit and pygame.quit
 are monkeypatched wherever exit() is exercised, since calling them for real
 would tear down the shared pygame session for every later test in the suite.
 """
+
 from __future__ import annotations
 
 import os
@@ -46,8 +47,14 @@ def no_real_exit(monkeypatch):
     session; sys.exit raises SystemExit) while still letting us observe that
     they were requested."""
     calls = {"pygame_quit": 0, "sys_exit": 0}
-    monkeypatch.setattr(pygame, "quit", lambda: calls.__setitem__("pygame_quit", calls["pygame_quit"] + 1))
-    monkeypatch.setattr(sys, "exit", lambda: calls.__setitem__("sys_exit", calls["sys_exit"] + 1))
+    monkeypatch.setattr(
+        pygame,
+        "quit",
+        lambda: calls.__setitem__("pygame_quit", calls["pygame_quit"] + 1),
+    )
+    monkeypatch.setattr(
+        sys, "exit", lambda: calls.__setitem__("sys_exit", calls["sys_exit"] + 1)
+    )
     return calls
 
 
@@ -129,7 +136,9 @@ def test_full_screen_display_surface_matches_real_screen_size():
     assert app.display_surface.get_size() == app.full_screen_size
 
 
-def _pin_dimensions(app, *, minimized: tuple[int, int], full_screen: tuple[int, int]) -> None:
+def _pin_dimensions(
+    app, *, minimized: tuple[int, int], full_screen: tuple[int, int]
+) -> None:
     """Dummy-driver pygame.display.Info() reflects whatever mode the *last*
     set_mode() call in this pytest session requested, not a fixed native
     desktop size -- so tests can't rely on its value being consistent
@@ -151,7 +160,10 @@ def test_windowed_physical_size_shrinks_to_fit_with_margin_when_preferred_size_e
 
     assert windowed_size[0] < app.full_screen_width
     assert windowed_size[1] < app.full_screen_height
-    assert windowed_size == (819, 614)  # round(2000 * 0.8*1024/2000), round(1500 * 0.8*768/1500)
+    assert windowed_size == (
+        819,
+        614,
+    )  # round(2000 * 0.8*1024/2000), round(1500 * 0.8*768/1500)
 
 
 def test_windowed_physical_size_never_exceeds_the_preferred_size():
@@ -328,7 +340,12 @@ def test_available_resolutions_filters_to_what_fits_with_margin():
     _pin_dimensions(app, minimized=(1920, 1080), full_screen=(1920, 1080))
 
     assert app.available_resolutions() == [
-        (1024, 576), (1152, 648), (1280, 720), (1280, 800), (1366, 768), (1536, 864),
+        (1024, 576),
+        (1152, 648),
+        (1280, 720),
+        (1280, 800),
+        (1366, 768),
+        (1536, 864),
     ]
 
 
@@ -356,7 +373,9 @@ def test_set_resolution_does_not_switch_mode_from_fullscreen():
     app.set_resolution((1024, 576))
 
     assert app._is_fullscreen is True
-    assert app.display_surface.get_size() == display_size_before  # untouched -- still fullscreen
+    assert (
+        app.display_surface.get_size() == display_size_before
+    )  # untouched -- still fullscreen
 
 
 def test_set_resolution_resizes_immediately_when_already_windowed():
@@ -399,7 +418,10 @@ def test_clear_resolution_override_does_not_resize_the_current_window():
 
     app.clear_resolution_override()
 
-    assert app.display_surface.get_size() == (1280, 720)  # unchanged until the next minimize()/F11
+    assert app.display_surface.get_size() == (
+        1280,
+        720,
+    )  # unchanged until the next minimize()/F11
 
 
 def test_cycle_resolution_advances_through_the_sorted_list():
@@ -799,7 +821,12 @@ def test_window_matches_display_surface_after_every_mode_switch():
     app = _TrackedApp()
     _pin_dimensions(app, minimized=(2000, 1500), full_screen=(1024, 768))
 
-    for switch in (app.minimize, app.full_screen, app.borderless_full_screen, app.minimize):
+    for switch in (
+        app.minimize,
+        app.full_screen,
+        app.borderless_full_screen,
+        app.minimize,
+    ):
         switch()
         assert app.window.get_size() == app.display_surface.get_size()
 

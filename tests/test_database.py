@@ -1,6 +1,7 @@
 """Unit tests for Database: a thin sqlite3 wrapper that connects to
 databases/<name>.db (relative to cwd, auto-creating the folder).
 """
+
 from __future__ import annotations
 
 import sqlite3

@@ -1,5 +1,6 @@
 """Unit tests for math_utils: distance and angle helpers used throughout the
 engine (camera follow, projectile aiming, AI steering)."""
+
 from __future__ import annotations
 
 import math

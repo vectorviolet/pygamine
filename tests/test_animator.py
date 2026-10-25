@@ -6,6 +6,7 @@ All timing is driven through the fake_ticks fixture (patches
 pygame.time.get_ticks) so tests are instant and deterministic instead of
 depending on real sleeps.
 """
+
 from __future__ import annotations
 
 import pygame

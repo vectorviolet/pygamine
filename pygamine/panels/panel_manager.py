@@ -20,12 +20,14 @@ class PanelManager:
         return self._panels.keys()
 
     def handle_event(self, event: pygame.event.Event, mouse_position) -> None:
-        if self.current_panel not in self._panels: return
+        if self.current_panel not in self._panels:
+            return
 
         self._panels[self.current_panel].handle_event(event, mouse_position)
 
     def update(self) -> None:
-        if self.current_panel not in self._panels: return
+        if self.current_panel not in self._panels:
+            return
 
         self._panels[self.current_panel].update()
 
@@ -33,7 +35,8 @@ class PanelManager:
         if self.background_colors and self.current_panel in self.background_colors:
             surface.fill(self.background_colors[self.current_panel])
 
-        if self.current_panel not in self._panels: return
+        if self.current_panel not in self._panels:
+            return
 
         self._panels[self.current_panel].draw(surface)
 
@@ -46,7 +49,8 @@ class PanelManager:
             self.add_object(panel, name, obj)
 
     def add_panel(self, name: str) -> None:
-        if name in self._panels: return
+        if name in self._panels:
+            return
 
         self._panels[name] = GameObjectDict()
 

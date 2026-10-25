@@ -94,15 +94,24 @@ class Slider(Anchorable, MouseInteractive, GameObject):
         surface = pygame.Surface((w, surf_h), pygame.SRCALPHA)
 
         track_y = (surf_h - h) // 2
-        pygame.draw.rect(surface, self._track_color, (0, track_y, w, h), border_radius=h // 2)
+        pygame.draw.rect(
+            surface, self._track_color, (0, track_y, w, h), border_radius=h // 2
+        )
 
         fill_w = round(w * self._value)
         if fill_w > 0:
-            pygame.draw.rect(surface, self._fill_color, (0, track_y, fill_w, h), border_radius=h // 2)
+            pygame.draw.rect(
+                surface, self._fill_color, (0, track_y, fill_w, h), border_radius=h // 2
+            )
 
         handle_x = min(max(fill_w - handle_w / 2, 0), w - handle_w)
         handle_y = (surf_h - handle_h) / 2
-        pygame.draw.rect(surface, self._handle_color, (handle_x, handle_y, handle_w, handle_h), border_radius=handle_h // 2)
+        pygame.draw.rect(
+            surface,
+            self._handle_color,
+            (handle_x, handle_y, handle_w, handle_h),
+            border_radius=handle_h // 2,
+        )
 
         self._renderer.set_image(surface)
 

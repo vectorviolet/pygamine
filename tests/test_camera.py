@@ -2,6 +2,7 @@
 zoom-at-cursor, and the offset clamping that keeps the map filling its
 viewport instead of showing empty space past its edges.
 """
+
 from __future__ import annotations
 
 import pygame
@@ -132,6 +133,7 @@ def test_draw_uses_whatever_the_entitys_own_image_property_returns(camera):
     e.g. a RotatableObject-style class overriding GameObject's default
     `image` property (see ecs/game_object.py) to switch between a rotated
     variant and its base sprite."""
+
     class _CustomImage:
         def __init__(self):
             self.image = pygame.Surface((10, 10))
@@ -205,7 +207,9 @@ def test_mouse_outside_scroll_rect_does_not_scroll(camera):
 def test_mouse_near_right_edge_scrolls_camera_right(camera):
     """Scrolling right pans the world left on screen, so the offset
     decreases (see world_to_screen's `rect.left + offset + world * scale`)."""
-    camera.update_with_mouse((780, 300))  # within 30px of the 800-wide rect's right edge
+    camera.update_with_mouse(
+        (780, 300)
+    )  # within 30px of the 800-wide rect's right edge
     assert camera._offset.x == -10
     assert camera._offset.y == 0
 

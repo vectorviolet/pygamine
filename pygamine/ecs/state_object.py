@@ -23,12 +23,15 @@ from pygamine.util.utils import Anchorable, MouseInteractive
 
 
 class StateObject(Anchorable, MouseInteractive, GameObject):
-    def __init__(self, parent: Transform | None = None,
-                 pos=("CENTER", "CENTER"),
-                 size=(0, 0),
-                 image_path: PathLike | None = None,
-                 nine_slice: int = 0,
-                 anchor: str = "top-left") -> None:
+    def __init__(
+        self,
+        parent: Transform | None = None,
+        pos=("CENTER", "CENTER"),
+        size=(0, 0),
+        image_path: PathLike | None = None,
+        nine_slice: int = 0,
+        anchor: str = "top-left",
+    ) -> None:
 
         super().__init__()
 
@@ -100,23 +103,32 @@ class StateObject(Anchorable, MouseInteractive, GameObject):
 
 
 class HoverableStateObject(StateObject):
-    def __init__(self, parent: Transform | None = None,
-                 pos=("CENTER", "CENTER"),
-                 size=(None, None),
-                 image_path: PathLike | None = None,
-                 hover_image_path: PathLike | None = None,
-                 nine_slice: int = 0,
-                 anchor: str = "top-left") -> None:
+    def __init__(
+        self,
+        parent: Transform | None = None,
+        pos=("CENTER", "CENTER"),
+        size=(None, None),
+        image_path: PathLike | None = None,
+        hover_image_path: PathLike | None = None,
+        nine_slice: int = 0,
+        anchor: str = "top-left",
+    ) -> None:
         super().__init__(parent, pos, size, image_path, nine_slice, anchor)
         self._hovered = False
         self._hover_images: dict[Any, pygame.Surface] = {}
         if hover_image_path is not None:
-            self._hover_images[None] = load_image(hover_image_path, self._size, self._nine_slice)
+            self._hover_images[None] = load_image(
+                hover_image_path, self._size, self._nine_slice
+            )
 
-    def add_state(self, state: Any, image_path: PathLike, hover_image_path: PathLike | None = None) -> None:
+    def add_state(
+        self, state: Any, image_path: PathLike, hover_image_path: PathLike | None = None
+    ) -> None:
         super().add_state(state, image_path)
         if hover_image_path is not None:
-            self._hover_images[state] = load_image(hover_image_path, self._size, self._nine_slice)
+            self._hover_images[state] = load_image(
+                hover_image_path, self._size, self._nine_slice
+            )
 
     @property
     def _active_surface(self) -> pygame.Surface:

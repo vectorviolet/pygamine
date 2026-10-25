@@ -22,7 +22,9 @@ import time
 import pygame
 
 
-def run_briefly(app, frames: int = 30, timeout_s: float = 30.0, splash_step_ms: int = 250) -> int:
+def run_briefly(
+    app, frames: int = 30, timeout_s: float = 30.0, splash_step_ms: int = 250
+) -> int:
     """Runs `app.run()` -- splash included -- for `frames` main-loop frames,
     then stops the loop (without sys.exit). Returns the frames run.
 
@@ -53,7 +55,9 @@ def run_briefly(app, frames: int = 30, timeout_s: float = 30.0, splash_step_ms: 
     def get_events(*args, **kwargs):
         nonlocal offset_ms
         if time.monotonic() > deadline:
-            raise RuntimeError(f"app didn't finish its splash and {frames} frames within {timeout_s}s")
+            raise RuntimeError(
+                f"app didn't finish its splash and {frames} frames within {timeout_s}s"
+            )
         if splash_running():
             offset_ms += splash_step_ms
         return real_get(*args, **kwargs)
@@ -75,7 +79,9 @@ def run_briefly(app, frames: int = 30, timeout_s: float = 30.0, splash_step_ms: 
     finally:
         pygame.event.get = real_get
         pygame.time.get_ticks = real_ticks
-        del app.update  # drop the instance attribute; the class method shows through again
+        del (
+            app.update
+        )  # drop the instance attribute; the class method shows through again
 
     if splash_running():
         raise RuntimeError("run() returned before the splash finished")

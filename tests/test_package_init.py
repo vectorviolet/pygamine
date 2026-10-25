@@ -11,6 +11,7 @@ Exercised via a subprocess so sys.modules starts genuinely empty -- the rest
 of this test session already imports plenty of pygamine submodules
 directly, which would make an in-process check meaningless.
 """
+
 from __future__ import annotations
 import os
 import subprocess
@@ -33,8 +34,13 @@ def _run(code: str) -> str:
     # (SDL ..., Python ...)" banner to stdout on first import, which would
     # otherwise land ahead of whatever this test actually prints.
     env = {**os.environ, "PYGAME_HIDE_SUPPORT_PROMPT": "1"}
-    result = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True,
-                            cwd=__file__.rsplit("tests", 1)[0], env=env)
+    result = subprocess.run(
+        [sys.executable, "-c", code],
+        capture_output=True,
+        text=True,
+        cwd=__file__.rsplit("tests", 1)[0],
+        env=env,
+    )
     assert result.returncode == 0, result.stderr
     return result.stdout.strip()
 
@@ -72,5 +78,6 @@ def test_accessing_asset_manager_does_import_it_and_caches_the_result():
 
 def test_unknown_attribute_raises_attribute_error():
     import pytest
+
     with pytest.raises(AttributeError):
         pygamine.ThisNameDoesNotExist

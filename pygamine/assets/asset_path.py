@@ -14,8 +14,9 @@ BRANDING_DIR = Path(__file__).resolve().parent.parent / "branding"
 class AssetPath(os.PathLike):
     """Game asset path — string-compatible but type-safe."""
 
-    def __init__(self, name: str, folder: str = "", extension: str = "png",
-                 base: str = "assets"):
+    def __init__(
+        self, name: str, folder: str = "", extension: str = "png", base: str = "assets"
+    ):
         self.name = name
         self.folder = folder
         self.extension = extension.lstrip(".")
@@ -51,20 +52,35 @@ class AssetPath(os.PathLike):
 
 
 class ImagePath(AssetPath):
-    def __init__(self, name: str, folder: str = "", extension: str = "png",
-                 base: str = "assets/images"):
+    def __init__(
+        self,
+        name: str,
+        folder: str = "",
+        extension: str = "png",
+        base: str = "assets/images",
+    ):
         super().__init__(name, folder, extension, base=base)
 
 
 class FontPath(AssetPath):
-    def __init__(self, name: str, folder: str = "", extension: str = "ttf",
-                 base: str = "assets/fonts"):
+    def __init__(
+        self,
+        name: str,
+        folder: str = "",
+        extension: str = "ttf",
+        base: str = "assets/fonts",
+    ):
         super().__init__(name, folder, extension, base=base)
 
 
 class SoundPath(AssetPath):
-    def __init__(self, name: str, folder: str = "", extension: str = "ogg",
-                 base: str = "assets/sounds"):
+    def __init__(
+        self,
+        name: str,
+        folder: str = "",
+        extension: str = "ogg",
+        base: str = "assets/sounds",
+    ):
         super().__init__(name, folder, extension, base=base)
 
 
@@ -76,8 +92,13 @@ class SequencePath(AssetPath):
     The folder may also hold a `meta.yaml` (see ImageSequenceMedia).
     """
 
-    def __init__(self, name: str, folder: str = "", extension: str = "jpg",
-                 base: str = "assets/images"):
+    def __init__(
+        self,
+        name: str,
+        folder: str = "",
+        extension: str = "jpg",
+        base: str = "assets/images",
+    ):
         super().__init__(name, folder, extension, base=base)
 
     @property

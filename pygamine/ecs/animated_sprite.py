@@ -30,14 +30,16 @@ class AnimatedSprite(GameObject):
     scaled once at construction time.
     """
 
-    def __init__(self,
-                 parent: Transform | None = None,
-                 pos = ("CENTER", "CENTER"),
-                 size: tuple = (0, 0),
-                 frames: list[pygame.Surface] | None = None,
-                 fps: float = 12.0,
-                 loop: bool = True,
-                 name: str = "animated_sprite") -> None:
+    def __init__(
+        self,
+        parent: Transform | None = None,
+        pos=("CENTER", "CENTER"),
+        size: tuple = (0, 0),
+        frames: list[pygame.Surface] | None = None,
+        fps: float = 12.0,
+        loop: bool = True,
+        name: str = "animated_sprite",
+    ) -> None:
         if frames is None or not frames:
             raise ValueError("AnimatedSprite requires at least one frame")
         super().__init__(name=name)
@@ -75,7 +77,13 @@ class AnimatedSprite(GameObject):
 
         return w, h
 
-    def add_clip(self, name: str, frames: list[pygame.Surface], fps: float = 12.0, loop: bool = True) -> None:
+    def add_clip(
+        self,
+        name: str,
+        frames: list[pygame.Surface],
+        fps: float = 12.0,
+        loop: bool = True,
+    ) -> None:
         self.animator.add_clip(name, AnimationClip(frames, fps=fps, loop=loop))
 
     def play(self, name: str, restart: bool = False) -> None:
@@ -88,32 +96,50 @@ class AnimatedSpriteFactory:
     def __init__(self, assets):
         self._assets = assets
 
-    def from_strip(self,
-                   asset_key: str,
-                   parent: Transform | None = None,
-                   pos = ("CENTER", "CENTER"),
-                   size: tuple = (0, 0),
-                   frame_count: int = 1,
-                   fps: float = 12.0,
-                   loop: bool = True,
-                   horizontal: bool = True,
-                   name: str | None = None) -> AnimatedSprite:
-        sheet  = SpriteSheet.from_path(self._assets.image_path(asset_key))
+    def from_strip(
+        self,
+        asset_key: str,
+        parent: Transform | None = None,
+        pos=("CENTER", "CENTER"),
+        size: tuple = (0, 0),
+        frame_count: int = 1,
+        fps: float = 12.0,
+        loop: bool = True,
+        horizontal: bool = True,
+        name: str | None = None,
+    ) -> AnimatedSprite:
+        sheet = SpriteSheet.from_path(self._assets.image_path(asset_key))
         frames = sheet.strip(frame_count, horizontal=horizontal)
-        return AnimatedSprite(parent=parent, pos=pos, size=size, frames=frames,
-                              fps=fps, loop=loop, name=name or asset_key)
+        return AnimatedSprite(
+            parent=parent,
+            pos=pos,
+            size=size,
+            frames=frames,
+            fps=fps,
+            loop=loop,
+            name=name or asset_key,
+        )
 
-    def from_grid(self,
-                  asset_key: str,
-                  parent: Transform | None = None,
-                  pos = ("CENTER", "CENTER"),
-                  size: tuple = (0, 0),
-                  cols: int = 1,
-                  rows: int = 1,
-                  fps: float = 12.0,
-                  loop: bool = True,
-                  name: str | None = None) -> AnimatedSprite:
-        sheet  = SpriteSheet.from_path(self._assets.image_path(asset_key))
+    def from_grid(
+        self,
+        asset_key: str,
+        parent: Transform | None = None,
+        pos=("CENTER", "CENTER"),
+        size: tuple = (0, 0),
+        cols: int = 1,
+        rows: int = 1,
+        fps: float = 12.0,
+        loop: bool = True,
+        name: str | None = None,
+    ) -> AnimatedSprite:
+        sheet = SpriteSheet.from_path(self._assets.image_path(asset_key))
         frames = sheet.grid(cols, rows)
-        return AnimatedSprite(parent=parent, pos=pos, size=size, frames=frames,
-                              fps=fps, loop=loop, name=name or asset_key)
+        return AnimatedSprite(
+            parent=parent,
+            pos=pos,
+            size=size,
+            frames=frames,
+            fps=fps,
+            loop=loop,
+            name=name or asset_key,
+        )

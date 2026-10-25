@@ -6,6 +6,7 @@ through) and _scale_def in isolation (the UI-rescaling math used when a
 game renders at a different resolution than its layout was authored for,
 e.g. standoff's desktop-vs-mobile render size).
 """
+
 from __future__ import annotations
 
 import pygame
@@ -83,7 +84,9 @@ def test_add_object_uses_default_type_when_unspecified(loader, tmp_path):
     assert isinstance(loader.pm["menu"]["play"], _Built)
 
 
-def test_add_object_raises_when_no_type_and_no_default(window_transform, assets, tmp_path):
+def test_add_object_raises_when_no_type_and_no_default(
+    window_transform, assets, tmp_path
+):
     pm = PanelManager()
     ld = PanelLoader(pm, window_transform, assets)
     ld.register("object", _factory)  # no default=True
@@ -104,7 +107,9 @@ def test_add_object_raises_for_unregistered_type(loader, tmp_path):
 # ── parent resolution ──────────────────────────────────────────────────────
 
 
-def test_object_without_parent_gets_window_transform(loader, tmp_path, window_transform):
+def test_object_without_parent_gets_window_transform(
+    loader, tmp_path, window_transform
+):
     path = _write(tmp_path, "panels:\n  menu:\n    objects:\n      play: {}\n")
     loader.load(path)
     assert loader.pm["menu"]["play"].parent is window_transform
@@ -298,7 +303,10 @@ def test_scale_def_scales_a_non_top_left_anchor_directly_instead_of_centre_remap
     obj_def = {"position": [-25, -25], "anchor": "bottom-right"}
     ld._scale_def(obj_def, window_parented=True)
 
-    assert obj_def["position"] == [-12, -12]  # round(-25 * 0.5) == -12 (banker's rounding) -- plain magnitude scale
+    assert obj_def["position"] == [
+        -12,
+        -12,
+    ]  # round(-25 * 0.5) == -12 (banker's rounding) -- plain magnitude scale
 
 
 def test_scale_def_still_centre_remaps_the_default_top_left_anchor():

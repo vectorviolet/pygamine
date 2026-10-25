@@ -3,6 +3,7 @@ from __future__ import annotations
 from pygame import Vector2
 from pygamine.ecs.components.component import Component
 
+
 class Rigidbody2D(Component):
     def __init__(self):
         super().__init__()

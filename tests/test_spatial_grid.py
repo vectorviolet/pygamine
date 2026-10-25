@@ -4,6 +4,7 @@ The grid is a correctness-critical optimization: a wrong query means mobs ignore
 neighbours they should avoid, or collide against walls they shouldn't (or miss
 ones they should). These pin the query semantics.
 """
+
 from __future__ import annotations
 
 import pygame

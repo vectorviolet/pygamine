@@ -2,6 +2,7 @@
 invoke_repeating scheduling, the component system, and per-frame dispatch
 (handle_event/update/draw) respecting both .active and Behaviour.enabled.
 """
+
 from __future__ import annotations
 
 import pygame
@@ -189,7 +190,9 @@ def test_invoke_fires_once_after_its_delay(fake_ticks):
 def test_invoke_repeating_fires_on_each_interval(fake_ticks):
     calls = []
     go = GameObject()
-    go.invoke_repeating(lambda: calls.append(1), delay=0.1, interval=0.5)  # 100ms, 500ms
+    go.invoke_repeating(
+        lambda: calls.append(1), delay=0.1, interval=0.5
+    )  # 100ms, 500ms
 
     fake_ticks["t"] = 100
     go._tick_scheduled()

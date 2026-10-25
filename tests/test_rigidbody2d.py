@@ -1,6 +1,7 @@
 """Unit tests for Rigidbody2D: velocity-based movement via a float-position
 accumulator (so slow/fractional velocities don't get truncated to zero every
 frame)."""
+
 from __future__ import annotations
 
 from pygame import Vector2

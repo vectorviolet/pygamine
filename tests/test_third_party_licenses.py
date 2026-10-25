@@ -2,6 +2,7 @@
 every game's build ships next to its executable. Its README's table and the
 files must agree, or a build ships a text nobody listed, or lists one it
 doesn't ship."""
+
 from __future__ import annotations
 
 import re

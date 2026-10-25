@@ -11,9 +11,20 @@ from pygamine.app.splash_screen import SplashScreen
 # (available_resolutions() filters this down to what fits the
 # screen). 16:9/16:10 only -- covers the vast majority of desktop monitors.
 COMMON_RESOLUTIONS: tuple[tuple[int, int], ...] = (
-    (1024, 576), (1152, 648), (1280, 720), (1280, 800), (1366, 768),
-    (1440, 900), (1536, 864), (1600, 900), (1680, 1050), (1920, 1080),
-    (1920, 1200), (2560, 1440), (3200, 1800), (3840, 2160),
+    (1024, 576),
+    (1152, 648),
+    (1280, 720),
+    (1280, 800),
+    (1366, 768),
+    (1440, 900),
+    (1536, 864),
+    (1600, 900),
+    (1680, 1050),
+    (1920, 1080),
+    (1920, 1200),
+    (2560, 1440),
+    (3200, 1800),
+    (3840, 2160),
 )
 
 
@@ -24,8 +35,15 @@ class Application:
     # nicer with Windows DPI/GPU scaling) -> bordered windowed.
     WINDOW_MODES: tuple[str, ...] = ("fullscreen", "borderless", "windowed")
 
-    def __init__(self, size: tuple[int, int], title: str, fps: int, mouse=None,
-                 render_scale: float = 1.0, fixed_aspect: bool = False) -> None:
+    def __init__(
+        self,
+        size: tuple[int, int],
+        title: str,
+        fps: int,
+        mouse=None,
+        render_scale: float = 1.0,
+        fixed_aspect: bool = False,
+    ) -> None:
         self._is_running = False
         self._fps = fps
         self._is_in_debug_mode = False
@@ -96,6 +114,7 @@ class Application:
         if sys.platform != "win32":
             return
         import ctypes
+
         try:
             ctypes.windll.user32.SetProcessDpiAwarenessContext(ctypes.c_void_p(-4))
             return
@@ -113,11 +132,14 @@ class Application:
 
     @staticmethod
     def center_window():
-        os.environ['SDL_VIDEO_CENTERED'] = '1'
+        os.environ["SDL_VIDEO_CENTERED"] = "1"
 
     def fetch_screen_dimensions(self, size: tuple[int, int]):
         self.info_object = pygame.display.Info()
-        self.full_screen_size = self.full_screen_width, self.full_screen_height = self.info_object.current_w, self.info_object.current_h
+        self.full_screen_size = self.full_screen_width, self.full_screen_height = (
+            self.info_object.current_w,
+            self.info_object.current_h,
+        )
         self.minimized_size = self.minimized_width, self.minimized_height = size
 
     @staticmethod
@@ -147,7 +169,9 @@ class Application:
         self._window_mode = "windowed"
 
     def full_screen(self):
-        self.display_surface = pygame.display.set_mode(self.full_screen_size, pygame.FULLSCREEN)
+        self.display_surface = pygame.display.set_mode(
+            self.full_screen_size, pygame.FULLSCREEN
+        )
         self._rebuild_window_surface()
         self._sync_mouse_scale()
         self._window_mode = "fullscreen"
@@ -157,7 +181,9 @@ class Application:
         # fills the screen like FULLSCREEN but without an exclusive display
         # mode switch, so no flash/flicker on alt-tab and no interaction
         # with GPU/monitor scaling behavior tied to exclusive mode switches.
-        self.display_surface = pygame.display.set_mode(self.full_screen_size, pygame.NOFRAME)
+        self.display_surface = pygame.display.set_mode(
+            self.full_screen_size, pygame.NOFRAME
+        )
         self._rebuild_window_surface()
         self._sync_mouse_scale()
         self._window_mode = "borderless"
@@ -190,7 +216,10 @@ class Application:
             base_size = self.display_surface.get_size()
         if self.render_scale == 1.0:
             return base_size
-        return (round(base_size[0] * self.render_scale), round(base_size[1] * self.render_scale))
+        return (
+            round(base_size[0] * self.render_scale),
+            round(base_size[1] * self.render_scale),
+        )
 
     def set_render_scale(self, scale: float) -> None:
         """Change the internal render resolution relative to the real
@@ -253,7 +282,9 @@ class Application:
         margin = 0.8
         max_width = margin * self.full_screen_width
         max_height = margin * self.full_screen_height
-        fitting = {r for r in COMMON_RESOLUTIONS if r[0] <= max_width and r[1] <= max_height}
+        fitting = {
+            r for r in COMMON_RESOLUTIONS if r[0] <= max_width and r[1] <= max_height
+        }
         fitting.add(self.resolution)
         return sorted(fitting)
 
@@ -321,7 +352,11 @@ class Application:
         if "window_size" in saved_settings:
             self.set_resolution(tuple(saved_settings["window_size"]))
         mode = saved_settings.get("window_mode", "fullscreen")
-        mode_methods = {"fullscreen": self.full_screen, "borderless": self.borderless_full_screen, "windowed": self.minimize}
+        mode_methods = {
+            "fullscreen": self.full_screen,
+            "borderless": self.borderless_full_screen,
+            "windowed": self.minimize,
+        }
         mode_methods.get(mode, self.full_screen)()
 
     def window_settings(self) -> dict:
@@ -344,7 +379,9 @@ class Application:
         aspect ratio, centered inside it. Only meaningful under
         fixed_aspect=True -- self.window's aspect always matches dst_size's
         otherwise, so this would just return the full dst_size rect."""
-        assert self.window is not None, "self.window is only None before __init__ finishes"
+        assert self.window is not None, (
+            "self.window is only None before __init__ finishes"
+        )
         dst_w, dst_h = dst_size
         src_w, src_h = self.window.get_size()
         scale = min(dst_w / src_w, dst_h / src_h)
@@ -354,14 +391,22 @@ class Application:
     def _sync_mouse_scale(self) -> None:
         if not self.mouse:
             return
-        assert self.window is not None, "self.window is only None before __init__ finishes"
+        assert self.window is not None, (
+            "self.window is only None before __init__ finishes"
+        )
         if self.fixed_aspect:
             rect = self._fit_rect(self.display_surface.get_size())
-            self.mouse.scale = (self.window.get_width() / rect.width, self.window.get_height() / rect.height)
+            self.mouse.scale = (
+                self.window.get_width() / rect.width,
+                self.window.get_height() / rect.height,
+            )
             self.mouse.offset = (rect.x, rect.y)
             return
         physical_width, physical_height = self.display_surface.get_size()
-        self.mouse.scale = (self.window.get_width() / physical_width, self.window.get_height() / physical_height)
+        self.mouse.scale = (
+            self.window.get_width() / physical_width,
+            self.window.get_height() / physical_height,
+        )
 
     def set_size(self, size: tuple) -> None:
         self.size = self.width, self.height = size
@@ -394,7 +439,9 @@ class Application:
             self._present()
 
     def _present(self) -> None:
-        assert self.window is not None, "self.window is only None before __init__ finishes"
+        assert self.window is not None, (
+            "self.window is only None before __init__ finishes"
+        )
         dst_size = self.display_surface.get_size()
 
         if self.fixed_aspect:
@@ -408,7 +455,9 @@ class Application:
                 pygame.transform.scale(self.window, dst_size, self.display_surface)
             else:
                 self.display_surface.fill((0, 0, 0))
-                pygame.transform.scale(self.window, rect.size, self.display_surface.subsurface(rect))
+                pygame.transform.scale(
+                    self.window, rect.size, self.display_surface.subsurface(rect)
+                )
             pygame.display.update()
             return
 
@@ -462,7 +511,9 @@ class Application:
         pass
 
     def draw_mouse(self) -> None:
-        assert self.window is not None, "self.window is only None before __init__ finishes"
+        assert self.window is not None, (
+            "self.window is only None before __init__ finishes"
+        )
         if self.mouse:
             self.mouse.draw(self.window)
 

@@ -6,6 +6,7 @@ Uses real image files under tmp_path (load_image needs a real, loadable
 file + convert_alpha(), which needs a display mode set even under the
 dummy SDL driver) rather than mocking image loading away.
 """
+
 from __future__ import annotations
 
 import pygame
@@ -189,7 +190,9 @@ def test_info_reports_state_pos_and_size(images):
 
 
 def test_hoverable_construction_with_hover_image(images):
-    obj = HoverableStateObject(size=(20, 20), image_path=images["base"], hover_image_path=images["hover"])
+    obj = HoverableStateObject(
+        size=(20, 20), image_path=images["base"], hover_image_path=images["hover"]
+    )
     assert obj._hover_images[None].get_at((5, 5)) == (0, 255, 0, 255)
 
 
@@ -226,24 +229,32 @@ def test_hoverable_add_state_without_hover_only_registers_base(images):
 
 
 def test_active_surface_is_base_image_when_not_hovered_or_focused(images):
-    obj = HoverableStateObject(size=(20, 20), image_path=images["base"], hover_image_path=images["hover"])
+    obj = HoverableStateObject(
+        size=(20, 20), image_path=images["base"], hover_image_path=images["hover"]
+    )
     assert obj._active_surface.get_at((5, 5)) == (255, 0, 0, 255)
 
 
 def test_active_surface_is_hover_image_when_hovered(images):
-    obj = HoverableStateObject(size=(20, 20), image_path=images["base"], hover_image_path=images["hover"])
+    obj = HoverableStateObject(
+        size=(20, 20), image_path=images["base"], hover_image_path=images["hover"]
+    )
     obj._hovered = True
     assert obj._active_surface.get_at((5, 5)) == (0, 255, 0, 255)
 
 
 def test_active_surface_is_hover_image_when_focused_without_hovering(images):
-    obj = HoverableStateObject(size=(20, 20), image_path=images["base"], hover_image_path=images["hover"])
+    obj = HoverableStateObject(
+        size=(20, 20), image_path=images["base"], hover_image_path=images["hover"]
+    )
     obj.focused = True
     assert obj._active_surface.get_at((5, 5)) == (0, 255, 0, 255)
 
 
 def test_active_surface_prefers_per_state_hover_over_default_hover(images):
-    obj = HoverableStateObject(size=(20, 20), image_path=images["base"], hover_image_path=images["hover"])
+    obj = HoverableStateObject(
+        size=(20, 20), image_path=images["base"], hover_image_path=images["hover"]
+    )
     obj.add_state("purchased", images["other_state"])  # no per-state hover registered
     obj.set_state("purchased")
     obj._hovered = True
@@ -253,8 +264,12 @@ def test_active_surface_prefers_per_state_hover_over_default_hover(images):
     assert obj._active_surface.get_at((5, 5)) == (0, 255, 0, 255)
 
 
-def test_active_surface_falls_back_to_base_image_when_hovered_with_no_hover_image_at_all(images):
-    obj = HoverableStateObject(size=(20, 20), image_path=images["base"])  # no hover_image_path
+def test_active_surface_falls_back_to_base_image_when_hovered_with_no_hover_image_at_all(
+    images,
+):
+    obj = HoverableStateObject(
+        size=(20, 20), image_path=images["base"]
+    )  # no hover_image_path
     obj._hovered = True
     assert obj._active_surface.get_at((5, 5)) == (255, 0, 0, 255)
 
@@ -264,7 +279,11 @@ def test_active_surface_falls_back_to_base_image_when_hovered_with_no_hover_imag
 
 def test_mouse_entering_the_rect_switches_to_the_hover_image(parent, images):
     obj = HoverableStateObject(
-        parent=parent, pos=(0, 0), size=(20, 20), image_path=images["base"], hover_image_path=images["hover"]
+        parent=parent,
+        pos=(0, 0),
+        size=(20, 20),
+        image_path=images["base"],
+        hover_image_path=images["hover"],
     )
     event = pygame.event.Event(pygame.MOUSEMOTION, pos=(5, 5))
 
@@ -276,35 +295,61 @@ def test_mouse_entering_the_rect_switches_to_the_hover_image(parent, images):
 
 def test_mouse_leaving_the_rect_reverts_to_the_base_image(parent, images):
     obj = HoverableStateObject(
-        parent=parent, pos=(0, 0), size=(20, 20), image_path=images["base"], hover_image_path=images["hover"]
+        parent=parent,
+        pos=(0, 0),
+        size=(20, 20),
+        image_path=images["base"],
+        hover_image_path=images["hover"],
     )
-    obj.handle_event(pygame.event.Event(pygame.MOUSEMOTION, pos=(5, 5)), (5, 5))  # enter
+    obj.handle_event(
+        pygame.event.Event(pygame.MOUSEMOTION, pos=(5, 5)), (5, 5)
+    )  # enter
     assert obj._hovered is True
 
-    obj.handle_event(pygame.event.Event(pygame.MOUSEMOTION, pos=(999, 999)), (999, 999))  # leave
+    obj.handle_event(
+        pygame.event.Event(pygame.MOUSEMOTION, pos=(999, 999)), (999, 999)
+    )  # leave
 
     assert obj._hovered is False
     assert _color(obj) == (255, 0, 0, 255)
 
 
-def test_mouse_staying_inside_does_not_re_trigger_the_renderer_update(parent, images, monkeypatch):
+def test_mouse_staying_inside_does_not_re_trigger_the_renderer_update(
+    parent, images, monkeypatch
+):
     obj = HoverableStateObject(
-        parent=parent, pos=(0, 0), size=(20, 20), image_path=images["base"], hover_image_path=images["hover"]
+        parent=parent,
+        pos=(0, 0),
+        size=(20, 20),
+        image_path=images["base"],
+        hover_image_path=images["hover"],
     )
-    obj.handle_event(pygame.event.Event(pygame.MOUSEMOTION, pos=(5, 5)), (5, 5))  # enters, hovered=True
+    obj.handle_event(
+        pygame.event.Event(pygame.MOUSEMOTION, pos=(5, 5)), (5, 5)
+    )  # enters, hovered=True
 
     calls = []
     real_set_image = obj._renderer.set_image
-    monkeypatch.setattr(obj._renderer, "set_image", lambda img: (calls.append(img), real_set_image(img))[-1])
+    monkeypatch.setattr(
+        obj._renderer,
+        "set_image",
+        lambda img: (calls.append(img), real_set_image(img))[-1],
+    )
 
-    obj.handle_event(pygame.event.Event(pygame.MOUSEMOTION, pos=(6, 6)), (6, 6))  # still inside
+    obj.handle_event(
+        pygame.event.Event(pygame.MOUSEMOTION, pos=(6, 6)), (6, 6)
+    )  # still inside
 
     assert calls == []  # hover state didn't change, so no redundant renderer update
 
 
 def test_unrelated_event_type_does_not_change_hover_state(parent, images):
     obj = HoverableStateObject(
-        parent=parent, pos=(0, 0), size=(20, 20), image_path=images["base"], hover_image_path=images["hover"]
+        parent=parent,
+        pos=(0, 0),
+        size=(20, 20),
+        image_path=images["base"],
+        hover_image_path=images["hover"],
     )
     obj.handle_event(pygame.event.Event(pygame.KEYDOWN, key=pygame.K_a), (5, 5))
     assert obj._hovered is False

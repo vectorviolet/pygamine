@@ -55,7 +55,9 @@ def export_files(video_path: str | Path, output_folder: str | Path) -> int:
         try:
             if clip.audio is not None:
                 audio_out = out_dir / f"{path.stem}_audio.ogg"
-                clip.audio.write_audiofile(str(audio_out), codec="libvorbis", bitrate="128k", logger=None)
+                clip.audio.write_audiofile(
+                    str(audio_out), codec="libvorbis", bitrate="128k", logger=None
+                )
                 print(f"Audio extracted: {audio_out.name}")
         except Exception as e:
             print(f"Error producing sound: {e}")
@@ -68,7 +70,9 @@ def export_files(video_path: str | Path, output_folder: str | Path) -> int:
             frame_name = frames_dir / f"{frame_count:04d}.jpg"
             Image.fromarray(frame).convert("RGB").save(frame_name, quality=JPG_QUALITY)
 
-        print(f"A total of {frame_count} frames have been successfully extracted at {clip.fps:g} fps.")
+        print(
+            f"A total of {frame_count} frames have been successfully extracted at {clip.fps:g} fps."
+        )
 
         # 3. Metadata for ImageSequenceMedia, which plays the frames at this fps
         width, height = clip.size
@@ -89,13 +93,17 @@ def main(argv: list[str] | None = None) -> None:
         prog="pygamine-mp4-converter",
         description="Convert a video into .jpg frames + meta.yaml + .ogg audio for ImageSequenceMedia.",
     )
-    parser.add_argument("video", nargs="?", help="video file to convert (prompted for if omitted)")
+    parser.add_argument(
+        "video", nargs="?", help="video file to convert (prompted for if omitted)"
+    )
     parser.add_argument("-o", "--output", help="output folder (default: out/)")
     args = parser.parse_args(argv)
 
     video = args.video or input("Enter the path to the video file: ")
     output = args.output or (
-        "out/" if args.video else input("Enter the output directory for files (default: out/): ") or "out/"
+        "out/"
+        if args.video
+        else input("Enter the output directory for files (default: out/): ") or "out/"
     )
     export_files(video.strip("\"'"), output)
 

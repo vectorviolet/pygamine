@@ -1,6 +1,7 @@
 """Unit tests for pygamine.assets.paths: resource_root()/resource_path(), the
 frozen-vs-source filesystem anchor host projects chdir into at startup.
 """
+
 from __future__ import annotations
 
 import sys
@@ -15,7 +16,9 @@ def test_resource_root_uses_meipass_when_frozen(monkeypatch, tmp_path):
     assert resource_root() == tmp_path
 
 
-def test_resource_root_falls_back_to_project_root_when_not_frozen(monkeypatch, tmp_path):
+def test_resource_root_falls_back_to_project_root_when_not_frozen(
+    monkeypatch, tmp_path
+):
     """Deliberately doesn't rely on *this* checkout's own real location:
     locally it's nested inside a host project (src/pygamine/), but in
     pygamine's own CI it's checked out standalone with no such nesting --

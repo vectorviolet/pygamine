@@ -3,6 +3,7 @@ PanelManager (dict, keyed by name) and free-standing entity lists (list)
 use to fan out handle_event/update/draw, skipping objects that don't
 support a method or are inactive.
 """
+
 from __future__ import annotations
 
 import pygame

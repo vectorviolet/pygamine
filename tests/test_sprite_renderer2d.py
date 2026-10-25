@@ -1,5 +1,6 @@
 """Unit tests for SpriteRenderer2D: blits its image at the owning
 GameObject's rect."""
+
 from __future__ import annotations
 
 import pygame

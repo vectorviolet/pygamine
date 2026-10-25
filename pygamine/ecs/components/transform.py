@@ -9,12 +9,13 @@ from pygamine.ecs.components.component import Component
 
 
 class Transform(Component, pygame.Rect, Anchorable):
-    def __init__(self,
-                 position: tuple = (0, 0),
-                 size: tuple = (0, 0),
-                 parent: Transform | None = None,
-                 anchor: str = "top-left",
-                 ):
+    def __init__(
+        self,
+        position: tuple = (0, 0),
+        size: tuple = (0, 0),
+        parent: Transform | None = None,
+        anchor: str = "top-left",
+    ):
         Component.__init__(self)
         pygame.Rect.__init__(self, position, size)
         self.parent = parent

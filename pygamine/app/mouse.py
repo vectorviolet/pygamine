@@ -37,7 +37,10 @@ class Mouse:
         self.position = ((raw_x - offset_x) * scale_x, (raw_y - offset_y) * scale_y)
 
         if self.tile_size:
-            self.tile_pos = (self.position[0] // self.tile_size, self.position[1] // self.tile_size)
+            self.tile_pos = (
+                self.position[0] // self.tile_size,
+                self.position[1] // self.tile_size,
+            )
 
         if self.cursor:
             self.cursor.rect.set_position(self.position)
@@ -49,5 +52,5 @@ class Mouse:
     def info(self) -> tuple:
         return "Mouse Info:", {
             "pos": self.position,
-            "tile_pos": self.tile_pos if self.tile_size else None
+            "tile_pos": self.tile_pos if self.tile_size else None,
         }

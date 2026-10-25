@@ -10,10 +10,13 @@ from pygamine.ecs.components.transform import Transform
 # Factory signature: config dict + window_size → object
 ObjectFactory = Callable[[dict, tuple[int, int]], Any]
 
+
 class PanelLoader:
     """Reads panel definitions from a YAML file and loads them into PanelManager."""
 
-    def __init__(self, panel_manager, window_transform: Transform, asset_manager: AssetManager):
+    def __init__(
+        self, panel_manager, window_transform: Transform, asset_manager: AssetManager
+    ):
         self.pm = panel_manager
         self.window_transform = window_transform
         self.assets = asset_manager
@@ -27,7 +30,9 @@ class PanelLoader:
         self.scale: float = 1.0
         self.authored_size: tuple[int, int] | None = None
 
-    def register(self, type_name: str, factory: ObjectFactory, *, default: bool = False) -> None:
+    def register(
+        self, type_name: str, factory: ObjectFactory, *, default: bool = False
+    ) -> None:
         self._factories[type_name] = factory
         if default:
             self._default_type = type_name
@@ -70,7 +75,9 @@ class PanelLoader:
         if type_name is None:
             raise ValueError(f"Object '{name}' has no type and no default registered")
         if type_name not in self._factories:
-            raise KeyError(f"No factory for type '{type_name}'. Registered: {list(self._factories)}")
+            raise KeyError(
+                f"No factory for type '{type_name}'. Registered: {list(self._factories)}"
+            )
 
         parent_name = obj_def.pop("parent", None)
         if parent_name is not None:
@@ -129,8 +136,10 @@ class PanelLoader:
             return  # desktop: authored layout, no scaling needed
 
         size = obj_def.get("size")
-        if isinstance(size, list) and len(size) == 2 and all(
-            isinstance(n, (int, float)) for n in size
+        if (
+            isinstance(size, list)
+            and len(size) == 2
+            and all(isinstance(n, (int, float)) for n in size)
         ):
             obj_def["size"] = [round(size[0] * k), round(size[1] * k)]
 
@@ -146,13 +155,24 @@ class PanelLoader:
         pos = obj_def.get("position")
         if isinstance(pos, list) and len(pos) == 2:
             fills_window = obj_def.get("size") == "WINDOW"
-            if window_parented and not fills_window and obj_def.get("anchor", "top-left") == "top-left":
+            if (
+                window_parented
+                and not fills_window
+                and obj_def.get("anchor", "top-left") == "top-left"
+            ):
                 # Map authored-window coords → actual-window coords about centre.
-                acx, acy = self.window_transform.width / 2, self.window_transform.height / 2
+                acx, acy = (
+                    self.window_transform.width / 2,
+                    self.window_transform.height / 2,
+                )
                 ocx, ocy = authored[0] / 2, authored[1] / 2
                 obj_def["position"] = [
-                    round(acx + (pos[0] - ocx) * k) if isinstance(pos[0], (int, float)) else pos[0],
-                    round(acy + (pos[1] - ocy) * k) if isinstance(pos[1], (int, float)) else pos[1],
+                    round(acx + (pos[0] - ocx) * k)
+                    if isinstance(pos[0], (int, float))
+                    else pos[0],
+                    round(acy + (pos[1] - ocy) * k)
+                    if isinstance(pos[1], (int, float))
+                    else pos[1],
                 ]
             else:
                 obj_def["position"] = [

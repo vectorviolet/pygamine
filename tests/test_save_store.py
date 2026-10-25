@@ -2,6 +2,7 @@
 saves/<name>.json (relative to cwd, auto-creating the folder), used for
 both settings and game-save data.
 """
+
 from __future__ import annotations
 
 import json

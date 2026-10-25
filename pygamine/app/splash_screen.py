@@ -21,7 +21,9 @@ DEFAULT_SEQUENCE_FPS = 30.0
 # must bundle that folder as "pygamine/branding" (see standard_splash_media()).
 
 
-def _fade_alpha(elapsed_ms: float, duration_ms: float, fade_in_ms: int, fade_out_ms: int) -> int:
+def _fade_alpha(
+    elapsed_ms: float, duration_ms: float, fade_in_ms: int, fade_out_ms: int
+) -> int:
     """Opacity (0-255) `elapsed_ms` into an item lasting `duration_ms`: rising
     over the first `fade_in_ms`, falling over the last `fade_out_ms`. The
     splash clears to black each frame, so this fades to and from black."""
@@ -35,7 +37,9 @@ def _fade_alpha(elapsed_ms: float, duration_ms: float, fade_in_ms: int, fade_out
 
 def _check_fades(fade_in_ms: int, fade_out_ms: int) -> None:
     if fade_in_ms < 0 or fade_out_ms < 0:
-        raise ValueError(f"fade durations can't be negative (got {fade_in_ms}, {fade_out_ms})")
+        raise ValueError(
+            f"fade durations can't be negative (got {fade_in_ms}, {fade_out_ms})"
+        )
 
 
 class SplashMedia(Protocol):
@@ -59,7 +63,11 @@ class ImageMedia:
     held for `hold_ms`, then faded out over `fade_out_ms`."""
 
     def __init__(
-        self, image_path: PathArg, fade_in_ms: int = 1500, hold_ms: int = 1000, fade_out_ms: int = 0
+        self,
+        image_path: PathArg,
+        fade_in_ms: int = 1500,
+        hold_ms: int = 1000,
+        fade_out_ms: int = 0,
     ) -> None:
         _check_fades(fade_in_ms, fade_out_ms)
         self._original_image = pygame.image.load(image_path).convert_alpha()
@@ -90,7 +98,9 @@ class ImageMedia:
             self._finished = True
             return
 
-        self._current_alpha = _fade_alpha(elapsed, duration, self._fade_in_ms, self._fade_out_ms)
+        self._current_alpha = _fade_alpha(
+            elapsed, duration, self._fade_in_ms, self._fade_out_ms
+        )
 
     def draw(self, surface: pygame.Surface) -> None:
         if self._finished:
@@ -146,7 +156,11 @@ class ImageSequenceMedia:
         self._fade_out_ms = fade_out_ms
         self._alpha = 255
         self._folder = Path(str(folder_path))
-        self._fps = fps if fps is not None else self._read_meta_fps(self._folder) or DEFAULT_SEQUENCE_FPS
+        self._fps = (
+            fps
+            if fps is not None
+            else self._read_meta_fps(self._folder) or DEFAULT_SEQUENCE_FPS
+        )
         self._audio_path = str(audio_path) if audio_path else None
         self._audio = audio_manager
 
@@ -157,7 +171,9 @@ class ImageSequenceMedia:
         self._total_frames = len(self._frame_paths)
         self._duration_ms = self._total_frames * 1000 / self._fps
 
-        self._frame_queue: queue.Queue[tuple[int, pygame.Surface]] = queue.Queue(maxsize=self._BUFFER_FRAMES)
+        self._frame_queue: queue.Queue[tuple[int, pygame.Surface]] = queue.Queue(
+            maxsize=self._BUFFER_FRAMES
+        )
         self._stop_event = threading.Event()
         self._loader: threading.Thread | None = None
 
@@ -234,7 +250,9 @@ class ImageSequenceMedia:
         if due_idx >= self._total_frames:
             self._stop()
             return
-        self._alpha = _fade_alpha(elapsed, self._duration_ms, self._fade_in_ms, self._fade_out_ms)
+        self._alpha = _fade_alpha(
+            elapsed, self._duration_ms, self._fade_in_ms, self._fade_out_ms
+        )
 
         # Pull frames up to the one that's due, keeping only the newest; late
         # frames are dropped. Frames arrive in order, so this never consumes
@@ -308,7 +326,11 @@ def standard_splash_media(
     A frozen (PyInstaller) build must bundle BRANDING_DIR as data, e.g.
     `(str(ROOT / "src/pygamine/pygamine/branding"), "pygamine/branding")`.
     """
-    fades = {name: ms for name, ms in (("fade_in_ms", fade_in_ms), ("fade_out_ms", fade_out_ms)) if ms is not None}
+    fades = {
+        name: ms
+        for name, ms in (("fade_in_ms", fade_in_ms), ("fade_out_ms", fade_out_ms))
+        if ms is not None
+    }
     return [
         ImageSequenceMedia(
             BRANDING_DIR / "vectorviolet" / "splash",
@@ -331,7 +353,9 @@ class SplashScreen:
 
     SKIP_KEYS = [pygame.K_SPACE, pygame.K_RETURN, pygame.K_ESCAPE]
 
-    def __init__(self, media_items: list[SplashMedia], skip_completely: bool = False) -> None:
+    def __init__(
+        self, media_items: list[SplashMedia], skip_completely: bool = False
+    ) -> None:
         self._media_items = media_items
         self._index = 0
         self.is_done = False
@@ -367,7 +391,9 @@ class SplashScreen:
             self.skip()
 
     def should_skip(self, event: pygame.event.Event) -> bool:
-        return event.type == pygame.MOUSEBUTTONDOWN or (event.type == pygame.KEYDOWN and event.key in self.SKIP_KEYS)
+        return event.type == pygame.MOUSEBUTTONDOWN or (
+            event.type == pygame.KEYDOWN and event.key in self.SKIP_KEYS
+        )
 
     def skip(self) -> None:
         if self.is_done:

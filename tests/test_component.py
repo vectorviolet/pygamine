@@ -2,6 +2,7 @@
 ECS component (Transform, Rigidbody2D, SpriteRenderer2D, Animator, ...)
 builds on.
 """
+
 from __future__ import annotations
 
 import pytest

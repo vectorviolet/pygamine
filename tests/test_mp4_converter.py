@@ -2,6 +2,7 @@
 meta.yaml + .ogg audio, the input ImageSequenceMedia plays. Each test
 renders a tiny real video with moviepy (from the `video` extra / dev group).
 """
+
 from __future__ import annotations
 
 import pytest
@@ -13,7 +14,9 @@ from pygamine.devtools.mp4_converter import export_files, main  # noqa: E402
 
 # moviepy's frame reader trips a NumPy 2.5 deprecation on every frame --
 # its problem to fix, and pure noise in this suite's output.
-pytestmark = pytest.mark.filterwarnings("ignore:Setting the shape on a NumPy array:DeprecationWarning")
+pytestmark = pytest.mark.filterwarnings(
+    "ignore:Setting the shape on a NumPy array:DeprecationWarning"
+)
 
 
 @pytest.fixture(scope="module")
@@ -22,8 +25,14 @@ def video(tmp_path_factory):
     import numpy as np
 
     path = tmp_path_factory.mktemp("video") / "intro.mp4"
-    audio = moviepy.AudioClip(lambda t: np.sin(2 * np.pi * 440 * t), duration=1, fps=22050)
-    clip = moviepy.ColorClip((32, 16), color=(200, 30, 30), duration=1).with_fps(12).with_audio(audio)
+    audio = moviepy.AudioClip(
+        lambda t: np.sin(2 * np.pi * 440 * t), duration=1, fps=22050
+    )
+    clip = (
+        moviepy.ColorClip((32, 16), color=(200, 30, 30), duration=1)
+        .with_fps(12)
+        .with_audio(audio)
+    )
     clip.write_videofile(str(path), codec="libx264", audio_codec="aac", logger=None)
     return path
 
@@ -36,7 +45,9 @@ def test_writes_numbered_jpg_frames_meta_and_audio(video, tmp_path):
     assert frames[0].name == "0001.jpg"
     assert (tmp_path / "intro_audio.ogg").is_file()
 
-    meta = yaml.safe_load((tmp_path / "frames" / "meta.yaml").read_text(encoding="utf-8"))
+    meta = yaml.safe_load(
+        (tmp_path / "frames" / "meta.yaml").read_text(encoding="utf-8")
+    )
     assert meta == {"fps": 12, "frame_count": 12, "size": [32, 16]}
 
 

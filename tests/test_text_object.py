@@ -1,6 +1,7 @@
 """Unit tests for TextObject: a GameObject-based text label with optional
 multi-state auto-sync to a parent's state/hover flags.
 """
+
 from __future__ import annotations
 
 import pygame
@@ -36,7 +37,9 @@ def test_multi_state_construction_auto_inserts_missing_default(font):
 
 
 def test_multi_state_construction_does_not_overwrite_existing_default(font):
-    label = TextObject(None, (0, 0), text="ignored", font=font, states={"default": "D", "hover": "H"})
+    label = TextObject(
+        None, (0, 0), text="ignored", font=font, states={"default": "D", "hover": "H"}
+    )
     assert label.states["default"] == "D"
 
 
@@ -159,7 +162,9 @@ def test_update_is_a_no_op_with_only_one_state(font):
         state = "hover"
 
     parent = _Parent()
-    label = TextObject(parent.rect, (0, 0), text="Hi", font=font)  # only "default" state
+    label = TextObject(
+        parent.rect, (0, 0), text="Hi", font=font
+    )  # only "default" state
 
     label.update()
 
@@ -176,7 +181,9 @@ def test_update_is_a_no_op_when_parent_transform_has_no_game_object(font):
     from pygamine.ecs.components.transform import Transform
 
     orphan_transform = Transform()  # never attached to a GameObject
-    label = TextObject(orphan_transform, (0, 0), font=font, states={"default": "D", "hover": "H"})
+    label = TextObject(
+        orphan_transform, (0, 0), font=font, states={"default": "D", "hover": "H"}
+    )
 
     label.update()
 
@@ -190,7 +197,9 @@ def test_update_follows_parent_state_attribute(font):
             self.state = "hover"
 
     parent = _Parent()
-    label = TextObject(parent.rect, (0, 0), font=font, states={"default": "D", "hover": "H"})
+    label = TextObject(
+        parent.rect, (0, 0), font=font, states={"default": "D", "hover": "H"}
+    )
 
     label.update()
 
@@ -205,7 +214,9 @@ def test_update_follows_parent_underscore_state_attribute(font):
             self._state = "hover"
 
     parent = _Parent()
-    label = TextObject(parent.rect, (0, 0), font=font, states={"default": "D", "hover": "H"})
+    label = TextObject(
+        parent.rect, (0, 0), font=font, states={"default": "D", "hover": "H"}
+    )
 
     label.update()
 
@@ -220,7 +231,9 @@ def test_update_falls_back_to_hover_flag_when_parent_state_does_not_match(font):
             self._hovered = True
 
     parent = _Parent()
-    label = TextObject(parent.rect, (0, 0), font=font, states={"default": "D", "hover": "H"})
+    label = TextObject(
+        parent.rect, (0, 0), font=font, states={"default": "D", "hover": "H"}
+    )
 
     label.update()
 
@@ -235,7 +248,9 @@ def test_update_falls_back_to_default_when_nothing_else_matches(font):
             self._hovered = False
 
     parent = _Parent()
-    label = TextObject(parent.rect, (0, 0), font=font, states={"default": "D", "hover": "H"})
+    label = TextObject(
+        parent.rect, (0, 0), font=font, states={"default": "D", "hover": "H"}
+    )
     label.set_state("hover")  # start somewhere other than default
 
     label.update()
@@ -252,12 +267,16 @@ def test_update_stays_put_when_no_fallback_state_is_available(font):
 
     parent = _Parent()
     label = TextObject(parent.rect, (0, 0), font=font, states={"hover": "H"})
-    del label.states["default"]  # construction always adds one -- remove it for this edge case
+    del label.states[
+        "default"
+    ]  # construction always adds one -- remove it for this edge case
     label.state = "hover"
 
     label.update()
 
-    assert label.state == "hover"  # nothing matched, so _resolve_state_from returns self.state unchanged
+    assert (
+        label.state == "hover"
+    )  # nothing matched, so _resolve_state_from returns self.state unchanged
 
 
 # ── _parse_color / _parse_padding (static helpers) ─────────────────────
@@ -307,9 +326,16 @@ def test_parse_padding_invalid_length_raises(font):
 
 
 def test_background_color_and_padding_produce_a_larger_filled_surface(font):
-    label = TextObject(None, (0, 0), text="Hi", font=font, background_color=(0, 255, 0), padding=10)
+    label = TextObject(
+        None, (0, 0), text="Hi", font=font, background_color=(0, 255, 0), padding=10
+    )
     text_only_size = font.render("Hi", True, label.color).get_size()
 
     assert label.rect.size == (text_only_size[0] + 20, text_only_size[1] + 20)
     image = _renderer(label).image
-    assert image.get_at((0, 0)) == (0, 255, 0, 255)  # padding area shows the background fill
+    assert image.get_at((0, 0)) == (
+        0,
+        255,
+        0,
+        255,
+    )  # padding area shows the background fill

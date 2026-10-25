@@ -12,12 +12,12 @@ C = TypeVar("C", bound=Component)
 @dataclass
 class _ScheduledCall:
     callback: Callable
-    fire_at:  int        # pygame ms
-    interval: int | None # None = one-shot; else repeat interval in ms
+    fire_at: int  # pygame ms
+    interval: int | None  # None = one-shot; else repeat interval in ms
 
 
 class GameObject:
-    def __init__(self, name: str = 'game_object'):
+    def __init__(self, name: str = "game_object"):
         self.name = name
         self._active: bool = True
         self._parent: GameObject | None = None
@@ -25,7 +25,7 @@ class GameObject:
         self._scheduled: list[_ScheduledCall] = []
         self.rect: Transform = Transform()
         self.rect.game_object = self
-        self._components: dict[str, Component] = {'Transform': self.rect}
+        self._components: dict[str, Component] = {"Transform": self.rect}
         self._image: pygame.Surface | None = None
 
     # ── active / hierarchy ───────────────────────────────────────────────────
@@ -53,7 +53,7 @@ class GameObject:
         if parent is not None:
             parent._children.append(self)
 
-    def on_enable(self):  ...
+    def on_enable(self): ...
     def on_disable(self): ...
 
     def _on_active_changed(self, is_active: bool) -> None:
@@ -61,9 +61,9 @@ class GameObject:
             self.on_enable()
         else:
             self.on_disable()
-        self._invoke_component_method('on_enable' if is_active else 'on_disable')
+        self._invoke_component_method("on_enable" if is_active else "on_disable")
         for child in self._children:
-            if child._active: # self-disabled children are already inactive; skip
+            if child._active:  # self-disabled children are already inactive; skip
                 child._on_active_changed(is_active)
 
     # ── invoke / invoke_repeating ─────────────────────────────────────────────
@@ -72,7 +72,9 @@ class GameObject:
         fire_at = pygame.time.get_ticks() + int(delay * 1000)
         self._scheduled.append(_ScheduledCall(callback, fire_at, None))
 
-    def invoke_repeating(self, callback: Callable, delay: float, interval: float) -> None:
+    def invoke_repeating(
+        self, callback: Callable, delay: float, interval: float
+    ) -> None:
         fire_at = pygame.time.get_ticks() + int(delay * 1000)
         self._scheduled.append(_ScheduledCall(callback, fire_at, int(interval * 1000)))
 
@@ -110,7 +112,7 @@ class GameObject:
         component = component_type(**kwargs)
         component.game_object = self
         self._components[component_type.__name__] = component
-        if hasattr(component, 'awake'):
+        if hasattr(component, "awake"):
             component.awake()
         return component
 
@@ -142,18 +144,18 @@ class GameObject:
     def handle_event(self, event: pygame.event.Event, mouse_position) -> None:
         if not self.active:
             return
-        self._invoke_component_method('handle_event', event, mouse_position)
+        self._invoke_component_method("handle_event", event, mouse_position)
 
     def update(self) -> None:
         if not self.active:
             return
         self._tick_scheduled()
-        self._invoke_component_method('update')
+        self._invoke_component_method("update")
 
     def draw(self, surface: pygame.Surface) -> None:
         if not self.active:
             return
-        self._invoke_component_method('draw', surface)
+        self._invoke_component_method("draw", surface)
 
     def _invoke_component_method(self, method_name: str, *args, **kwargs) -> None:
         for component in self._components.values():

@@ -5,6 +5,7 @@ Both operate on real global pygame.mixer.Channel objects, so tests reset
 the channels they use before each test rather than assuming a clean slate
 -- the mixer's channel state persists across tests in the same process.
 """
+
 from __future__ import annotations
 
 import struct

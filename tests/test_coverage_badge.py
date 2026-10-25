@@ -2,6 +2,7 @@
 into a shields.io endpoint badge JSON, written relative to cwd -- the
 `pygamine-coverage-badge` console script every host project's CI runs.
 """
+
 from __future__ import annotations
 
 import json
@@ -13,7 +14,14 @@ from pygamine.devtools.coverage_badge import badge_color, main
 
 @pytest.mark.parametrize(
     ("percent", "color"),
-    [(0, "red"), (49.9, "red"), (50, "yellow"), (79.9, "yellow"), (80, "brightgreen"), (100, "brightgreen")],
+    [
+        (0, "red"),
+        (49.9, "red"),
+        (50, "yellow"),
+        (79.9, "yellow"),
+        (80, "brightgreen"),
+        (100, "brightgreen"),
+    ],
 )
 def test_badge_color_thresholds(percent, color):
     assert badge_color(percent) == color

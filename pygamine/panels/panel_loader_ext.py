@@ -53,8 +53,7 @@ class PanelLoaderExt(PanelLoader):
             PanelLoaderExt._apply_templates(group_def, templates)
 
         for panel_def in (data.get("panels", {}) or {}).values():
-            PanelLoaderExt._apply_templates(
-                (panel_def.get("objects") or {}), templates)
+            PanelLoaderExt._apply_templates((panel_def.get("objects") or {}), templates)
 
     @staticmethod
     def _expand_layouts(data: dict) -> None:
@@ -79,11 +78,11 @@ class PanelLoaderExt(PanelLoader):
             if direction not in ("vertical", "horizontal"):
                 raise ValueError(
                     f"layout group '{name}': direction must be 'vertical' or "
-                    f"'horizontal', got {direction!r}")
+                    f"'horizontal', got {direction!r}"
+                )
             start = layout.get("start")
             if not isinstance(start, list) or len(start) != 2:
-                raise ValueError(
-                    f"layout group '{name}': layout.start must be [x, y]")
+                raise ValueError(f"layout group '{name}': layout.start must be [x, y]")
             spacing = layout.get("spacing", 0)
 
             sx, sy = start
@@ -94,19 +93,21 @@ class PanelLoaderExt(PanelLoader):
                 raise ValueError(
                     f"layout group '{name}': main-axis start "
                     f"({'y' if main_axis_is_y else 'x'}) must be numeric for "
-                    f"{direction} layout, got {main_val!r}")
+                    f"{direction} layout, got {main_val!r}"
+                )
 
             children = obj_def.get("objects") or {}
             group_parent = obj_def.get("parent")
             for i, (child_name, child_def) in enumerate(children.items()):
                 if not isinstance(child_def, dict):
                     raise ValueError(
-                        f"layout group '{name}' child '{child_name}' must be "
-                        f"a mapping")
+                        f"layout group '{name}' child '{child_name}' must be a mapping"
+                    )
                 if "layout" in child_def:
                     raise ValueError(
                         f"layout group '{name}' child '{child_name}' may not "
-                        f"itself be a layout group (nesting not supported)")
+                        f"itself be a layout group (nesting not supported)"
+                    )
                 child = dict(child_def)
                 offset = i * spacing
                 if main_axis_is_y:
@@ -118,7 +119,8 @@ class PanelLoaderExt(PanelLoader):
                 if child_name in new_entries:
                     raise KeyError(
                         f"duplicate object name '{child_name}' produced by "
-                        f"layout group '{name}'")
+                        f"layout group '{name}'"
+                    )
                 new_entries[child_name] = child
 
         objects.clear()

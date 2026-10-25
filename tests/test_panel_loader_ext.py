@@ -1,6 +1,7 @@
 """Unit tests for PanelLoaderExt: object_templates (extends:) and layout
 groups (auto-positioned children), on top of PanelLoader's base loading.
 """
+
 from __future__ import annotations
 
 import pygame

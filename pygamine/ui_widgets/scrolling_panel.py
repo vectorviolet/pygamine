@@ -61,7 +61,9 @@ class ScrollingPanel(GameObject):
     def on_panel_loaded(self, panel: GameObjectDict) -> None:
         for name in self._target_names:
             if name not in panel:
-                raise KeyError(f"ScrollingPanel target '{name}' is not an object of its panel")
+                raise KeyError(
+                    f"ScrollingPanel target '{name}' is not an object of its panel"
+                )
             self._targets.append(panel.pop(name))
 
         self._base_y = [obj.rect.y for obj in self._targets]
@@ -125,6 +127,8 @@ class ScrollingPanel(GameObject):
         # Content outside the viewport is clipped away, so it mustn't be
         # pressable there; everything else (motion, releases, keys) passes
         # through so hover and drag state stay consistent.
-        if event.type == pygame.MOUSEBUTTONDOWN and not self.rect.collidepoint(mouse_position):
+        if event.type == pygame.MOUSEBUTTONDOWN and not self.rect.collidepoint(
+            mouse_position
+        ):
             return
         dispatch_handle_event(self._targets, event, mouse_position)

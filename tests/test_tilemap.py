@@ -8,6 +8,7 @@ integration with an external library, which is exactly where mocking
 would hide the most likely kind of bug (a pytmx API assumption that's
 wrong).
 """
+
 from __future__ import annotations
 
 import pygame
@@ -74,11 +75,11 @@ def non_square_tmx_path(tmp_path, monkeypatch):
         ' <tileset firstgid="1" name="tiles" tilewidth="16" tileheight="8" '
         'tilecount="1" columns="1">\n'
         '  <image source="tileset.png" width="16" height="8"/>\n'
-        ' </tileset>\n'
+        " </tileset>\n"
         ' <layer id="1" name="L" width="1" height="1">\n'
         '  <data encoding="csv">1</data>\n'
-        ' </layer>\n'
-        '</map>\n'
+        " </layer>\n"
+        "</map>\n"
     )
     return path
 
@@ -137,9 +138,9 @@ def test_pre_render_places_each_tile_at_its_grid_position(tmx_path):
     tmap = TiledMap(tmx_path)
     surface = tmap.pre_render()
 
-    assert surface.get_at((0, 0)) == RED     # gid 1, col 0 row 0
+    assert surface.get_at((0, 0)) == RED  # gid 1, col 0 row 0
     assert surface.get_at((16, 0)) == GREEN  # gid 2, col 1 row 0
-    assert surface.get_at((0, 16)) == BLUE   # gid 3, col 0 row 1
+    assert surface.get_at((0, 16)) == BLUE  # gid 3, col 0 row 1
     assert surface.get_at((16, 16)) == YELLOW  # gid 4, col 1 row 1
 
 

@@ -7,6 +7,7 @@ their own parsing (enemy paths, buildable grids, entity spawning, ...).
 
 Requires `pytmx`.
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -73,10 +74,14 @@ class TiledMap:
         """Blit the (camera-scale cached) map at the camera offset, clipped to its viewport."""
         if self._native_surface is None:
             self._native_surface = self.pre_render()
-        if self._scaled_surface is None or abs(self._scaled_factor - camera.scale) > 1e-6:
+        if (
+            self._scaled_surface is None
+            or abs(self._scaled_factor - camera.scale) > 1e-6
+        ):
             self._scaled_factor = camera.scale
             self._scaled_surface = (
-                self._native_surface if abs(camera.scale - 1.0) < 1e-6
+                self._native_surface
+                if abs(camera.scale - 1.0) < 1e-6
                 else pygame.transform.scale_by(self._native_surface, camera.scale)
             )
         old_clip = surface.get_clip()

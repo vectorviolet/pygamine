@@ -3,6 +3,7 @@
 No sockets, no threads. This is where the framing bugs that bite networked apps
 (partial reads, truncated streams, garbage bytes) get caught cheaply.
 """
+
 from __future__ import annotations
 
 import struct

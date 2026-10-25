@@ -29,7 +29,9 @@ class Database:
         try:
             self.connection = sqlite3.connect(self.path)
         except sqlite3.Error as error:
-            raise DatabaseError(f"Failed to connect to database {self.path}: {error}") from error
+            raise DatabaseError(
+                f"Failed to connect to database {self.path}: {error}"
+            ) from error
 
     def get_cursor(self) -> sqlite3.Cursor:
         assert self.connection is not None, "Database not connected"
@@ -49,7 +51,9 @@ class Database:
         assert self.connection is not None, "Database not connected"
         self.connection.close()
 
-    def execute_safely(self, query: str, fetch: bool = False, *, params: tuple = ()) -> list[tuple] | None:
+    def execute_safely(
+        self, query: str, fetch: bool = False, *, params: tuple = ()
+    ) -> list[tuple] | None:
         """Connect, run `query`, commit, and disconnect in one call --
         always disconnects (even if the query raises), unlike the
         connect/execute/commit/disconnect building blocks used directly

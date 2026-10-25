@@ -2,6 +2,7 @@
 real run() -- splash, any run() override, main loop -- for a few frames,
 the path host projects' smoke tests otherwise never exercise.
 """
+
 from __future__ import annotations
 
 import pygame
@@ -14,7 +15,9 @@ from pygamine.devtools.smoke import run_briefly
 
 @pytest.fixture(autouse=True)
 def display():
-    pygame.display.set_mode((1, 1))  # ImageMedia's convert_alpha() needs a display mode set
+    pygame.display.set_mode(
+        (1, 1)
+    )  # ImageMedia's convert_alpha() needs a display mode set
 
 
 def _logo(tmp_path, name):
@@ -49,7 +52,9 @@ class NeverEndingMedia:
     def fit(self, target_size): ...
     def update(self): ...
     def draw(self, surface): ...
-    def is_finished(self): return False
+    def is_finished(self):
+        return False
+
     def skip(self): ...
 
 

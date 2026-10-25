@@ -27,7 +27,9 @@ class SpriteSheet:
     def from_path(cls, path: PathLike) -> "SpriteSheet":
         return cls(load_image(path))
 
-    def strip(self, frame_count: int, horizontal: bool = True, copy: bool = True) -> list[pygame.Surface]:
+    def strip(
+        self, frame_count: int, horizontal: bool = True, copy: bool = True
+    ) -> list[pygame.Surface]:
         """Slice an evenly-divided single-row (or single-column) strip into N frames."""
         if frame_count <= 0:
             return []
@@ -49,7 +51,9 @@ class SpriteSheet:
         rects = [(c * fw, r * fh, fw, fh) for r in range(rows) for c in range(cols)]
         return [self._slice(r, copy) for r in rects]
 
-    def frame(self, col: int, row: int, frame_w: int, frame_h: int, copy: bool = True) -> pygame.Surface:
+    def frame(
+        self, col: int, row: int, frame_w: int, frame_h: int, copy: bool = True
+    ) -> pygame.Surface:
         """Pull a single frame at a grid coord, given the source-pixel frame size."""
         return self._slice((col * frame_w, row * frame_h, frame_w, frame_h), copy)
 

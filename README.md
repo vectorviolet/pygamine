@@ -20,6 +20,7 @@ Then in the host's entry script:
 ```python
 import sys
 from pathlib import Path
+
 sys.path.insert(0, str(Path(__file__).parent / "src" / "pygamine"))
 
 # Now imports work:
@@ -147,10 +148,10 @@ coin.draw(surface)
 ```python
 from pygamine import ImagePath, FontPath, SoundPath
 
-ImagePath("player")             # → assets/images/player.png
-ImagePath("hero", "sprites")    # → assets/images/sprites/hero.png
-FontPath("comic")               # → assets/fonts/comic.ttf
-SoundPath("jump")               # → assets/sounds/jump.ogg
+ImagePath("player")  # → assets/images/player.png
+ImagePath("hero", "sprites")  # → assets/images/sprites/hero.png
+FontPath("comic")  # → assets/fonts/comic.ttf
+SoundPath("jump")  # → assets/sounds/jump.ogg
 ```
 
 All `AssetPath` subclasses implement `__fspath__`, so they can be passed directly to `pygame.image.load` / `pygame.font.Font` / `pygame.mixer.Sound`.

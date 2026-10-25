@@ -2,6 +2,7 @@
 via strip (single row/column), grid (rows x cols), and frame (one specific
 cell), plus the copy vs. subsurface-view distinction.
 """
+
 from __future__ import annotations
 
 import pygame

@@ -1,6 +1,7 @@
 """Unit tests for Debug: the F1 debug-overlay renderer (background panel,
 border, and per-source key/value text lines).
 """
+
 from __future__ import annotations
 
 import pygame
@@ -35,10 +36,14 @@ def test_get_debug_lines_yields_source_and_key_value_lines():
 
 
 def test_get_debug_lines_handles_multiple_sources():
-    lines = list(Debug.get_debug_lines([
-        ("Player", {"hp": 10}),
-        ("Camera", {"scale": 1.0}),
-    ]))
+    lines = list(
+        Debug.get_debug_lines(
+            [
+                ("Player", {"hp": 10}),
+                ("Camera", {"scale": 1.0}),
+            ]
+        )
+    )
     assert lines == [
         "DEBUG MODE",
         "===============================",

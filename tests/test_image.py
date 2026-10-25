@@ -1,6 +1,7 @@
 """Unit tests for image.py: load_image (cached, with a size-convention mini
 DSL), scale, scale_by, and nine_slice_scale.
 """
+
 from __future__ import annotations
 
 import pygame
@@ -154,19 +155,19 @@ def test_nine_slice_scale_places_corners_pixel_perfect_and_unscaled():
     result = nine_slice_scale(image, target_size=(60, 60), corner=10)
 
     assert result.get_size() == (60, 60)
-    assert result.get_at((5, 5)) == RED       # top-left corner
-    assert result.get_at((55, 5)) == BLUE     # top-right corner
-    assert result.get_at((5, 55)) == ORANGE   # bottom-left corner
-    assert result.get_at((55, 55)) == PINK    # bottom-right corner
+    assert result.get_at((5, 5)) == RED  # top-left corner
+    assert result.get_at((55, 5)) == BLUE  # top-right corner
+    assert result.get_at((5, 55)) == ORANGE  # bottom-left corner
+    assert result.get_at((55, 55)) == PINK  # bottom-right corner
 
 
 def test_nine_slice_scale_stretches_edges_in_one_axis():
     image = _nine_region_image(cell=10)
     result = nine_slice_scale(image, target_size=(60, 60), corner=10)
 
-    assert result.get_at((30, 5)) == GREEN    # top edge, stretched horizontally
+    assert result.get_at((30, 5)) == GREEN  # top edge, stretched horizontally
     assert result.get_at((30, 55)) == PURPLE  # bottom edge
-    assert result.get_at((5, 30)) == YELLOW   # left edge, stretched vertically
+    assert result.get_at((5, 30)) == YELLOW  # left edge, stretched vertically
     assert result.get_at((55, 30)) == MAGENTA  # right edge
 
 

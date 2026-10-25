@@ -1,6 +1,7 @@
 """Unit tests for AssetManager: the manifest-driven asset registry every
 consuming project loads config/assets.yaml through.
 """
+
 from __future__ import annotations
 
 import pygame
@@ -166,8 +167,7 @@ def test_validate_merges_categories_so_a_duplicate_key_across_categories_collide
     mgr.load_manifest(
         _write_manifest(
             tmp_path,
-            "images:\n  shared: {name: shared}\n"
-            "sounds:\n  shared: {name: shared}\n",
+            "images:\n  shared: {name: shared}\nsounds:\n  shared: {name: shared}\n",
         )
     )
 
@@ -205,7 +205,9 @@ def test_get_image_unknown_key_raises_keyerror():
 
 
 def test_sequences_load_with_jpg_default_and_resolve_by_key(tmp_path):
-    path = _write_manifest(tmp_path, "sequences:\n  intro: {folder: branding, name: intro}\n")
+    path = _write_manifest(
+        tmp_path, "sequences:\n  intro: {folder: branding, name: intro}\n"
+    )
     mgr = AssetManager()
     mgr.load_manifest(path)
 
@@ -249,6 +251,7 @@ def test_branding_source_resolves_inside_pygamines_bundled_branding_folder(tmp_p
     """Lets a game show pygamine's shared artwork (platform logos, ...)
     through its own manifest, wherever the game itself runs from."""
     from pygamine.assets.asset_path import BRANDING_DIR
+
     path = _write_manifest(
         tmp_path,
         "images:\n"
@@ -261,7 +264,11 @@ def test_branding_source_resolves_inside_pygamines_bundled_branding_folder(tmp_p
     github = mgr.image_path("github")
     assert str(github) == str(BRANDING_DIR / "github" / "GitHub_Invertocat_White.png")
     assert (BRANDING_DIR / "github" / "GitHub_Invertocat_White.png").is_file()
-    assert str(mgr.image_path("own")).replace("\\", "/").endswith("assets/images/ui/button.png")
+    assert (
+        str(mgr.image_path("own"))
+        .replace("\\", "/")
+        .endswith("assets/images/ui/button.png")
+    )
 
 
 def test_unknown_asset_source_is_rejected(tmp_path):

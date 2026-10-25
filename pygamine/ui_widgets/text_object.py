@@ -22,9 +22,9 @@ class TextObject(GameObject, Anchorable):
         position,
         text: str = "",
         font: pygame.font.Font | None = None,
-        color = (255, 255, 255),
-        background_color = None,
-        padding = None,
+        color=(255, 255, 255),
+        background_color=None,
+        padding=None,
         anchor: str = "top-left",
         states: dict | None = None,
     ) -> None:
@@ -103,7 +103,9 @@ class TextObject(GameObject, Anchorable):
             surface = text_surface
         else:
             tw, th = text_surface.get_size()
-            surface = pygame.Surface((tw + left + right, th + top + bottom), pygame.SRCALPHA)
+            surface = pygame.Surface(
+                (tw + left + right, th + top + bottom), pygame.SRCALPHA
+            )
             if self.background_color is not None:
                 surface.fill(self.background_color)
             surface.blit(text_surface, (left, top))
@@ -140,4 +142,6 @@ class TextObject(GameObject, Anchorable):
                 return (v, h, v, h)
             if len(vals) == 4:
                 return tuple(vals)
-        raise ValueError(f"Invalid padding: {padding!r} (expected int, [v,h], or [top,right,bottom,left])")
+        raise ValueError(
+            f"Invalid padding: {padding!r} (expected int, [v,h], or [top,right,bottom,left])"
+        )

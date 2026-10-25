@@ -2,6 +2,7 @@
 handle_event/update/draw to only the currently-open panel (unlike
 GameObjectDict/GameObjectList, which dispatch to everything they hold).
 """
+
 from __future__ import annotations
 
 import pygame

@@ -13,6 +13,7 @@ class MouseInteractive:
     position-set time, so no separate parent-relative adjustment is needed
     here (or possible: pygame.Rect doesn't support Rect + Rect anyway).
     """
+
     # `rect` may be a plain pygame.Rect or a Transform (which subclasses pygame.Rect
     # but adds extra methods). Declared as Any to allow either in subclasses.
     rect: Any
@@ -22,7 +23,9 @@ class MouseInteractive:
     _pressed: bool = False
 
     def is_mouse_over(self, mouse_pos) -> bool:
-        return mouse_pos is not None and self.rect.collidepoint(mouse_pos) and self.visible
+        return (
+            mouse_pos is not None and self.rect.collidepoint(mouse_pos) and self.visible
+        )
 
     def is_clicked(self, event, mouse_pos) -> bool:
         """Returns True: mouse was pressed AND released over this object."""
@@ -42,6 +45,7 @@ class MouseInteractive:
 
         return False
 
+
 def resolve_size(size, window_size) -> tuple:
     if size == "WINDOW":
         return tuple(window_size)
@@ -53,14 +57,14 @@ def resolve_size(size, window_size) -> tuple:
 # Normalized (x, y) reference point within parent and child rects.
 # anchor_xy * size gives the pixel offset for both ends of the anchor relation.
 ANCHORS = {
-    "top-left":     (0.0, 0.0),
-    "top":          (0.5, 0.0),
-    "top-right":    (1.0, 0.0),
-    "left":         (0.0, 0.5),
-    "center":       (0.5, 0.5),
-    "right":        (1.0, 0.5),
-    "bottom-left":  (0.0, 1.0),
-    "bottom":       (0.5, 1.0),
+    "top-left": (0.0, 0.0),
+    "top": (0.5, 0.0),
+    "top-right": (1.0, 0.0),
+    "left": (0.0, 0.5),
+    "center": (0.5, 0.5),
+    "right": (1.0, 0.5),
+    "bottom-left": (0.0, 1.0),
+    "bottom": (0.5, 1.0),
     "bottom-right": (1.0, 1.0),
 }
 
@@ -80,14 +84,17 @@ class Anchorable:
     def resolve_pos(pos, parent_size, obj_size, anchor: str = "top-left") -> tuple:
         x, y = pos
         if anchor == "top-left":
-            if x == "CENTER": x = (parent_size[0] - obj_size[0]) / 2
-            if y == "CENTER": y = (parent_size[1] - obj_size[1]) / 2
+            if x == "CENTER":
+                x = (parent_size[0] - obj_size[0]) / 2
+            if y == "CENTER":
+                y = (parent_size[1] - obj_size[1]) / 2
             return (x, y)
         if anchor not in ANCHORS:
-            raise ValueError(f"Unknown anchor {anchor!r}; expected one of {sorted(ANCHORS)}")
+            raise ValueError(
+                f"Unknown anchor {anchor!r}; expected one of {sorted(ANCHORS)}"
+            )
         ax, ay = ANCHORS[anchor]
         return (
             x + parent_size[0] * ax - obj_size[0] * ax,
             y + parent_size[1] * ay - obj_size[1] * ay,
         )
-

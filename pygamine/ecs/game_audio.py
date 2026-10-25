@@ -15,13 +15,15 @@ from typing import Union
 from pygamine.ecs.sound_manager import SoundManager
 
 MUSIC_CHANNEL = 0
-SFX_CHANNEL   = 1
+SFX_CHANNEL = 1
 
 PathArg = Union[str, "os.PathLike[str]"]
 
 
 class GameAudio:
-    def __init__(self, music_path: PathArg | None = None, autoplay: bool = True) -> None:
+    def __init__(
+        self, music_path: PathArg | None = None, autoplay: bool = True
+    ) -> None:
         self._music_paused = False
         if music_path is not None and autoplay:
             self.play_music(music_path)

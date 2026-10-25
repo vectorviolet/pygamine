@@ -6,6 +6,7 @@ Builds a real AssetManager backed by real image/font files under tmp_path
 "asset"/"hover" config keys to ImagePath objects before calling the factory),
 rather than mocking asset resolution.
 """
+
 from __future__ import annotations
 
 import os
@@ -18,7 +19,11 @@ from pygamine.ecs.animated_sprite import AnimatedSprite
 from pygamine.ecs.components.sprite_renderer2d import SpriteRenderer2D
 from pygamine.ecs.components.transform import Transform
 from pygamine.ecs.state_object import HoverableStateObject, StateObject
-from pygamine.panels.panel_factory import make_animated_factory, make_factory, make_text_factory
+from pygamine.panels.panel_factory import (
+    make_animated_factory,
+    make_factory,
+    make_text_factory,
+)
 from pygamine.ui_widgets.text_object import TextObject
 
 
@@ -28,7 +33,11 @@ def _save_png(path, size, color):
     pygame.image.save(surf, str(path))
 
 
-def _save_strip(path, frame_size=(10, 10), colors=((255, 0, 0), (0, 255, 0), (0, 0, 255), (255, 255, 0))):
+def _save_strip(
+    path,
+    frame_size=(10, 10),
+    colors=((255, 0, 0), (0, 255, 0), (0, 0, 255), (255, 255, 0)),
+):
     fw, fh = frame_size
     strip = pygame.Surface((fw * len(colors), fh), pygame.SRCALPHA)
     for i, color in enumerate(colors):
@@ -100,11 +109,21 @@ def test_color_fill_branch_creates_a_solid_filled_state_object(assets, parent):
 def test_color_fill_branch_is_not_used_when_asset_is_also_given(assets, parent):
     """color-fill only applies when there's no asset -- an asset always wins."""
     factory = make_factory(assets)
-    cfg = {"position": (0, 0), "size": [20, 20], "color": [10, 20, 30], "asset": assets.image_path("btn")}
+    cfg = {
+        "position": (0, 0),
+        "size": [20, 20],
+        "color": [10, 20, 30],
+        "asset": assets.image_path("btn"),
+    }
 
     obj = factory(cfg, parent)
 
-    assert _image(obj).get_at((5, 5)) == (255, 0, 0, 255)  # btn.png's color, not the fill color
+    assert _image(obj).get_at((5, 5)) == (
+        255,
+        0,
+        0,
+        255,
+    )  # btn.png's color, not the fill color
 
 
 # ── make_factory: plain StateObject branch ─────────────────────────────
@@ -123,7 +142,12 @@ def test_plain_state_object_branch_loads_the_asset_image(assets, parent):
 
 def test_anchor_and_nine_slice_pass_through(assets, parent):
     factory = make_factory(assets)
-    cfg = {"position": (0, 0), "size": [20, 20], "asset": assets.image_path("btn"), "anchor": "center"}
+    cfg = {
+        "position": (0, 0),
+        "size": [20, 20],
+        "asset": assets.image_path("btn"),
+        "anchor": "center",
+    }
 
     obj = factory(cfg, parent)
 
@@ -136,8 +160,10 @@ def test_anchor_and_nine_slice_pass_through(assets, parent):
 def test_hover_key_creates_a_hoverable_state_object(assets, parent):
     factory = make_factory(assets)
     cfg = {
-        "position": (0, 0), "size": [20, 20],
-        "asset": assets.image_path("btn"), "hover": assets.image_path("btn_hover"),
+        "position": (0, 0),
+        "size": [20, 20],
+        "asset": assets.image_path("btn"),
+        "hover": assets.image_path("btn_hover"),
     }
 
     obj = factory(cfg, parent)
@@ -149,10 +175,14 @@ def test_hover_key_creates_a_hoverable_state_object(assets, parent):
 # ── make_factory: HoverableStateObject via extra_states ────────────────
 
 
-def test_extra_states_creates_a_hoverable_state_object_even_without_hover(assets, parent):
+def test_extra_states_creates_a_hoverable_state_object_even_without_hover(
+    assets, parent
+):
     factory = make_factory(assets)
     cfg = {
-        "position": (0, 0), "size": [20, 20], "asset": assets.image_path("btn"),
+        "position": (0, 0),
+        "size": [20, 20],
+        "asset": assets.image_path("btn"),
         "states": {"purchased": {"asset": assets.image_path("btn_state_a")}},
     }
 
@@ -168,7 +198,9 @@ def test_extra_state_asset_given_as_a_string_key_is_resolved_via_assets(assets, 
     per-state assets the way it does the top-level asset/hover keys."""
     factory = make_factory(assets)
     cfg = {
-        "position": (0, 0), "size": [20, 20], "asset": assets.image_path("btn"),
+        "position": (0, 0),
+        "size": [20, 20],
+        "asset": assets.image_path("btn"),
         "states": {"purchased": {"asset": "btn_state_a"}},
     }
 
@@ -180,7 +212,9 @@ def test_extra_state_asset_given_as_a_string_key_is_resolved_via_assets(assets, 
 def test_extra_state_with_its_own_hover_image(assets, parent):
     factory = make_factory(assets)
     cfg = {
-        "position": (0, 0), "size": [20, 20], "asset": assets.image_path("btn"),
+        "position": (0, 0),
+        "size": [20, 20],
+        "asset": assets.image_path("btn"),
         "states": {"purchased": {"asset": "btn_state_a", "hover": "btn_hover"}},
     }
 
@@ -194,7 +228,12 @@ def test_extra_state_with_its_own_hover_image(assets, parent):
 
 def test_click_sound_resolved_when_given(assets, parent):
     factory = make_factory(assets)
-    cfg = {"position": (0, 0), "size": [20, 20], "asset": assets.image_path("btn"), "on_click_sound": "click"}
+    cfg = {
+        "position": (0, 0),
+        "size": [20, 20],
+        "asset": assets.image_path("btn"),
+        "on_click_sound": "click",
+    }
 
     obj = factory(cfg, parent)
 
@@ -228,12 +267,17 @@ def test_size_window_sizes_the_object_to_the_parents_size(assets, parent):
 # ── make_animated_factory ──────────────────────────────────────────────
 
 
-def test_animated_factory_slices_the_strip_into_correctly_colored_frames(assets, parent):
+def test_animated_factory_slices_the_strip_into_correctly_colored_frames(
+    assets, parent
+):
     factory = make_animated_factory(assets)
     cfg = {
-        "position": (0, 0), "size": [0, 0],
+        "position": (0, 0),
+        "size": [0, 0],
         "asset": assets.image_path("strip"),
-        "frame_count": 4, "fps": 10, "loop": True,
+        "frame_count": 4,
+        "fps": 10,
+        "loop": True,
     }
 
     sprite = factory(cfg, parent)
@@ -241,14 +285,22 @@ def test_animated_factory_slices_the_strip_into_correctly_colored_frames(assets,
     assert isinstance(sprite, AnimatedSprite)
     frames = sprite.animator.clips["default"].frames
     assert len(frames) == 4
-    expected_colors = [(255, 0, 0, 255), (0, 255, 0, 255), (0, 0, 255, 255), (255, 255, 0, 255)]
+    expected_colors = [
+        (255, 0, 0, 255),
+        (0, 255, 0, 255),
+        (0, 0, 255, 255),
+        (255, 255, 0, 255),
+    ]
     for frame, expected in zip(frames, expected_colors):
         assert frame.get_at((1, 1)) == expected
 
 
 def test_animated_factory_defaults_frame_count_and_fps(assets, parent):
     factory = make_animated_factory(assets)
-    cfg = {"position": (0, 0), "asset": assets.image_path("btn")}  # no frame_count/fps/loop given
+    cfg = {
+        "position": (0, 0),
+        "asset": assets.image_path("btn"),
+    }  # no frame_count/fps/loop given
 
     sprite = factory(cfg, parent)
 
@@ -271,7 +323,13 @@ def test_animated_factory_size_omitted_or_window_defers_to_source_size(assets, p
 
 def test_text_factory_builds_a_text_object_with_given_params(assets, parent):
     factory = make_text_factory(assets)
-    cfg = {"position": (0, 0), "text": "Score: 0", "color": [1, 2, 3], "padding": 4, "anchor": "center"}
+    cfg = {
+        "position": (0, 0),
+        "text": "Score: 0",
+        "color": [1, 2, 3],
+        "padding": 4,
+        "anchor": "center",
+    }
 
     label = factory(cfg, parent)
 
@@ -293,7 +351,11 @@ def test_text_factory_defaults_text_to_empty_string(assets, parent):
 
 def test_text_factory_falls_back_to_sysfont_when_font_is_not_registered(assets, parent):
     factory = make_text_factory(assets)
-    cfg = {"position": (0, 0), "text": "Hi", "font": "Arial"}  # "Arial" isn't in the manifest
+    cfg = {
+        "position": (0, 0),
+        "text": "Hi",
+        "font": "Arial",
+    }  # "Arial" isn't in the manifest
 
     label = factory(cfg, parent)  # must not raise
 
@@ -309,7 +371,9 @@ def test_text_factory_uses_a_registered_font_file(assets, parent):
     assert isinstance(label.font, pygame.font.Font)
 
 
-def test_text_factory_propagates_errors_for_a_registered_but_missing_font_file(assets, parent):
+def test_text_factory_propagates_errors_for_a_registered_but_missing_font_file(
+    assets, parent
+):
     """load_font only falls back to SysFont on KeyError (font not registered
     at all) -- a registered font whose file doesn't actually exist is a real
     error, not silently swallowed into a SysFont fallback."""

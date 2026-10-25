@@ -19,7 +19,9 @@ import pygame
 
 
 class MenuController:
-    def __init__(self, buttons: list, audio=None, switch_up_path=None, switch_down_path=None) -> None:
+    def __init__(
+        self, buttons: list, audio=None, switch_up_path=None, switch_down_path=None
+    ) -> None:
         self.buttons = buttons
         self.audio = audio
         self.switch_up_path = switch_up_path
@@ -43,8 +45,14 @@ class MenuController:
         return next((i for i, b in enumerate(self.buttons) if b.focused), None)
 
     def _handle_mouse_motion(self, mouse_position) -> None:
-        target_i = next((i for i, b in enumerate(self.buttons)
-                         if b.is_mouse_over(mouse_position) and not b.focused), None)
+        target_i = next(
+            (
+                i
+                for i, b in enumerate(self.buttons)
+                if b.is_mouse_over(mouse_position) and not b.focused
+            ),
+            None,
+        )
         focused_i = self._focused_index()
         if target_i is None or focused_i is None:
             return

@@ -5,6 +5,7 @@
   advancing via elapsed time, clicks, or Space/Enter/Escape; with
   skip_completely, a skip ends the whole splash instead.
 """
+
 from __future__ import annotations
 
 import time
@@ -13,7 +14,12 @@ import pygame
 import pytest
 
 from pygamine.app.splash_screen import (
-    BRANDING_DIR, DEFAULT_SEQUENCE_FPS, ImageMedia, ImageSequenceMedia, SplashScreen, standard_splash_media,
+    BRANDING_DIR,
+    DEFAULT_SEQUENCE_FPS,
+    ImageMedia,
+    ImageSequenceMedia,
+    SplashScreen,
+    standard_splash_media,
 )
 from pygamine.ecs.game_audio import GameAudio
 from pygamine.assets.asset_path import SequencePath
@@ -254,7 +260,9 @@ def test_image_sequence_never_consumes_frames_ahead_of_time(frames_dir, fake_tic
 
 def test_image_sequence_finishes_on_time_and_stops_audio(frames_dir, fake_ticks):
     audio = FakeAudio()
-    media = ImageSequenceMedia(frames_dir, fps=10, audio_path="intro.ogg", audio_manager=audio)
+    media = ImageSequenceMedia(
+        frames_dir, fps=10, audio_path="intro.ogg", audio_manager=audio
+    )
     fake_ticks["t"] = 0
     media.fit((20, 10))
     assert audio.played == [("intro.ogg", 0)]
@@ -313,7 +321,9 @@ def test_image_sequence_fades_in_from_and_out_to_black(frames_dir, fake_ticks):
     assert media.is_finished() is True
 
 
-def test_image_sequence_skip_stops_loader_blocked_on_full_buffer(frames_dir, fake_ticks, monkeypatch):
+def test_image_sequence_skip_stops_loader_blocked_on_full_buffer(
+    frames_dir, fake_ticks, monkeypatch
+):
     monkeypatch.setattr(ImageSequenceMedia, "_BUFFER_FRAMES", 2)
     audio = FakeAudio()
     media = ImageSequenceMedia(frames_dir, audio_path="intro.ogg", audio_manager=audio)
@@ -335,7 +345,9 @@ def test_image_sequence_skip_stops_loader_blocked_on_full_buffer(frames_dir, fak
 
 @pytest.fixture
 def display():
-    pygame.display.set_mode((1, 1))  # ImageMedia's convert_alpha() needs a display mode set
+    pygame.display.set_mode(
+        (1, 1)
+    )  # ImageMedia's convert_alpha() needs a display mode set
 
 
 def test_standard_splash_is_the_publisher_clip_then_the_pygame_logo(display):
@@ -351,7 +363,10 @@ def test_standard_splash_uses_the_bundled_branding_assets(display):
 
     assert clip._total_frames == 240
     assert clip._fps == 24
-    assert clip._audio_path is not None and (BRANDING_DIR / "vectorviolet" / "splash.ogg").is_file()
+    assert (
+        clip._audio_path is not None
+        and (BRANDING_DIR / "vectorviolet" / "splash.ogg").is_file()
+    )
     assert (BRANDING_DIR / "pygame" / "pygame_logo.png").is_file()
 
 
@@ -470,7 +485,9 @@ def test_run_raises_systemexit_on_quit_event(media_items, monkeypatch):
 def test_run_advances_through_all_media_via_click(media_items, monkeypatch):
     splash = SplashScreen(media_items)
     monkeypatch.setattr(
-        pygame.event, "get", lambda: [pygame.event.Event(pygame.MOUSEBUTTONDOWN, button=1)]
+        pygame.event,
+        "get",
+        lambda: [pygame.event.Event(pygame.MOUSEBUTTONDOWN, button=1)],
     )
     surface = pygame.Surface((20, 10))
 
@@ -478,9 +495,12 @@ def test_run_advances_through_all_media_via_click(media_items, monkeypatch):
 
     assert splash.is_done is True
 
+
 def test_skip_completely_stops_the_current_media(frames_dir, image_paths, fake_ticks):
     audio = FakeAudio()
-    sequence = ImageSequenceMedia(frames_dir, audio_path="intro.ogg", audio_manager=audio)
+    sequence = ImageSequenceMedia(
+        frames_dir, audio_path="intro.ogg", audio_manager=audio
+    )
     splash = SplashScreen([sequence, ImageMedia(image_paths[0])], skip_completely=True)
     sequence.fit((20, 10))
 
@@ -497,7 +517,11 @@ def test_running_a_finished_splash_again_is_a_no_op(media_items, monkeypatch):
     """A game can show the splash itself and then reach Application.run(),
     which shows it again -- the second run must not index past the end."""
     splash = SplashScreen(media_items)
-    monkeypatch.setattr(pygame.event, "get", lambda: [pygame.event.Event(pygame.MOUSEBUTTONDOWN, button=1)])
+    monkeypatch.setattr(
+        pygame.event,
+        "get",
+        lambda: [pygame.event.Event(pygame.MOUSEBUTTONDOWN, button=1)],
+    )
     surface = pygame.Surface((20, 10))
     splash.run(surface, pygame.time.Clock(), fps=0)
     assert splash.is_done is True

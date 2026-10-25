@@ -30,7 +30,7 @@ class InputBox(Anchorable, MouseInteractive, GameObject):
         text: str = "",
         font: pygame.font.Font | None = None,
         text_color=(255, 255, 255),
-        active_color=(30, 144, 255),     # ~= pygame.Color("dodgerblue2")
+        active_color=(30, 144, 255),  # ~= pygame.Color("dodgerblue2")
         inactive_color=(136, 172, 190),  # ~= pygame.Color("lightskyblue3")
         anchor: str = "top-left",
     ) -> None:
