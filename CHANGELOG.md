@@ -19,6 +19,15 @@ change. Anything before `e5c1fa6` (the commit that first introduced
   (`lockup-{dark,light}-solid.png`, `wordmark-{dark,light}-solid.png`) to
   `branding/vectorviolet/`, beside the glitch ones: no glitch lines, for
   small sizes and busy backgrounds.
+- **Added** `licenses/`: the license texts of pygame-ce, pygamine and every
+  native library pygame-ce bundles on Windows, macOS and Linux (SDL2 and its
+  satellites, FreeType, libpng, libjpeg, libtiff, libwebp, Ogg/Vorbis, Opus,
+  FLAC, mpg123, ...), with a README mapping each library to its text. Those
+  licenses want their notices to travel with binary copies, so a game's build
+  should ship this folder next to its executable.
+- **Changed** `branding/NOTICE.md` separates the two cases: the `vectorviolet/`
+  files may not be used without permission, while the third-party logos are
+  subject to their owners' rules.
 
 ## [0.23.0] — 2026-10-25
 

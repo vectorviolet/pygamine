@@ -50,9 +50,10 @@ include = ["pygamine*"]
 # PEP 561 marker -- lets type checkers (mypy/pyright) pick up this
 # package's inline type hints when it's installed, not just when it's
 # vendored on sys.path inside the same checkout being type-checked.
-# branding/ -- the shared splash assets standard_splash_media() plays --
-# isn't a package (no __init__.py), so it must be listed to ship at all.
-pygamine = ["py.typed", "branding/**/*"]
+# branding/ (the shared splash assets standard_splash_media() plays) and
+# licenses/ (third-party license texts games ship) aren't packages (no
+# __init__.py), so they must be listed to ship at all.
+pygamine = ["py.typed", "branding/**/*", "licenses/**/*"]
 
 [dependency-groups]
 dev = ["pytest>=8", "pytest-cov>=5", "ruff>=0.8", "mypy>=1.13", "types-PyYAML", "moviepy>=2"]

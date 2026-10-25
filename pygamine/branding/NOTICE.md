@@ -6,4 +6,4 @@ Files in this folder are NOT covered by pygamine's MIT license.
 - `pygame/` — pygame-ce logo, used per the pygame-ce project's logo guidelines.
 - `github/`, `itchio/` — trademarks of their respective owners, used only to link to profiles.
 
-Do not reuse these files outside VectorViolet projects without permission.
+The `vectorviolet/` files may not be used without permission. The third-party logos are subject to their owners' rules.
