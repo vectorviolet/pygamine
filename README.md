@@ -169,6 +169,28 @@ rows = db.execute_safely(
 
 `execute_safely` handles connect/commit/disconnect in one call; use `connect/execute/commit/disconnect` directly when you need to batch operations. Any failure raises `DatabaseError` (`from pygamine import DatabaseError`) — catch it (or let it propagate) rather than checking a return value.
 
+## Code style
+
+- **Formatting:** Black-compatible, enforced by `ruff format` (line length 88, double quotes,
+  otherwise Black's defaults; see `[tool.ruff.format]` in `pyproject.toml`).
+- **Lint:** `ruff check`, deliberately narrow (see `[tool.ruff.lint]`).
+- **CI:** runs both, plus `mypy`.
+
+Run both locally before committing:
+
+```bash
+uv run --group dev ruff format .          # reformat
+uv run --group dev ruff check .           # lint
+uv run --group dev ruff format --check .  # what CI runs: fails if anything would be reformatted
+```
+
+The commit that first applied the formatter is listed in `.git-blame-ignore-revs`. To have
+`git blame` skip it and show the real author of each line:
+
+```bash
+git config blame.ignoreRevsFile .git-blame-ignore-revs
+```
+
 ## Adding a new module
 
 1. Create `pygamine/<subpackage>/<module>.py` — pick the subpackage from the

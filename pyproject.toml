@@ -64,6 +64,14 @@ markers = [
     "integration: real-socket loopback tests (slower)",
 ]
 
+[tool.ruff]
+# ruff's own default, written out: both `ruff check` and `ruff format` use it.
+line-length = 88
+
+[tool.ruff.format]
+# Black-compatible formatting; Black's defaults throughout.
+quote-style = "double"
+
 [tool.ruff.lint]
 # Deliberately narrow: F (pyflakes -- real bugs like unused imports/vars)
 # and I002 specifically (only the required-imports check below, not all of

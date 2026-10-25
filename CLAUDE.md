@@ -19,6 +19,13 @@ move their submodules.
 So a new pygamine release is bumped into the active projects only. "Bump the others" or
 "bump all games" is no longer a step after a release.
 
+## Code style
+
+Run `uv run --group dev ruff format .` and `uv run --group dev ruff check .` before every commit.
+Formatting is Black-compatible (`[tool.ruff.format]` in `pyproject.toml`). CI fails on
+`ruff format --check .` and on lint errors. Keep pure reformatting out of feature commits; a
+repo-wide reformat goes in its own commit, with its hash added to `.git-blame-ignore-revs`.
+
 ## Releasing
 
 1. Update `CHANGELOG.md` and bump `version` in `pyproject.toml` (and `uv.lock`, via `uv lock`).
