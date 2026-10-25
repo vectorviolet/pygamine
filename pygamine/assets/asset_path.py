@@ -70,7 +70,7 @@ class SoundPath(AssetPath):
 
 class SequencePath(AssetPath):
     """A folder of numbered frames played as a video (an image sequence),
-    e.g. assets/images/branding/publisher_splash/0001.jpg, 0002.jpg, ...
+    e.g. assets/images/branding/splash/0001.jpg, 0002.jpg, ...
 
     Points at the folder itself; `extension` is the frames' file type.
     The folder may also hold a `meta.yaml` (see ImageSequenceMedia).

@@ -273,7 +273,7 @@ def test_standard_splash_uses_the_bundled_branding_assets(display):
 
     assert clip._total_frames == 240
     assert clip._fps == 24
-    assert clip._audio_path is not None and (BRANDING_DIR / "vectorviolet" / "publisher_splash.ogg").is_file()
+    assert clip._audio_path is not None and (BRANDING_DIR / "vectorviolet" / "splash.ogg").is_file()
     assert (BRANDING_DIR / "pygame" / "pygame_logo.png").is_file()
 
 
@@ -283,7 +283,7 @@ def test_standard_splash_plays_through_the_given_audio_manager(display):
     clip.fit((32, 18))
     clip.skip()
 
-    assert audio.played == [(str(BRANDING_DIR / "vectorviolet" / "publisher_splash.ogg"), 0)]
+    assert audio.played == [(str(BRANDING_DIR / "vectorviolet" / "splash.ogg"), 0)]
     assert audio.stopped is True
 
 

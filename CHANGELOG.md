@@ -13,6 +13,20 @@ together rather than reconstructing a commit-by-commit rationale for every
 change. Anything before `e5c1fa6` (the commit that first introduced
 `pyproject.toml` itself) isn't versioned at all; see `git log` for that era.
 
+## [0.22.0] — 2026-10-25
+
+- **Changed** the publisher splash is renamed to `branding/vectorviolet/splash/`
+  (frames + `meta.yaml`) and `branding/vectorviolet/splash.ogg`;
+  `standard_splash_media()` loads the new names.
+- **Added** VectorViolet lockup and wordmark PNGs (`lockup-{dark,light}-glitch.png`,
+  `wordmark-{dark,light}-glitch.png`) to `branding/vectorviolet/`, so every game
+  can show the publisher logo through `source: branding` instead of keeping its
+  own copy.
+- **Changed** `branding/itch.io/` is renamed to `branding/itchio/`; update
+  `source: branding` manifest entries that use `folder: itch.io/...`.
+- **Added** `branding/NOTICE.md`: the branding files are not covered by
+  pygamine's MIT license.
+
 ## [0.21.0] — 2026-10-25
 
 - **Changed** `branding/` is organised by owner: `vectorviolet/` (the

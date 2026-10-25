@@ -267,8 +267,8 @@ def standard_splash_media(audio_manager: GameAudio | None = None) -> list[Splash
     """
     return [
         ImageSequenceMedia(
-            BRANDING_DIR / "vectorviolet" / "publisher_splash",
-            audio_path=BRANDING_DIR / "vectorviolet" / "publisher_splash.ogg",
+            BRANDING_DIR / "vectorviolet" / "splash",
+            audio_path=BRANDING_DIR / "vectorviolet" / "splash.ogg",
             audio_manager=audio_manager if audio_manager is not None else GameAudio(),
         ),
         ImageMedia(BRANDING_DIR / "pygame" / "pygame_logo.png"),
