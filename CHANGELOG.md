@@ -13,7 +13,7 @@ together rather than reconstructing a commit-by-commit rationale for every
 change. Anything before `e5c1fa6` (the commit that first introduced
 `pyproject.toml` itself) isn't versioned at all; see `git log` for that era.
 
-## [Unreleased]
+## [0.26.0] — 2026-10-26
 
 - **Changed** `GameAudio.play_sfx()` plays each sound effect on a free mixer
   channel from a pool (16 by default) instead of the one shared channel 1, so
