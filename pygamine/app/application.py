@@ -57,7 +57,7 @@ class Application:
         # fixed_aspect=True changes what this means -- see below.
         self.size: tuple[int, int] = size
         # The real OS window/screen surface. full_screen() below creates it,
-        # and minimize()/borderless_full_screen() replace it on a mode switch.
+        # and set_windowed()/borderless_full_screen() replace it on a mode switch.
         self.display_surface: pygame.Surface
         self.window: pygame.Surface | None = None
         # 1.0 (default): self.window always matches the real display exactly,
@@ -74,7 +74,7 @@ class Application:
         # shows more or less of the world, never distortion.
         #
         # True: self.window is locked to `size` (the constructor argument,
-        # cached in self.minimized_size) as a genuinely fixed design
+        # cached in self.default_size) as a genuinely fixed design
         # resolution, scaled only by render_scale -- for a hand-authored
         # pixel layout that must never reveal extra space on a wider/
         # taller monitor. _present()/_sync_mouse_scale() then compute a
@@ -100,7 +100,7 @@ class Application:
         self.set_title(title)
         # The constructor's `size`: the default windowed size, and the fixed
         # design resolution under fixed_aspect (see _scaled_render_size()).
-        self.minimized_size = self.minimized_width, self.minimized_height = size
+        self.default_size = self.default_width, self.default_height = size
         # Must run after pygame.init() and before the first set_mode() below:
         # display.Info() only reports the desktop size until a mode is set.
         self.full_screen_size = self.full_screen_width, self.full_screen_height = (
@@ -160,7 +160,7 @@ class Application:
     def set_title(title: str) -> None:
         pygame.display.set_caption(title)
 
-    def minimize(self) -> None:
+    def set_windowed(self) -> None:
         # A bordered window sized to exactly fill the screen has nowhere to
         # put its title bar/borders -- they get pushed off-screen, and it
         # looks identical to FULLSCREEN. _windowed_physical_size() shrinks
@@ -218,10 +218,10 @@ class Application:
 
     def _scaled_render_size(self) -> tuple[int, int]:
         if self.fixed_aspect:
-            # Locked to the authored design resolution (self.minimized_size,
+            # Locked to the authored design resolution (self.default_size,
             # the original constructor `size`) regardless of the display's
             # own shape -- _present() letterboxes/pillarboxes the result.
-            base_size = self.minimized_size
+            base_size = self.default_size
         else:
             base_size = self.display_surface.get_size()
         if self.render_scale == 1.0:
@@ -257,7 +257,7 @@ class Application:
         methods = {
             "fullscreen": self.full_screen,
             "borderless": self.borderless_full_screen,
-            "windowed": self.minimize,
+            "windowed": self.set_windowed,
         }
         index = self.WINDOW_MODES.index(self._window_mode)
         new_mode = self.WINDOW_MODES[(index + step) % len(self.WINDOW_MODES)]
@@ -279,10 +279,10 @@ class Application:
         margin = 0.8
         fit = min(
             1.0,
-            margin * self.full_screen_width / self.minimized_width,
-            margin * self.full_screen_height / self.minimized_height,
+            margin * self.full_screen_width / self.default_width,
+            margin * self.full_screen_height / self.default_height,
         )
-        return round(self.minimized_width * fit), round(self.minimized_height * fit)
+        return round(self.default_width * fit), round(self.default_height * fit)
 
     def available_resolutions(self) -> list[tuple[int, int]]:
         """Common resolutions that fit this screen with room to spare for
@@ -307,30 +307,30 @@ class Application:
 
     @property
     def resolution(self) -> tuple[int, int]:
-        """The physical size minimize() will use right now -- either an
+        """The physical size set_windowed() will use right now -- either an
         explicit pick from set_resolution()/cycle_resolution(),
         or the automatic best-fit size. Useful for a settings label to show
         the current selection even before the player has ever gone windowed."""
         return self._resolution_override or self._auto_windowed_physical_size()
 
     def set_resolution(self, size: tuple[int, int]) -> None:
-        """Explicitly choose the physical window size minimize() uses,
+        """Explicitly choose the physical window size set_windowed() uses,
         overriding the automatic best-fit calculation. Window mode and
         resolution are independent settings -- picking a resolution never
-        forces a mode switch. If already windowed, minimize() re-runs so
+        forces a mode switch. If already windowed, set_windowed() re-runs so
         the new size is immediately visible; if fullscreen/borderless
         (both always the native monitor resolution, unaffected by this),
         the pick is just remembered for whenever windowed mode is next
         entered, via F11 or the window-mode setting."""
         self._resolution_override = size
         if self._window_mode == "windowed":
-            self.minimize()
+            self.set_windowed()
 
     def clear_resolution_override(self) -> None:
         """Drop any explicit pick, reverting resolution to the
         automatic best-fit calculation. Doesn't switch mode or resize the
-        window itself -- pair with minimize() (or leave it for the next
-        minimize()/F11 press) if the change should be visible immediately."""
+        window itself -- pair with set_windowed() (or leave it for the next
+        set_windowed()/F11 press) if the change should be visible immediately."""
         self._resolution_override = None
 
     def cycle_resolution(self, step: int = 1) -> tuple[int, int]:
@@ -365,7 +365,7 @@ class Application:
         mode_methods = {
             "fullscreen": self.full_screen,
             "borderless": self.borderless_full_screen,
-            "windowed": self.minimize,
+            "windowed": self.set_windowed,
         }
         mode_methods.get(mode, self.full_screen)()
 

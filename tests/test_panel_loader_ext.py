@@ -64,7 +64,7 @@ def test_extends_merges_template_into_object(loader, tmp_path):
         "        position: [0, 300]\n",
     )
     loader.load(path)
-    obj_def = loader.pm["menu"]["play"].obj_def
+    obj_def = loader.panel_manager["menu"]["play"].obj_def
     assert obj_def["size"] == [960, 96]
     assert obj_def["nine_slice"] == 8
     assert obj_def["position"] == [0, 300]
@@ -85,7 +85,7 @@ def test_extends_own_keys_win_over_template(loader, tmp_path):
         "        size: [100, 100]\n",
     )
     loader.load(path)
-    assert loader.pm["menu"]["play"].obj_def["size"] == [100, 100]
+    assert loader.panel_manager["menu"]["play"].obj_def["size"] == [100, 100]
 
 
 def test_extends_unknown_template_raises_keyerror(loader, tmp_path):
@@ -116,7 +116,7 @@ def test_extends_applies_inside_groups_too(loader, tmp_path):
         "    objects: {}\n",
     )
     loader.load(path)
-    assert loader.pm["menu"]["back"].obj_def["size"] == [10, 10]
+    assert loader.panel_manager["menu"]["back"].obj_def["size"] == [10, 10]
 
 
 def test_no_object_templates_section_is_fine(loader, tmp_path):
@@ -124,7 +124,7 @@ def test_no_object_templates_section_is_fine(loader, tmp_path):
     panel files won't use template inheritance."""
     path = _write(tmp_path, "panels:\n  menu:\n    objects:\n      play: {}\n")
     loader.load(path)
-    assert "play" in loader.pm["menu"]
+    assert "play" in loader.panel_manager["menu"]
 
 
 # ── layout groups ───────────────────────────────────────────────────────────
@@ -144,9 +144,9 @@ def test_vertical_layout_spaces_children_along_y(loader, tmp_path):
         "          exit: {}\n",
     )
     loader.load(path)
-    assert loader.pm["menu"]["play"].obj_def["position"] == [50, 100]
-    assert loader.pm["menu"]["settings"].obj_def["position"] == [50, 120]
-    assert loader.pm["menu"]["exit"].obj_def["position"] == [50, 140]
+    assert loader.panel_manager["menu"]["play"].obj_def["position"] == [50, 100]
+    assert loader.panel_manager["menu"]["settings"].obj_def["position"] == [50, 120]
+    assert loader.panel_manager["menu"]["exit"].obj_def["position"] == [50, 140]
 
 
 def test_horizontal_layout_spaces_children_along_x(loader, tmp_path):
@@ -162,8 +162,8 @@ def test_horizontal_layout_spaces_children_along_x(loader, tmp_path):
         "          b: {}\n",
     )
     loader.load(path)
-    assert loader.pm["menu"]["a"].obj_def["position"] == [0, 10]
-    assert loader.pm["menu"]["b"].obj_def["position"] == [30, 10]
+    assert loader.panel_manager["menu"]["a"].obj_def["position"] == [0, 10]
+    assert loader.panel_manager["menu"]["b"].obj_def["position"] == [30, 10]
 
 
 def test_layout_group_never_becomes_an_object_itself(loader, tmp_path):
@@ -180,8 +180,8 @@ def test_layout_group_never_becomes_an_object_itself(loader, tmp_path):
         "          play: {}\n",
     )
     loader.load(path)
-    assert "buttons" not in loader.pm["menu"]
-    assert "play" in loader.pm["menu"]
+    assert "buttons" not in loader.panel_manager["menu"]
+    assert "play" in loader.panel_manager["menu"]
 
 
 def test_layout_group_parent_propagates_to_children(loader, tmp_path):
@@ -198,7 +198,10 @@ def test_layout_group_parent_propagates_to_children(loader, tmp_path):
         "          play: {}\n",
     )
     loader.load(path)
-    assert loader.pm["menu"]["play"].parent is loader.pm["menu"]["panel"].rect
+    assert (
+        loader.panel_manager["menu"]["play"].parent
+        is loader.panel_manager["menu"]["panel"].rect
+    )
 
 
 def test_layout_invalid_direction_raises(loader, tmp_path):
@@ -295,7 +298,7 @@ def test_layout_children_can_also_extend_templates(loader, tmp_path):
         "          exit: {extends: menu_btn}\n",
     )
     loader.load(path)
-    play = loader.pm["menu"]["play"].obj_def
+    play = loader.panel_manager["menu"]["play"].obj_def
     assert play["size"] == [200, 40]
     assert play["position"] == [10, 10]
-    assert loader.pm["menu"]["exit"].obj_def["position"] == [10, 60]
+    assert loader.panel_manager["menu"]["exit"].obj_def["position"] == [10, 60]

@@ -10,8 +10,8 @@ def distance(a: Vector2, b: Vector2) -> float:
 
 
 def angle_between_points(origin_point: Vector2, target_point: Vector2) -> float:
-    return angle_between_delta(target_point - origin_point)
+    return angle_of_delta(target_point - origin_point)
 
 
-def angle_between_delta(delta: Vector2) -> float:
+def angle_of_delta(delta: Vector2) -> float:
     return degrees(atan2(delta.y, delta.x))

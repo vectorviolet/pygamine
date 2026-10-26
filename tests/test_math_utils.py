@@ -7,7 +7,7 @@ import math
 
 from pygame import Vector2
 
-from pygamine.util.math_utils import angle_between_delta, angle_between_points, distance
+from pygamine.util.math_utils import angle_of_delta, angle_between_points, distance
 
 
 def test_distance_between_identical_points_is_zero():
@@ -18,23 +18,23 @@ def test_distance_matches_pythagorean_triple():
     assert distance(Vector2(0, 0), Vector2(3, 4)) == 5
 
 
-def test_angle_between_delta_right_is_zero_degrees():
-    assert angle_between_delta(Vector2(1, 0)) == 0
+def test_angle_of_delta_right_is_zero_degrees():
+    assert angle_of_delta(Vector2(1, 0)) == 0
 
 
-def test_angle_between_delta_down_is_90_degrees():
+def test_angle_of_delta_down_is_90_degrees():
     # pygame/screen space: +y points down, so "down" is +90 degrees here.
-    assert angle_between_delta(Vector2(0, 1)) == 90
+    assert angle_of_delta(Vector2(0, 1)) == 90
 
 
-def test_angle_between_delta_left_is_180_degrees():
-    assert abs(angle_between_delta(Vector2(-1, 0))) == 180
+def test_angle_of_delta_left_is_180_degrees():
+    assert abs(angle_of_delta(Vector2(-1, 0))) == 180
 
 
 def test_angle_between_points_is_direction_from_origin_to_target():
     origin = Vector2(0, 0)
     target = Vector2(0, 10)
-    assert angle_between_points(origin, target) == angle_between_delta(target - origin)
+    assert angle_between_points(origin, target) == angle_of_delta(target - origin)
 
 
 def test_angle_between_points_matches_known_45_degrees():

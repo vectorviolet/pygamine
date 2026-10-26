@@ -17,7 +17,7 @@ class PanelLoader:
     def __init__(
         self, panel_manager, window_transform: Transform, asset_manager: AssetManager
     ) -> None:
-        self.pm = panel_manager
+        self.panel_manager = panel_manager
         self.window_transform = window_transform
         self.assets = asset_manager
         self._factories: dict[str, ObjectFactory] = {}
@@ -61,9 +61,9 @@ class PanelLoader:
         panel that defines it -- for objects that need their siblings, which
         may be declared after them (e.g. ScrollingPanel adopting its targets).
         Iterates a snapshot, since a hook may remove objects from the panel."""
-        if tab not in self.pm:
+        if tab not in self.panel_manager:
             return
-        panel = self.pm[tab]
+        panel = self.panel_manager[tab]
         for obj in list(panel.values()):
             hook = getattr(obj, "on_panel_loaded", None)
             if hook is not None:
@@ -81,12 +81,15 @@ class PanelLoader:
 
         parent_name = obj_def.pop("parent", None)
         if parent_name is not None:
-            if tab not in self.pm or parent_name not in self.pm[tab]:
+            if (
+                tab not in self.panel_manager
+                or parent_name not in self.panel_manager[tab]
+            ):
                 raise KeyError(
                     f"Object '{name}' references unknown parent '{parent_name}' in panel '{tab}'. "
                     f"Parent objects must be declared before their children."
                 )
-            parent = self.pm[tab][parent_name].rect
+            parent = self.panel_manager[tab][parent_name].rect
         else:
             parent = self.window_transform
 
@@ -99,7 +102,7 @@ class PanelLoader:
 
         factory = self._factories[type_name]
         obj = factory(obj_def, parent)
-        self.pm.add_object(tab, name, obj)
+        self.panel_manager.add_object(tab, name, obj)
 
     def _scale_def(self, obj_def: dict, window_parented: bool) -> None:
         """Apply the global UI scale (self.scale) to one object's geometry, in place.

@@ -24,6 +24,21 @@ change. Anything before `e5c1fa6` (the commit that first introduced
   return typed factories; `TiledMap.iter_objects()`,
   `SpatialGrid.query_radius()` / `query_rect()`, `GameObjectDict.values()`
   and `PanelManager.keys()` return typed iterators/views.
+- **Changed** (breaking) `Application.minimize()` is renamed
+  `Application.set_windowed()`. It never minimized (iconified) the window:
+  it switches to windowed mode, beside `full_screen()` and
+  `borderless_full_screen()`. Saved settings are unaffected (the mode is
+  still stored as `"windowed"`).
+- **Changed** (breaking) `Application.minimized_size`, `minimized_width` and
+  `minimized_height` are renamed `default_size`, `default_width` and
+  `default_height`. They hold the constructor's `size` (the default windowed
+  size, and the design resolution under `fixed_aspect=True`), not a
+  minimized size.
+- **Changed** (breaking) `PanelLoader.pm` is renamed
+  `PanelLoader.panel_manager`, matching the constructor argument it stores.
+- **Changed** (breaking) `angle_between_delta()` is renamed
+  `angle_of_delta()`, both in `pygamine` and `pygamine.util.math_utils`: it
+  returns the angle of one delta vector, not an angle between two things.
 - **Fixed** the `ObjectFactory` type alias `PanelLoader.register()` takes
   now matches what factories actually receive, `(cfg, parent: Transform)`,
   not `(cfg, window_size)`.
