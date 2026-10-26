@@ -13,17 +13,17 @@ together rather than reconstructing a commit-by-commit rationale for every
 change. Anything before `e5c1fa6` (the commit that first introduced
 `pyproject.toml` itself) isn't versioned at all; see `git log` for that era.
 
-## [Unreleased]
+## [0.25.0] — 2026-10-26
 
-- **Removed** `Application.fetch_screen_dimensions()` and `Application.info_object`
-  (breaking). `__init__` now sets `minimized_size` and `full_screen_size` (and
-  their `_width`/`_height` parts) itself; the desktop size comes from the new
-  private `_query_screen_size()`. The attributes are unchanged. No game called
+- **Removed** (breaking) `Application.fetch_screen_dimensions()` and
+  `Application.info_object`. `__init__` now sets `minimized_size` and
+  `full_screen_size` (and their `_width`/`_height` parts) itself; the desktop
+  size comes from the new private `_query_screen_size()`. The attributes are unchanged. No game called
   the removed method.
-- **Removed** `Application.mouse_pos` (breaking). It was always `(0, 0)`:
+- **Removed** (breaking) `Application.mouse_pos`. It was always `(0, 0)`:
   nothing updated or read it. Use `app.mouse.position` for the cursor.
-- **Changed** `Application.width` and `Application.height` are now read-only
-  properties derived from `size`, so the three can't drift apart. Assigning
+- **Changed** (breaking) `Application.width` and `Application.height` are now
+  read-only properties derived from `size`, so the three can't drift apart. Assigning
   them directly no longer works; use `set_size()`.
 - **Fixed** `Application.keys` and `Application.display_surface` are created in
   `__init__`. `keys` used to appear only on the first frame, so reading it
