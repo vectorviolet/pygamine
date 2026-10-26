@@ -6,10 +6,11 @@ from pygame import mixer
 class SoundManager:
     """Generic per-channel play/pause/volume helpers on top of pygame.mixer.
 
-    Takes an arbitrary channel number -- use this directly for more channels
-    than GameAudio's hardcoded music(0)/sfx(1) pair covers (e.g. per-category
-    SFX channels with independent volume). GameAudio builds its named
-    music/sfx API and pause/resume state on top of this.
+    Takes an arbitrary channel number -- use this directly for a channel of
+    your own (e.g. per-category SFX with independent volume). Stick to the
+    channels GameAudio reserves and leaves alone (1 and 2, below
+    RESERVED_CHANNELS): channel 0 is its music, and the rest are its SFX pool.
+    GameAudio builds its music API and pause/resume state on top of this.
     """
 
     @staticmethod

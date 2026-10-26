@@ -98,7 +98,7 @@ matching dependency entry.
 | `ecs.game_object_list` | `GameObjectList` — plain-list variant of the same dispatch (`handle_event`/`update`, skipping inactive objects) |
 | `ecs.state_object` | `StateObject`, `HoverableStateObject` |
 | `ecs.animated_sprite` | `AnimatedSprite`, `AnimatedSpriteFactory` |
-| `ecs.game_audio` | `GameAudio` — music + sfx channels with volume control |
+| `ecs.game_audio` | `GameAudio` — music on a reserved channel, SFX on a pool of free channels (a full pool drops the new sound by default), with volume control |
 | `ecs.sound_manager` | `SoundManager` — static per-channel volume/play helpers on top of `pygame.mixer` |
 | `ecs.components.component` | `Component`, `Behaviour`, `MonoBehaviour` |
 | `ecs.components.transform` | `Transform` — anchored pos/size relative to parent |

@@ -13,6 +13,28 @@ together rather than reconstructing a commit-by-commit rationale for every
 change. Anything before `e5c1fa6` (the commit that first introduced
 `pyproject.toml` itself) isn't versioned at all; see `git log` for that era.
 
+## [Unreleased]
+
+- **Changed** `GameAudio.play_sfx()` plays each sound effect on a free mixer
+  channel from a pool (16 by default) instead of the one shared channel 1, so
+  a new SFX no longer cuts off the one before it. It now returns the
+  `Channel` it plays on, or `None` if the sound was dropped. Still callable
+  on the class or an instance. Each sound file is decoded once and cached.
+- **Changed** channels 0-2 (`RESERVED_CHANNELS = 3`) are reserved and never
+  used for SFX: 0 is the music; 1 (the old `SFX_CHANNEL`) and 2 stay free for
+  a game's own `SoundManager` use, e.g. a dedicated alert channel.
+- **Changed** the SFX volume is kept by `GameAudio` (class-wide, since the
+  mixer is global) and applied to every pool channel, including SFX already
+  playing; channel 1 is kept at the same volume. `sfx_volume()` returns the
+  value set, not the mixer's quantised read-back. Music volume is unaffected.
+- **Added** `GameAudio.configure_sfx(channels=, steal_oldest=,
+  max_copies_per_sound=)`, also accepted by the constructor as
+  `sfx_channels=`, `steal_oldest=` and `max_copies_per_sound=` (left as None,
+  each keeps its setting). When every pool channel is busy, the new sound is
+  dropped (`steal_oldest=False`, the default), or, with `steal_oldest=True`,
+  the SFX that has played longest is stopped for it. `max_copies_per_sound`
+  (off by default) caps how many copies of one file play at once.
+
 ## [0.25.0] — 2026-10-26
 
 - **Removed** (breaking) `Application.fetch_screen_dimensions()` and

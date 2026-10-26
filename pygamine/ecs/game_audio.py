@@ -1,30 +1,76 @@
-"""Channel-based audio: music on channel 0 (looped), SFX on channel 1.
+"""Music on a reserved channel (0, looped); SFX on a pool of free channels.
 
-An opinionated, 2-channel convenience layer on top of SoundManager's generic
-per-channel primitives -- adds named music/sfx channels plus music
-pause/resume/toggle state SoundManager has no opinion on. Reach for
-SoundManager directly instead when a project needs more than these two
-channels (e.g. per-category SFX channels for independent volume control).
+An opinionated convenience layer on top of pygame.mixer and SoundManager's
+generic per-channel primitives: named music/SFX APIs plus music
+pause/resume/toggle state SoundManager has no opinion on.
+
+Channel layout:
+
+- 0 (MUSIC_CHANNEL): music. Reserved, so no SFX ever lands on it.
+- 1 and 2: reserved too and left alone by play_sfx(). 1 is the old shared
+  SFX_CHANNEL; both stay free for a game's own SoundManager use (e.g. a
+  dedicated alert channel). They're outside the SFX pool, so set_sfx_volume()
+  only keeps channel 1 in step for backward compatibility.
+- RESERVED_CHANNELS onwards: the SFX pool. Each play_sfx() takes a free
+  channel from it, so sounds play side by side instead of cutting each other
+  off. When every pool channel is busy, the new sound is dropped (or, with
+  configure_sfx(steal_oldest=True), replaces the oldest SFX). The SFX volume is applied to every pool channel, including ones already
+  playing.
+
+The mixer is process-global, so the SFX settings (volume, pool size, what
+happens when the pool is full) are class-level too, shared by every GameAudio.
 """
 
 from __future__ import annotations
 
 import os
-from typing import Union
+from typing import ClassVar, Union
+
+from pygame import mixer
 
 from pygamine.ecs.sound_manager import SoundManager
 
 MUSIC_CHANNEL = 0
+# The old shared SFX channel. play_sfx() no longer uses it; kept reserved
+# (and at the SFX volume) so code that played on it directly still works.
 SFX_CHANNEL = 1
+# Channels 0..RESERVED_CHANNELS-1 are kept out of the SFX pool.
+RESERVED_CHANNELS = 3
+DEFAULT_SFX_CHANNELS = 16
 
 PathArg = Union[str, "os.PathLike[str]"]
 
 
 class GameAudio:
+    # SFX state, shared by every instance: the mixer is global.
+    _sfx_volume: ClassVar[float] = 1.0
+    _sfx_channels: ClassVar[int] = DEFAULT_SFX_CHANNELS
+    _steal_oldest: ClassVar[bool] = False
+    _max_copies_per_sound: ClassVar[int | None] = None
+    # Decoded sounds by path, and the mixer settings they were decoded for.
+    _sounds: ClassVar[dict[str, mixer.Sound]] = {}
+    _sounds_mixer_init: ClassVar[tuple | None] = None
+    # Pool channel index -> play order, to find the oldest playing SFX.
+    _started: ClassVar[dict[int, int]] = {}
+    _play_count: ClassVar[int] = 0
+
     def __init__(
-        self, music_path: PathArg | None = None, autoplay: bool = True
+        self,
+        music_path: PathArg | None = None,
+        autoplay: bool = True,
+        *,
+        sfx_channels: int | None = None,
+        steal_oldest: bool | None = None,
+        max_copies_per_sound: int | None = None,
     ) -> None:
+        """The SFX keyword arguments are passed to configure_sfx(); left as
+        None, each keeps its current (class-wide) setting."""
         self._music_paused = False
+        GameAudio.configure_sfx(
+            channels=sfx_channels,
+            steal_oldest=steal_oldest,
+            max_copies_per_sound=max_copies_per_sound,
+        )
         if music_path is not None and autoplay:
             self.play_music(music_path)
 
@@ -64,9 +110,106 @@ class GameAudio:
 
     # ── sfx ───────────────────────────────────────────────────────────────────
 
-    @staticmethod
-    def play_sfx(path: PathArg) -> None:
-        SoundManager.play_sound(SFX_CHANNEL, path)
+    @classmethod
+    def configure_sfx(
+        cls,
+        *,
+        channels: int | None = None,
+        steal_oldest: bool | None = None,
+        max_copies_per_sound: int | None = None,
+    ) -> None:
+        """Sets up the SFX pool. Arguments left as None keep their setting.
+
+        channels: how many SFX can play at once (default 16).
+        steal_oldest: when every pool channel is busy, False (the default)
+            drops the new sound; True stops the SFX that has played longest
+            and plays the new one in its place.
+        max_copies_per_sound: at most this many copies of one sound file play
+            at once (off by default; pass 0 to turn it off again). At the
+            limit, steal_oldest decides again: drop the new one (default),
+            or restart the oldest copy.
+        """
+        if channels is not None:
+            if channels < 1:
+                raise ValueError(f"channels must be at least 1, got {channels}")
+            cls._sfx_channels = channels
+        if steal_oldest is not None:
+            cls._steal_oldest = steal_oldest
+        if max_copies_per_sound is not None:
+            if max_copies_per_sound < 0:
+                raise ValueError(
+                    f"max_copies_per_sound can't be negative, got {max_copies_per_sound}"
+                )
+            cls._max_copies_per_sound = max_copies_per_sound or None
+        if channels is not None and mixer.get_init():
+            mixer.set_num_channels(RESERVED_CHANNELS + cls._sfx_channels)
+            mixer.set_reserved(RESERVED_CHANNELS)
+            cls._apply_sfx_volume()
+
+    @classmethod
+    def play_sfx(cls, path: PathArg) -> mixer.Channel | None:
+        """Plays a sound effect on a free pool channel, at the SFX volume.
+
+        Returns the channel it plays on, or None if it was dropped (every
+        channel busy, or the per-sound limit reached, with steal_oldest off).
+        Callable on the class or an instance.
+        """
+        cls._ensure_pool()
+        sound = cls._load(path)
+        index = cls._pick_channel(sound)
+        if index is None:
+            return None
+        channel = mixer.Channel(index)
+        channel.set_volume(cls._sfx_volume)
+        channel.play(sound)
+        cls._play_count += 1
+        cls._started[index] = cls._play_count
+        return channel
+
+    @classmethod
+    def _pool(cls) -> range:
+        return range(RESERVED_CHANNELS, mixer.get_num_channels())
+
+    @classmethod
+    def _ensure_pool(cls) -> None:
+        """The mixer resets to 8 channels and no reservations on (re)init."""
+        if mixer.get_num_channels() < RESERVED_CHANNELS + cls._sfx_channels:
+            mixer.set_num_channels(RESERVED_CHANNELS + cls._sfx_channels)
+        mixer.set_reserved(RESERVED_CHANNELS)
+
+    @classmethod
+    def _load(cls, path: PathArg) -> mixer.Sound:
+        """Each file is decoded once; the cache is dropped if the mixer is
+        reinitialised with other settings."""
+        init = mixer.get_init()
+        if init != cls._sounds_mixer_init:
+            cls._sounds = {}
+            cls._sounds_mixer_init = init
+        key = os.fspath(path)
+        sound = cls._sounds.get(key)
+        if sound is None:
+            sound = cls._sounds[key] = mixer.Sound(key)
+        return sound
+
+    @classmethod
+    def _age(cls, index: int) -> int:
+        # Channels play_sfx() didn't start count as the oldest.
+        return cls._started.get(index, 0)
+
+    @classmethod
+    def _pick_channel(cls, sound: mixer.Sound) -> int | None:
+        busy = [i for i in cls._pool() if mixer.Channel(i).get_busy()]
+        if cls._max_copies_per_sound is not None:
+            copies = [i for i in busy if mixer.Channel(i).get_sound() is sound]
+            if len(copies) >= cls._max_copies_per_sound:
+                return min(copies, key=cls._age) if cls._steal_oldest else None
+        busy_set = set(busy)
+        for i in cls._pool():
+            if i not in busy_set:
+                return i
+        if not cls._steal_oldest:
+            return None
+        return min(busy, key=cls._age)
 
     # ── volume ────────────────────────────────────────────────────────────────
 
@@ -74,12 +217,21 @@ class GameAudio:
     def music_volume() -> float:
         return SoundManager.get_volume(MUSIC_CHANNEL)
 
-    @staticmethod
-    def sfx_volume() -> float:
-        return SoundManager.get_volume(SFX_CHANNEL)
+    @classmethod
+    def sfx_volume(cls) -> float:
+        return cls._sfx_volume
 
     def set_music_volume(self, volume: float) -> None:
         SoundManager.set_volume(MUSIC_CHANNEL, volume)
 
     def set_sfx_volume(self, volume: float) -> None:
-        SoundManager.set_volume(SFX_CHANNEL, volume)
+        """Applies to every SFX, including ones already playing."""
+        GameAudio._sfx_volume = max(0.0, min(1.0, volume))
+        GameAudio._apply_sfx_volume()
+
+    @classmethod
+    def _apply_sfx_volume(cls) -> None:
+        if not mixer.get_init():
+            return
+        for i in (SFX_CHANNEL, *cls._pool()):
+            mixer.Channel(i).set_volume(cls._sfx_volume)
