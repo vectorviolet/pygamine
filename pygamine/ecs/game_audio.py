@@ -17,8 +17,18 @@ Channel layout:
   configure_sfx(steal_oldest=True), replaces the oldest SFX). The SFX volume is applied to every pool channel, including ones already
   playing.
 
-The mixer is process-global, so the SFX settings (volume, pool size, what
-happens when the pool is full) are class-level too, shared by every GameAudio.
+Volumes: a master volume scales both the music and the SFX. What you hear is
+master_volume() * music_volume() for the music and master_volume() *
+sfx_volume() for every SFX (pool channels and channel 1), applied live,
+including sounds already playing. music_volume() and sfx_volume() return the
+values the game set, not multiplied by master, so settings sliders can show
+them as they are. A game that plays on a reserved channel of its own (2, say)
+sets that channel's volume itself: use effective_sfx_volume() for it so the
+master volume applies there too.
+
+The mixer is process-global, so the volumes and the SFX settings (pool size,
+what happens when the pool is full) are class-level too, shared by every
+GameAudio.
 """
 
 from __future__ import annotations
@@ -42,7 +52,11 @@ PathArg = Union[str, "os.PathLike[str]"]
 
 
 class GameAudio:
-    # SFX state, shared by every instance: the mixer is global.
+    # Volumes, shared by every instance: the mixer is global. Each is the
+    # value set (0-1); the channels play at master * music / master * SFX.
+    _master_volume: ClassVar[float] = 1.0
+    _music_volume: ClassVar[float] = 1.0
+    # SFX state, shared by every instance too.
     _sfx_volume: ClassVar[float] = 1.0
     _sfx_channels: ClassVar[int] = DEFAULT_SFX_CHANNELS
     _steal_oldest: ClassVar[bool] = False
@@ -77,6 +91,8 @@ class GameAudio:
     # ── music ─────────────────────────────────────────────────────────────────
 
     def play_music(self, path: PathArg, loops: int = -1) -> None:
+        """Plays on the music channel at the effective music volume."""
+        GameAudio._apply_music_volume()
         SoundManager.play_sound(MUSIC_CHANNEL, path, loops)
         self._music_paused = False
 
@@ -160,7 +176,7 @@ class GameAudio:
         if index is None:
             return None
         channel = mixer.Channel(index)
-        channel.set_volume(cls._sfx_volume)
+        channel.set_volume(cls.effective_sfx_volume())
         channel.play(sound)
         cls._play_count += 1
         cls._play_order[index] = cls._play_count
@@ -213,27 +229,70 @@ class GameAudio:
             return None
         return min(busy, key=cls._play_order_of)
 
-    # ── volume ────────────────────────────────────────────────────────────────
+    # ── volume ──────────────────────────────────────────────────────────────
 
-    @staticmethod
-    def music_volume() -> float:
-        return SoundManager.get_volume(MUSIC_CHANNEL)
+    @classmethod
+    def master_volume(cls) -> float:
+        """The master volume set (0-1, default 1.0)."""
+        return cls._master_volume
+
+    @classmethod
+    def music_volume(cls) -> float:
+        """The music volume set (0-1, default 1.0), not multiplied by the
+        master volume. It's the value set, not read back from the mixer, so
+        a volume set on channel 0 directly isn't reflected here."""
+        return cls._music_volume
 
     @classmethod
     def sfx_volume(cls) -> float:
+        """The SFX volume set (0-1, default 1.0), not multiplied by the
+        master volume."""
         return cls._sfx_volume
 
+    @classmethod
+    def effective_music_volume(cls) -> float:
+        """What the music plays at: master_volume() * music_volume()."""
+        return cls._master_volume * cls._music_volume
+
+    @classmethod
+    def effective_sfx_volume(cls) -> float:
+        """What SFX play at: master_volume() * sfx_volume(). A game that plays
+        on a reserved channel of its own sets that channel to this, so the
+        master volume applies there too."""
+        return cls._master_volume * cls._sfx_volume
+
+    def set_master_volume(self, volume: float) -> None:
+        """Scales the music and every SFX, including ones already playing.
+        Clamped to 0-1."""
+        GameAudio._master_volume = _clamp(volume)
+        GameAudio._apply_music_volume()
+        GameAudio._apply_sfx_volume()
+
     def set_music_volume(self, volume: float) -> None:
-        SoundManager.set_volume(MUSIC_CHANNEL, volume)
+        """Applies to the music at once. Clamped to 0-1."""
+        GameAudio._music_volume = _clamp(volume)
+        GameAudio._apply_music_volume()
 
     def set_sfx_volume(self, volume: float) -> None:
-        """Applies to every SFX, including ones already playing."""
-        GameAudio._sfx_volume = max(0.0, min(1.0, volume))
+        """Applies to every SFX, including ones already playing. Clamped to
+        0-1."""
+        GameAudio._sfx_volume = _clamp(volume)
         GameAudio._apply_sfx_volume()
+
+    @classmethod
+    def _apply_music_volume(cls) -> None:
+        if not mixer.get_init():
+            return
+        mixer.Channel(MUSIC_CHANNEL).set_volume(cls.effective_music_volume())
 
     @classmethod
     def _apply_sfx_volume(cls) -> None:
         if not mixer.get_init():
             return
+        volume = cls.effective_sfx_volume()
         for i in (SFX_CHANNEL, *cls._pool()):
-            mixer.Channel(i).set_volume(cls._sfx_volume)
+            mixer.Channel(i).set_volume(volume)
+
+
+def _clamp(volume: float) -> float:
+    return max(0.0, min(1.0, volume))

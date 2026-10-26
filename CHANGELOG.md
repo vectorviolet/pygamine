@@ -15,6 +15,22 @@ change. Anything before `e5c1fa6` (the commit that first introduced
 
 ## [Unreleased]
 
+- **Added** a master volume in `GameAudio`, class-wide like the SFX volume:
+  `set_master_volume(v)` and `master_volume()` (0-1, default 1.0, clamped).
+  The music plays at master × music and every SFX (pool channels and
+  channel 1) at master × SFX, applied live, including sounds already playing.
+  `effective_music_volume()` and `effective_sfx_volume()` return those
+  products; a game that plays on a reserved channel of its own (e.g.
+  Chokepoint's life-lost bell on channel 2) should set it to
+  `effective_sfx_volume()` so the master volume applies there too.
+- **Changed** `music_volume()` returns the music volume set (class-wide, like
+  `sfx_volume()`), not the mixer's quantised read-back of channel 0, so it
+  isn't multiplied by the master volume. It's a classmethod now (was a
+  staticmethod); calls on the class or an instance work as before. A volume
+  set on channel 0 directly (`SoundManager.set_volume(0, ...)`) is no longer
+  reflected by it, and `play_music()` now sets channel 0 to the effective
+  music volume before playing. `set_music_volume()` before `mixer.init()`
+  stores the value instead of raising.
 - **Changed** every function and method in `pygamine/` declares its return
   type (`-> None` included), and ruff's ANN201-ANN206 rules keep it that way
   in CI (`tests/` is exempt; its fixtures and helpers that return a value are
