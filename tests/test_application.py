@@ -90,10 +90,16 @@ def test_init_sets_window_title():
     assert Application.get_title() == "Test App"
 
 
-def test_fetch_screen_dimensions_stores_full_and_minimized_size():
+def test_init_stores_full_and_minimized_size():
     app = _TrackedApp()
     assert app.minimized_size == (320, 240)  # the constructor's `size` hint
     assert app.full_screen_size == (app.full_screen_width, app.full_screen_height)
+
+
+def test_query_screen_size_reads_display_info(monkeypatch):
+    info = type("Info", (), {"current_w": 2560, "current_h": 1440})()
+    monkeypatch.setattr(pygame.display, "Info", lambda: info)
+    assert Application._query_screen_size() == (2560, 1440)
 
 
 def test_center_window_sets_sdl_env_var():

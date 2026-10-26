@@ -13,6 +13,14 @@ together rather than reconstructing a commit-by-commit rationale for every
 change. Anything before `e5c1fa6` (the commit that first introduced
 `pyproject.toml` itself) isn't versioned at all; see `git log` for that era.
 
+## [Unreleased]
+
+- **Removed** `Application.fetch_screen_dimensions()` and `Application.info_object`
+  (breaking). `__init__` now sets `minimized_size` and `full_screen_size` (and
+  their `_width`/`_height` parts) itself; the desktop size comes from the new
+  private `_query_screen_size()`. The attributes are unchanged. No game called
+  the removed method.
+
 ## [0.24.0] — 2026-10-25
 
 - **Added** the solid VectorViolet lockup and wordmark

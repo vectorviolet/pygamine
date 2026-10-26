@@ -92,7 +92,14 @@ class Application:
 
         self.init_pygame()
         self.set_title(title)
-        self.fetch_screen_dimensions(size)
+        # The constructor's `size`: the default windowed size, and the fixed
+        # design resolution under fixed_aspect (see _scaled_render_size()).
+        self.minimized_size = self.minimized_width, self.minimized_height = size
+        # Must run after pygame.init() and before the first set_mode() below:
+        # display.Info() only reports the desktop size until a mode is set.
+        self.full_screen_size = self.full_screen_width, self.full_screen_height = (
+            self._query_screen_size()
+        )
         self.full_screen()  # sets display_surface and rebuilds self.window to match it (scaled by render_scale)
         self.center_window()
         self.clock = pygame.time.Clock()
@@ -134,13 +141,10 @@ class Application:
     def center_window():
         os.environ["SDL_VIDEO_CENTERED"] = "1"
 
-    def fetch_screen_dimensions(self, size: tuple[int, int]):
-        self.info_object = pygame.display.Info()
-        self.full_screen_size = self.full_screen_width, self.full_screen_height = (
-            self.info_object.current_w,
-            self.info_object.current_h,
-        )
-        self.minimized_size = self.minimized_width, self.minimized_height = size
+    @staticmethod
+    def _query_screen_size() -> tuple[int, int]:
+        info = pygame.display.Info()
+        return info.current_w, info.current_h
 
     @staticmethod
     def get_title() -> str:
