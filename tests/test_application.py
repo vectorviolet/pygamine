@@ -64,7 +64,6 @@ def no_real_exit(monkeypatch):
 def test_init_stores_basic_attributes():
     app = _TrackedApp()
     assert app._fps == 0
-    assert app.mouse_pos == (0, 0)
     assert isinstance(app.mouse, Mouse)
     assert app._is_fullscreen is True  # __init__ ends by calling full_screen()
 
@@ -116,6 +115,22 @@ def test_set_size_updates_size_width_height():
     assert app.size == (100, 200)
     assert app.width == 100
     assert app.height == 200
+
+
+def test_width_and_height_follow_size():
+    app = _TrackedApp()
+    app.size = (640, 360)
+    assert (app.width, app.height) == (640, 360)
+
+
+def test_init_creates_keys_before_the_first_frame():
+    app = _TrackedApp()
+    assert app.keys == pygame.key.get_pressed()
+
+
+def test_init_creates_display_surface():
+    app = _TrackedApp()
+    assert isinstance(app.display_surface, pygame.Surface)
 
 
 def test_full_screen_and_minimize_size_the_canvas_to_their_own_actual_size():

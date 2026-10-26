@@ -56,6 +56,9 @@ class Application:
         # dynamic, rebuilt to match whatever size is actually chosen.
         # fixed_aspect=True changes what this means -- see below.
         self.size: tuple[int, int] = size
+        # The real OS window/screen surface. full_screen() below creates it,
+        # and minimize()/borderless_full_screen() replace it on a mode switch.
+        self.display_surface: pygame.Surface
         self.window: pygame.Surface | None = None
         # 1.0 (default): self.window always matches the real display exactly,
         # so _present() is a plain 1:1 blit -- no scaling, ever. Lower this
@@ -82,7 +85,6 @@ class Application:
         # a monitor whose aspect doesn't match `size` gets letterboxed bars
         # instead of extra revealed world space.
         self.fixed_aspect = fixed_aspect
-        self.mouse_pos = (0, 0)
         self.mouse = mouse if mouse is not None else Mouse()
         # Set this (typically in a subclass's own __init__, once a display
         # surface exists for SplashScreen's own image loading) to have
@@ -91,6 +93,10 @@ class Application:
         self.splash: SplashScreen | None = None
 
         self.init_pygame()
+        # Pressed state of every key, refreshed each frame by _listen_inputs();
+        # read here once so it exists before the first frame (e.g. during the
+        # splash).
+        self.keys = pygame.key.get_pressed()
         self.set_title(title)
         # The constructor's `size`: the default windowed size, and the fixed
         # design resolution under fixed_aspect (see _scaled_render_size()).
@@ -413,7 +419,15 @@ class Application:
         )
 
     def set_size(self, size: tuple) -> None:
-        self.size = self.width, self.height = size
+        self.size = size
+
+    @property
+    def width(self) -> int:
+        return self.size[0]
+
+    @property
+    def height(self) -> int:
+        return self.size[1]
 
     def show_splash(self) -> None:
         """Runs self.splash's own blocking loop (if one was set), then

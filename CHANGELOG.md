@@ -20,6 +20,14 @@ change. Anything before `e5c1fa6` (the commit that first introduced
   their `_width`/`_height` parts) itself; the desktop size comes from the new
   private `_query_screen_size()`. The attributes are unchanged. No game called
   the removed method.
+- **Removed** `Application.mouse_pos` (breaking). It was always `(0, 0)`:
+  nothing updated or read it. Use `app.mouse.position` for the cursor.
+- **Changed** `Application.width` and `Application.height` are now read-only
+  properties derived from `size`, so the three can't drift apart. Assigning
+  them directly no longer works; use `set_size()`.
+- **Fixed** `Application.keys` and `Application.display_surface` are created in
+  `__init__`. `keys` used to appear only on the first frame, so reading it
+  earlier (e.g. during the splash) raised `AttributeError`.
 
 ## [0.24.0] — 2026-10-25
 
