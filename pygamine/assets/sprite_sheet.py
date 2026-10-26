@@ -20,7 +20,7 @@ from pygamine.assets.image import load_image
 
 
 class SpriteSheet:
-    def __init__(self, image: pygame.Surface):
+    def __init__(self, image: pygame.Surface) -> None:
         self.image = image
 
     @classmethod

@@ -8,7 +8,7 @@ from pygamine.ecs.components.sprite_renderer2d import SpriteRenderer2D
 
 
 class Animator(Component):
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
         self.clips: dict[str, AnimationClip] = {}
         self._clip: AnimationClip | None = None

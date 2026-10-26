@@ -18,7 +18,7 @@ from pygamine.assets.font import load_font
 
 
 @pytest.fixture
-def assets(tmp_path, monkeypatch):
+def assets(tmp_path, monkeypatch) -> AssetManager:
     monkeypatch.chdir(tmp_path)
 
     fonts_dir = tmp_path / "assets" / "fonts"

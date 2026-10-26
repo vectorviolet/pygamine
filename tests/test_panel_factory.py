@@ -48,7 +48,7 @@ def _save_strip(
 
 
 @pytest.fixture
-def assets(tmp_path, monkeypatch):
+def assets(tmp_path, monkeypatch) -> AssetManager:
     monkeypatch.chdir(tmp_path)
     pygame.display.set_mode((1, 1))  # convert_alpha() needs a display mode set
 
@@ -83,11 +83,11 @@ def assets(tmp_path, monkeypatch):
 
 
 @pytest.fixture
-def parent():
+def parent() -> Transform:
     return Transform(position=(0, 0), size=(800, 600))
 
 
-def _image(obj):
+def _image(obj) -> pygame.Surface | None:
     return obj.get_component(SpriteRenderer2D).image
 
 

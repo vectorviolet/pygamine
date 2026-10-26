@@ -8,6 +8,7 @@
 
 from __future__ import annotations
 
+from pathlib import Path
 import time
 
 import pygame
@@ -32,7 +33,7 @@ def _save_png(path, size, color):
 
 
 @pytest.fixture
-def image_paths(tmp_path):
+def image_paths(tmp_path) -> list[Path]:
     pygame.display.set_mode((1, 1))  # convert_alpha() needs a display mode set
     paths = []
     for i, color in enumerate([(255, 0, 0), (0, 255, 0), (0, 0, 255)]):
@@ -43,7 +44,7 @@ def image_paths(tmp_path):
 
 
 @pytest.fixture
-def media_items(image_paths):
+def media_items(image_paths) -> list[ImageMedia]:
     return [ImageMedia(p, fade_in_ms=100, hold_ms=100) for p in image_paths]
 
 
@@ -159,7 +160,7 @@ class FakeAudio:
 
 
 @pytest.fixture
-def frames_dir(tmp_path):
+def frames_dir(tmp_path) -> Path:
     pygame.display.set_mode((1, 1))  # convert_alpha() needs a display mode set
     folder = tmp_path / "frames"
     folder.mkdir()
@@ -179,7 +180,7 @@ def _wait_for_buffer(media, count, timeout_s=2.0):
         time.sleep(0.005)
 
 
-def _shown_red(media):
+def _shown_red(media) -> int:
     surface = pygame.Surface((20, 10))
     media.draw(surface)
     return surface.get_at((10, 5)).r

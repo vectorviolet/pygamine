@@ -20,7 +20,7 @@ T = TypeVar("T")
 class AssetManager:
     """Manifest-driven asset registry. Single source of truth for asset paths."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._images: dict[str, ImagePath] = {}
         self._fonts: dict[str, FontPath] = {}
         self._sounds: dict[str, SoundPath] = {}

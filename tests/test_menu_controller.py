@@ -26,7 +26,7 @@ class _FakeButton:
     def set_image(self, image):
         self.set_image_calls.append(image)
 
-    def is_mouse_over(self, pos):
+    def is_mouse_over(self, pos) -> bool:
         return self.rect.collidepoint(pos)
 
 
@@ -38,7 +38,7 @@ class _FakeAudio:
         self.played.append(path)
 
 
-def _buttons(n):
+def _buttons(n) -> list[_FakeButton]:
     return [_FakeButton(pygame.Rect(0, i * 50, 100, 40)) for i in range(n)]
 
 

@@ -11,7 +11,7 @@ from pygamine.assets.asset_manager import AssetManager
 from pygamine.assets.sprite_sheet import SpriteSheet
 
 
-def _banded_strip(colors, band_size=10, horizontal=True):
+def _banded_strip(colors, band_size=10, horizontal=True) -> pygame.Surface:
     """A strip image made of N equal-sized color bands, laid out either
     left-to-right (horizontal) or top-to-bottom (vertical)."""
     n = len(colors)
@@ -25,7 +25,7 @@ def _banded_strip(colors, band_size=10, horizontal=True):
     return strip
 
 
-def _grid_image(colors, cols, rows, cell_size=10):
+def _grid_image(colors, cols, rows, cell_size=10) -> pygame.Surface:
     """A cols x rows grid image, colors given in row-major order."""
     grid = pygame.Surface((cell_size * cols, cell_size * rows), pygame.SRCALPHA)
     for i, color in enumerate(colors):

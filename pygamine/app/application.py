@@ -144,7 +144,7 @@ class Application:
             pass
 
     @staticmethod
-    def center_window():
+    def center_window() -> None:
         os.environ["SDL_VIDEO_CENTERED"] = "1"
 
     @staticmethod
@@ -160,7 +160,7 @@ class Application:
     def set_title(title: str) -> None:
         pygame.display.set_caption(title)
 
-    def minimize(self):
+    def minimize(self) -> None:
         # A bordered window sized to exactly fill the screen has nowhere to
         # put its title bar/borders -- they get pushed off-screen, and it
         # looks identical to FULLSCREEN. _windowed_physical_size() shrinks
@@ -178,7 +178,7 @@ class Application:
         self._sync_mouse_scale()
         self._window_mode = "windowed"
 
-    def full_screen(self):
+    def full_screen(self) -> None:
         self.display_surface = pygame.display.set_mode(
             self.full_screen_size, pygame.FULLSCREEN
         )
@@ -186,7 +186,7 @@ class Application:
         self._sync_mouse_scale()
         self._window_mode = "fullscreen"
 
-    def borderless_full_screen(self):
+    def borderless_full_screen(self) -> None:
         # A window sized to exactly the screen with no border/title bar --
         # fills the screen like FULLSCREEN but without an exclusive display
         # mode switch, so no flash/flicker on alt-tab and no interaction

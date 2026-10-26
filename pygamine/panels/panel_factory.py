@@ -8,6 +8,8 @@ register them alongside these.
 
 from __future__ import annotations
 
+from typing import Callable
+
 import pygame
 
 from pygamine.assets.font import load_font
@@ -20,7 +22,7 @@ from pygamine.ecs.components.transform import Transform
 from pygamine.ecs.state_object import StateObject, HoverableStateObject
 
 
-def make_factory(assets):
+def make_factory(assets) -> Callable[[dict, Transform], StateObject]:
     def make_gui_object(cfg: dict, parent: Transform) -> StateObject:
         pos = cfg["position"]
         size = tuple(cfg["size"]) if cfg["size"] != "WINDOW" else parent.size
@@ -79,7 +81,7 @@ def make_factory(assets):
     return make_gui_object
 
 
-def make_animated_factory(assets):
+def make_animated_factory(assets) -> Callable[[dict, Transform], AnimatedSprite]:
     def make_animated_object(cfg: dict, parent: Transform) -> AnimatedSprite:
         pos = cfg["position"]
         size = tuple(cfg["size"]) if cfg.get("size") not in (None, "WINDOW") else (0, 0)
@@ -99,7 +101,7 @@ def make_animated_factory(assets):
     return make_animated_object
 
 
-def make_slider_factory(assets):
+def make_slider_factory(assets) -> Callable[[dict, Transform], Slider]:
     def make_slider(cfg: dict, parent: Transform) -> Slider:
         return Slider(
             parent=parent,
@@ -112,7 +114,7 @@ def make_slider_factory(assets):
     return make_slider
 
 
-def make_scrolling_panel_factory(assets):
+def make_scrolling_panel_factory(assets) -> Callable[[dict, Transform], ScrollingPanel]:
     def make_scrolling_panel(cfg: dict, parent: Transform) -> ScrollingPanel:
         size = (
             tuple(cfg["size"]) if cfg.get("size", "WINDOW") != "WINDOW" else parent.size
@@ -130,7 +132,7 @@ def make_scrolling_panel_factory(assets):
     return make_scrolling_panel
 
 
-def make_text_factory(assets):
+def make_text_factory(assets) -> Callable[[dict, Transform], TextObject]:
     def make_text_object(cfg: dict, parent: Transform) -> TextObject:
         return TextObject(
             parent,

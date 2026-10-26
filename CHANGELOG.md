@@ -13,6 +13,21 @@ together rather than reconstructing a commit-by-commit rationale for every
 change. Anything before `e5c1fa6` (the commit that first introduced
 `pyproject.toml` itself) isn't versioned at all; see `git log` for that era.
 
+## [Unreleased]
+
+- **Changed** every function and method in `pygamine/` declares its return
+  type (`-> None` included), and ruff's ANN201-ANN206 rules keep it that way
+  in CI (`tests/` is exempt; its fixtures and helpers that return a value are
+  annotated anyway). Annotation-only: no behaviour change. Side effects for
+  type-checked callers: `load_image()` returns `Surface`, or
+  `(Surface, size)` with `return_size=True`; the `make_*_factory()` functions
+  return typed factories; `TiledMap.iter_objects()`,
+  `SpatialGrid.query_radius()` / `query_rect()`, `GameObjectDict.values()`
+  and `PanelManager.keys()` return typed iterators/views.
+- **Fixed** the `ObjectFactory` type alias `PanelLoader.register()` takes
+  now matches what factories actually receive, `(cfg, parent: Transform)`,
+  not `(cfg, window_size)`.
+
 ## [0.26.0] — 2026-10-26
 
 - **Changed** `GameAudio.play_sfx()` plays each sound effect on a free mixer

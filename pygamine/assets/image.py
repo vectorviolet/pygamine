@@ -1,11 +1,33 @@
 from __future__ import annotations
 
+from typing import Literal, overload
+
 import pygame
 
 _cache: dict[str, pygame.Surface] = {}
 
 
-def load_image(path, size=None, nine_slice: int = 0, return_size: bool = False):
+@overload
+def load_image(
+    path, size=None, nine_slice: int = 0, return_size: Literal[False] = False
+) -> pygame.Surface: ...
+
+
+@overload
+def load_image(
+    path, size=None, nine_slice: int = 0, *, return_size: Literal[True]
+) -> tuple[pygame.Surface, list[int]]: ...
+
+
+@overload
+def load_image(
+    path, size=None, nine_slice: int = 0, return_size: bool = False
+) -> pygame.Surface | tuple[pygame.Surface, list[int]]: ...
+
+
+def load_image(
+    path, size=None, nine_slice: int = 0, return_size: bool = False
+) -> pygame.Surface | tuple[pygame.Surface, list[int]]:
     """Load (and cache) an image; optionally scale or nine-slice it.
 
     - size=None or (0, 0): return the original surface.
@@ -67,7 +89,7 @@ def nine_slice_scale(
     mdx = dst_w - corner * 2  # mid width  in dest
     mdy = dst_h - corner * 2  # mid height in dest
 
-    def _blit(sx, sy, sw, sh, dx, dy, dw, dh):
+    def _blit(sx, sy, sw, sh, dx, dy, dw, dh) -> None:
         piece = image.subsurface((sx, sy, sw, sh))
         if (sw, sh) != (dw, dh):
             piece = pygame.transform.scale(piece, (dw, dh))

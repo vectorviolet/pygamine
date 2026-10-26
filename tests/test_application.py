@@ -42,7 +42,7 @@ class _TrackedApp(Application):
 
 
 @pytest.fixture
-def no_real_exit(monkeypatch):
+def no_real_exit(monkeypatch) -> dict[str, int]:
     """Prevent exit()'s real side effects (pygame.quit tears down the shared
     session; sys.exit raises SystemExit) while still letting us observe that
     they were requested."""

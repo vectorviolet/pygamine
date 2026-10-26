@@ -5,12 +5,12 @@ from pygamine.ecs.components.component import Component
 
 
 class Rigidbody2D(Component):
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
         self.velocity = Vector2(0, 0)
         self._float_pos: Vector2 | None = None
 
-    def set_velocity(self, velocity: Vector2 | tuple[float, float]):
+    def set_velocity(self, velocity: Vector2 | tuple[float, float]) -> None:
         self.velocity = Vector2(velocity)
         self._float_pos = None  # re-sync from transform on next update
 

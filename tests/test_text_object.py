@@ -13,11 +13,11 @@ from pygamine.ui_widgets.text_object import TextObject
 
 
 @pytest.fixture
-def font():
+def font() -> pygame.font.Font:
     return pygame.font.Font(None, 20)
 
 
-def _renderer(text_obj):
+def _renderer(text_obj) -> SpriteRenderer2D | None:
     return text_obj.get_component(SpriteRenderer2D)
 
 

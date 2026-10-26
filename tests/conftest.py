@@ -29,7 +29,7 @@ pygame.init()
 
 
 @pytest.fixture
-def fake_ticks(monkeypatch):
+def fake_ticks(monkeypatch) -> dict[str, int]:
     """A controllable stand-in for pygame.time.get_ticks().
 
     Returns a dict; set fake_ticks["t"] = <ms> to move the clock without

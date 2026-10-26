@@ -21,9 +21,10 @@ jobs:
         with:
           enable-cache: true
 
-      # Deliberately narrow (F + I002 -- see pyproject.toml's [tool.ruff.lint]
-      # comment): real bugs, plus enforcing `from __future__ import
-      # annotations` repo-wide. Formatting is checked by the next step.
+      # Deliberately narrow (F + I002 + ANN20x -- see pyproject.toml's
+      # [tool.ruff.lint] comment): real bugs, enforcing `from __future__
+      # import annotations` repo-wide, and return types on every function in
+      # pygamine/. Formatting is checked by the next step.
       - name: Lint (ruff)
         run: uv run --group dev ruff check .
 

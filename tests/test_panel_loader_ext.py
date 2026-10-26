@@ -4,6 +4,8 @@ groups (auto-positioned children), on top of PanelLoader's base loading.
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import pygame
 import pytest
 
@@ -22,23 +24,23 @@ class _Built:
         self.rect = pygame.Rect(0, 0, int(w), int(h))
 
 
-def _factory(obj_def, parent):
+def _factory(obj_def, parent) -> _Built:
     return _Built(obj_def, parent)
 
 
 @pytest.fixture
-def window_transform():
+def window_transform() -> Transform:
     return Transform(position=(0, 0), size=(800, 600))
 
 
 @pytest.fixture
-def loader(window_transform):
+def loader(window_transform) -> PanelLoaderExt:
     ld = PanelLoaderExt(PanelManager(), window_transform, AssetManager())
     ld.register("object", _factory, default=True)
     return ld
 
 
-def _write(tmp_path, text: str):
+def _write(tmp_path, text: str) -> Path:
     path = tmp_path / "panels.yaml"
     path.write_text(text)
     return path

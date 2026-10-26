@@ -20,7 +20,7 @@ def display():
     )  # ImageMedia's convert_alpha() needs a display mode set
 
 
-def _logo(tmp_path, name):
+def _logo(tmp_path, name) -> ImageMedia:
     path = tmp_path / f"{name}.png"
     pygame.image.save(pygame.Surface((8, 4)), str(path))
     return ImageMedia(path)
@@ -52,7 +52,7 @@ class NeverEndingMedia:
     def fit(self, target_size): ...
     def update(self): ...
     def draw(self, surface): ...
-    def is_finished(self):
+    def is_finished(self) -> bool:
         return False
 
     def skip(self): ...

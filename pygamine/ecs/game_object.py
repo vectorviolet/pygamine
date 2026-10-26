@@ -17,7 +17,7 @@ class _ScheduledCall:
 
 
 class GameObject:
-    def __init__(self, name: str = "game_object"):
+    def __init__(self, name: str = "game_object") -> None:
         self.name = name
         self._active: bool = True
         self._parent: GameObject | None = None
@@ -53,8 +53,8 @@ class GameObject:
         if parent is not None:
             parent._children.append(self)
 
-    def on_enable(self): ...
-    def on_disable(self): ...
+    def on_enable(self) -> None: ...
+    def on_disable(self) -> None: ...
 
     def _on_active_changed(self, is_active: bool) -> None:
         if is_active:
@@ -106,7 +106,7 @@ class GameObject:
         return self
 
     @game_object.setter
-    def game_object(self, value): ...
+    def game_object(self, value) -> None: ...
 
     def add_component(self, component_type: Callable[..., C], **kwargs) -> C:
         component = component_type(**kwargs)

@@ -7,8 +7,8 @@ import yaml
 
 from pygamine.ecs.components.transform import Transform
 
-# Factory signature: config dict + window_size → object
-ObjectFactory = Callable[[dict, tuple[int, int]], Any]
+# Factory signature: config dict + parent Transform → object
+ObjectFactory = Callable[[dict, Transform], Any]
 
 
 class PanelLoader:
@@ -16,7 +16,7 @@ class PanelLoader:
 
     def __init__(
         self, panel_manager, window_transform: Transform, asset_manager: AssetManager
-    ):
+    ) -> None:
         self.pm = panel_manager
         self.window_transform = window_transform
         self.assets = asset_manager

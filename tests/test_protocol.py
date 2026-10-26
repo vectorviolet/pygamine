@@ -7,6 +7,7 @@ No sockets, no threads. This is where the framing bugs that bite networked apps
 from __future__ import annotations
 
 import struct
+from typing import Any
 
 import pytest
 
@@ -43,11 +44,11 @@ class _Point:
         self.xy = tuple(xy)
         self.label = label
 
-    def to_dict(self):
+    def to_dict(self) -> dict[str, Any]:
         return {"__type__": "Point", "xy": list(self.xy), "label": self.label}
 
     @classmethod
-    def from_dict(cls, data):
+    def from_dict(cls, data) -> _Point:
         return cls(tuple(data["xy"]), data["label"])
 
 

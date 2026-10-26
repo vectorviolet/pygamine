@@ -40,18 +40,18 @@ class Block(MouseInteractive, GameObject):
 
 
 @pytest.fixture
-def parent():
+def parent() -> Transform:
     return Transform(position=(0, 0), size=(200, 400))
 
 
-def _panel_with(**objects):
+def _panel_with(**objects) -> GameObjectDict:
     panel = GameObjectDict()
     for name, obj in objects.items():
         panel[name] = obj
     return panel
 
 
-def _scroller(parent, targets, **kwargs):
+def _scroller(parent, targets, **kwargs) -> ScrollingPanel:
     # Viewport y 100..300; content gets adopted from a panel afterwards
     return ScrollingPanel(
         parent=parent, pos=(0, 100), size=(200, 200), targets=targets, **kwargs

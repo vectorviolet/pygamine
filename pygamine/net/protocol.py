@@ -84,13 +84,13 @@ class TypedJSONCodec:
     def decode(self, raw: bytes) -> Any:
         return json.loads(raw.decode("utf-8"), object_hook=self._from_dict)
 
-    def _to_dict(self, obj: Any):
+    def _to_dict(self, obj: Any) -> dict[str, Any]:
         to_dict = getattr(obj, "to_dict", None)
         if callable(to_dict):
             return to_dict()
         raise TypeError(f"{type(obj).__name__} is not JSON serializable")
 
-    def _from_dict(self, data: dict):
+    def _from_dict(self, data: dict[str, Any]) -> Any:
         cls = self._registry.get(data.get(self.TYPE_KEY))
         return cls.from_dict(data) if cls is not None else data
 

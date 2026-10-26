@@ -10,6 +10,9 @@ Rebuild it each frame for moving objects; build it once for static ones.
 
 from __future__ import annotations
 
+from collections.abc import Iterator
+from typing import Any
+
 
 class SpatialGrid:
     def __init__(self, cell_size: int) -> None:
@@ -34,7 +37,7 @@ class SpatialGrid:
             for gy in range(rect.top // cs, rect.bottom // cs + 1):
                 self._cells.setdefault((gx, gy), []).append(obj)
 
-    def query_radius(self, center, radius):
+    def query_radius(self, center, radius) -> Iterator[Any]:
         """Yield objects in cells overlapping the bbox of the query circle.
 
         A superset of the true neighbours — callers still do the precise distance
@@ -49,7 +52,7 @@ class SpatialGrid:
                 if bucket:
                     yield from bucket
 
-    def query_rect(self, rect):
+    def query_rect(self, rect) -> Iterator[Any]:
         """Yield objects in cells overlapping `rect` (candidate set for collision)."""
         cs = self.cell_size
         cells = self._cells

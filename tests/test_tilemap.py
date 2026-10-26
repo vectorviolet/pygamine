@@ -11,6 +11,8 @@ wrong).
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import pygame
 import pytest
 
@@ -41,7 +43,7 @@ TMX_TEMPLATE = """<?xml version="1.0" encoding="UTF-8"?>
 
 
 @pytest.fixture
-def tmx_path(tmp_path, monkeypatch):
+def tmx_path(tmp_path, monkeypatch) -> Path:
     monkeypatch.chdir(tmp_path)
     pygame.display.set_mode((1, 1))  # convert_alpha() needs a display mode set
 
@@ -58,7 +60,7 @@ def tmx_path(tmp_path, monkeypatch):
 
 
 @pytest.fixture
-def non_square_tmx_path(tmp_path, monkeypatch):
+def non_square_tmx_path(tmp_path, monkeypatch) -> Path:
     monkeypatch.chdir(tmp_path)
     pygame.display.set_mode((1, 1))
 

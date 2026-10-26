@@ -12,13 +12,13 @@ from pygamine.ecs.animated_sprite import AnimatedSprite, AnimatedSpriteFactory
 from pygamine.ecs.components.transform import Transform
 
 
-def _frame(color, size=(10, 10)):
+def _frame(color, size=(10, 10)) -> pygame.Surface:
     surf = pygame.Surface(size, pygame.SRCALPHA)
     surf.fill(color)
     return surf
 
 
-def _frames(*colors, size=(10, 10)):
+def _frames(*colors, size=(10, 10)) -> list[pygame.Surface]:
     return [_frame(c, size) for c in colors]
 
 
@@ -176,7 +176,7 @@ def test_play_restart_flag_passes_through(fake_ticks):
 
 
 @pytest.fixture
-def assets(tmp_path, monkeypatch):
+def assets(tmp_path, monkeypatch) -> AssetManager:
     monkeypatch.chdir(tmp_path)
     pygame.display.set_mode((1, 1))
 

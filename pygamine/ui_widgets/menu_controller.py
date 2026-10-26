@@ -15,6 +15,8 @@ paths are passed in so projects control their own assets.
 
 from __future__ import annotations
 
+from typing import Any
+
 import pygame
 
 
@@ -86,5 +88,5 @@ class MenuController:
             self._handle_key(event)
 
     @property
-    def focused(self):
+    def focused(self) -> Any:
         return next((b for b in self.buttons if b.focused), None)

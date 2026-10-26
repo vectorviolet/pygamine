@@ -4,13 +4,15 @@ consuming project loads config/assets.yaml through.
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import pygame
 import pytest
 
 from pygamine.assets.asset_manager import AssetManager
 
 
-def _write_manifest(tmp_path, text: str):
+def _write_manifest(tmp_path, text: str) -> Path:
     path = tmp_path / "assets.yaml"
     path.write_text(text)
     return path

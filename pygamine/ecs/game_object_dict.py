@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import ValuesView
 from typing import Any
 
 import pygame
@@ -20,7 +21,7 @@ class GameObjectDict:
     def __contains__(self, key: object) -> bool:
         return key in self._objects
 
-    def values(self):
+    def values(self) -> ValuesView[Any]:
         return self._objects.values()
 
     def pop(self, key: str) -> Any:

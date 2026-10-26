@@ -21,7 +21,7 @@ the first time it's accessed.
 from __future__ import annotations
 
 from importlib import import_module
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     # For type checkers / IDE autocomplete only -- never executed at runtime
@@ -249,7 +249,7 @@ _EXPORTS: dict[str, str] = {
 __all__ = list(_EXPORTS)
 
 
-def __getattr__(name: str):
+def __getattr__(name: str) -> Any:
     module_path = _EXPORTS.get(name)
     if module_path is None:
         raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

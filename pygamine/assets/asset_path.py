@@ -16,7 +16,7 @@ class AssetPath(os.PathLike):
 
     def __init__(
         self, name: str, folder: str = "", extension: str = "png", base: str = "assets"
-    ):
+    ) -> None:
         self.name = name
         self.folder = folder
         self.extension = extension.lstrip(".")
@@ -58,7 +58,7 @@ class ImagePath(AssetPath):
         folder: str = "",
         extension: str = "png",
         base: str = "assets/images",
-    ):
+    ) -> None:
         super().__init__(name, folder, extension, base=base)
 
 
@@ -69,7 +69,7 @@ class FontPath(AssetPath):
         folder: str = "",
         extension: str = "ttf",
         base: str = "assets/fonts",
-    ):
+    ) -> None:
         super().__init__(name, folder, extension, base=base)
 
 
@@ -80,7 +80,7 @@ class SoundPath(AssetPath):
         folder: str = "",
         extension: str = "ogg",
         base: str = "assets/sounds",
-    ):
+    ) -> None:
         super().__init__(name, folder, extension, base=base)
 
 
@@ -98,7 +98,7 @@ class SequencePath(AssetPath):
         folder: str = "",
         extension: str = "jpg",
         base: str = "assets/images",
-    ):
+    ) -> None:
         super().__init__(name, folder, extension, base=base)
 
     @property

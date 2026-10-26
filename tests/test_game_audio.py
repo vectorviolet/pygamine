@@ -10,6 +10,7 @@ time, so tests that check a sound is still playing use long ones.
 
 from __future__ import annotations
 
+from collections.abc import Iterator
 import struct
 import wave
 
@@ -41,7 +42,7 @@ def _write_wav(path, seconds: float) -> str:
 
 
 @pytest.fixture
-def sound_path(tmp_path):
+def sound_path(tmp_path) -> str:
     path = tmp_path / "sfx.wav"
     with wave.open(str(path), "w") as f:
         f.setnchannels(1)
@@ -52,17 +53,17 @@ def sound_path(tmp_path):
 
 
 @pytest.fixture
-def long_sound_path(tmp_path):
+def long_sound_path(tmp_path) -> str:
     return _write_wav(tmp_path / "long.wav", 5)
 
 
 @pytest.fixture
-def other_long_sound_path(tmp_path):
+def other_long_sound_path(tmp_path) -> str:
     return _write_wav(tmp_path / "other_long.wav", 5)
 
 
 @pytest.fixture(autouse=True)
-def _reset_channels():
+def _reset_channels() -> Iterator[None]:
     """Real mixer channels and GameAudio's class-wide SFX settings persist
     across tests in the same process -- reset them beforehand."""
     if not mixer.get_init():
@@ -82,11 +83,11 @@ def _reset_channels():
         mixer.Channel(ch).stop()
 
 
-def _pool():
+def _pool() -> range:
     return range(RESERVED_CHANNELS, mixer.get_num_channels())
 
 
-def _busy_pool_channels():
+def _busy_pool_channels() -> list[int]:
     return [i for i in _pool() if mixer.Channel(i).get_busy()]
 
 
