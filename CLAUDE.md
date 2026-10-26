@@ -26,6 +26,15 @@ Formatting is Black-compatible (`[tool.ruff.format]` in `pyproject.toml`). CI fa
 `ruff format --check .` and on lint errors. Keep pure reformatting out of feature commits; a
 repo-wide reformat goes in its own commit, with its hash added to `.git-blame-ignore-revs`.
 
+## Working with git
+
+- Before every push, run `git fetch` and `git log origin/main..HEAD --oneline`; push only if
+  every listed commit is intended. Otherwise stop and report.
+- Never push a commit that points a submodule at a commit not yet on its remote; push the
+  submodule first and check it's on origin.
+- Only one agent session works in a repo at a time. If HEAD or the working tree changes
+  unexpectedly, stop and report.
+
 ## Releasing
 
 1. Update `CHANGELOG.md` and bump `version` in `pyproject.toml` (and `uv.lock`, via `uv lock`).
