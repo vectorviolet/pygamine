@@ -162,7 +162,7 @@ class ImageSequenceMedia:
             else self._read_meta_fps(self._folder) or DEFAULT_SEQUENCE_FPS
         )
         self._audio_path = str(audio_path) if audio_path else None
-        self._audio = audio_manager
+        self._audio_manager = audio_manager
 
         if isinstance(folder_path, SequencePath):
             self._frame_paths = folder_path.frame_paths()
@@ -203,8 +203,8 @@ class ImageSequenceMedia:
         self._loader = threading.Thread(target=self._preload_frames, daemon=True)
         self._loader.start()
 
-        if self._audio and self._audio_path:
-            self._audio.play_music(self._audio_path, loops=0)
+        if self._audio_manager and self._audio_path:
+            self._audio_manager.play_music(self._audio_path, loops=0)
 
     def _preload_frames(self) -> None:
         # Runs on the loader thread. A load error isn't caught: it surfaces
@@ -301,8 +301,8 @@ class ImageSequenceMedia:
     def _stop_audio(self) -> None:
         # Stop, not pause: a paused channel stays occupied, and nothing
         # would ever resume this clip's audio.
-        if self._audio and self._audio_path:
-            self._audio.stop_music()
+        if self._audio_manager and self._audio_path:
+            self._audio_manager.stop_music()
 
 
 def standard_splash_media(

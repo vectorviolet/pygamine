@@ -124,7 +124,7 @@ class PanelLoader:
         differs from the authored one. Non-numeric values ("CENTER",
         "WINDOW", ...) pass through untouched.
         """
-        k = self.scale
+        scale = self.scale
         authored = self.authored_size or (
             self.window_transform.width,
             self.window_transform.height,
@@ -132,7 +132,7 @@ class PanelLoader:
         same_canvas = (authored[0] == self.window_transform.width) and (
             authored[1] == self.window_transform.height
         )
-        if k == 1.0 and same_canvas:
+        if scale == 1.0 and same_canvas:
             return  # desktop: authored layout, no scaling needed
 
         size = obj_def.get("size")
@@ -141,16 +141,16 @@ class PanelLoader:
             and len(size) == 2
             and all(isinstance(n, (int, float)) for n in size)
         ):
-            obj_def["size"] = [round(size[0] * k), round(size[1] * k)]
+            obj_def["size"] = [round(size[0] * scale), round(size[1] * scale)]
 
         for key in ("font_size", "text_size"):
             v = obj_def.get(key)
             if isinstance(v, (int, float)):
-                obj_def[key] = max(1, round(v * k))
+                obj_def[key] = max(1, round(v * scale))
 
         speed = obj_def.get("speed")
         if isinstance(speed, (int, float)):
-            obj_def["speed"] = speed * k
+            obj_def["speed"] = speed * scale
 
         pos = obj_def.get("position")
         if isinstance(pos, list) and len(pos) == 2:
@@ -161,20 +161,20 @@ class PanelLoader:
                 and obj_def.get("anchor", "top-left") == "top-left"
             ):
                 # Map authored-window coords → actual-window coords about centre.
-                acx, acy = (
+                actual_cx, actual_cy = (
                     self.window_transform.width / 2,
                     self.window_transform.height / 2,
                 )
-                ocx, ocy = authored[0] / 2, authored[1] / 2
+                authored_cx, authored_cy = authored[0] / 2, authored[1] / 2
                 obj_def["position"] = [
-                    round(acx + (pos[0] - ocx) * k)
+                    round(actual_cx + (pos[0] - authored_cx) * scale)
                     if isinstance(pos[0], (int, float))
                     else pos[0],
-                    round(acy + (pos[1] - ocy) * k)
+                    round(actual_cy + (pos[1] - authored_cy) * scale)
                     if isinstance(pos[1], (int, float))
                     else pos[1],
                 ]
             else:
                 obj_def["position"] = [
-                    round(c * k) if isinstance(c, (int, float)) else c for c in pos
+                    round(c * scale) if isinstance(c, (int, float)) else c for c in pos
                 ]

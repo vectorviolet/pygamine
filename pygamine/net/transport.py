@@ -218,7 +218,7 @@ class BaseServer:
             self._on_status(f"[SERVER] {peer} connected")
             self._on_connect(connection)
             threading.Thread(
-                target=self._handle, args=(connection,), daemon=True
+                target=self._serve_connection, args=(connection,), daemon=True
             ).start()
 
     def broadcast(self, message: Any, exclude: Connection | None = None) -> None:
@@ -240,7 +240,7 @@ class BaseServer:
             self._server_socket.close()
         self._on_status("[SERVER] closed")
 
-    def _handle(self, connection: Connection) -> None:
+    def _serve_connection(self, connection: Connection) -> None:
         try:
             while self.is_running and connection.is_open:
                 message = connection.recv()

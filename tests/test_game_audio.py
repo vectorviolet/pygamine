@@ -76,7 +76,7 @@ def _reset_channels() -> Iterator[None]:
     GameAudio._sfx_channels = DEFAULT_SFX_CHANNELS
     GameAudio._steal_oldest = False
     GameAudio._max_copies_per_sound = None
-    GameAudio._started = {}
+    GameAudio._play_order = {}
     GameAudio._play_count = 0
     yield
     for ch in range(mixer.get_num_channels()):

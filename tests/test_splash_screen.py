@@ -395,7 +395,7 @@ def test_standard_splash_applies_given_fades_to_both_items(display):
 
 def test_standard_splash_brings_its_own_audio_without_one(display):
     clip, _logo = standard_splash_media()
-    assert isinstance(clip._audio, GameAudio)
+    assert isinstance(clip._audio_manager, GameAudio)
 
 
 # ── SplashScreen Tests ─────────────────────────────────────────────────

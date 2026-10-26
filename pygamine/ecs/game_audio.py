@@ -51,7 +51,7 @@ class GameAudio:
     _sounds: ClassVar[dict[str, mixer.Sound]] = {}
     _sounds_mixer_init: ClassVar[tuple | None] = None
     # Pool channel index -> play order, to find the oldest playing SFX.
-    _started: ClassVar[dict[int, int]] = {}
+    _play_order: ClassVar[dict[int, int]] = {}
     _play_count: ClassVar[int] = 0
 
     def __init__(
@@ -163,7 +163,7 @@ class GameAudio:
         channel.set_volume(cls._sfx_volume)
         channel.play(sound)
         cls._play_count += 1
-        cls._started[index] = cls._play_count
+        cls._play_order[index] = cls._play_count
         return channel
 
     @classmethod
@@ -192,9 +192,9 @@ class GameAudio:
         return sound
 
     @classmethod
-    def _age(cls, index: int) -> int:
+    def _play_order_of(cls, index: int) -> int:
         # Channels play_sfx() didn't start count as the oldest.
-        return cls._started.get(index, 0)
+        return cls._play_order.get(index, 0)
 
     @classmethod
     def _pick_channel(cls, sound: mixer.Sound) -> int | None:
@@ -202,14 +202,16 @@ class GameAudio:
         if cls._max_copies_per_sound is not None:
             copies = [i for i in busy if mixer.Channel(i).get_sound() is sound]
             if len(copies) >= cls._max_copies_per_sound:
-                return min(copies, key=cls._age) if cls._steal_oldest else None
+                return (
+                    min(copies, key=cls._play_order_of) if cls._steal_oldest else None
+                )
         busy_set = set(busy)
         for i in cls._pool():
             if i not in busy_set:
                 return i
         if not cls._steal_oldest:
             return None
-        return min(busy, key=cls._age)
+        return min(busy, key=cls._play_order_of)
 
     # ── volume ────────────────────────────────────────────────────────────────
 
