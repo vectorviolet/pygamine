@@ -30,9 +30,9 @@ change. Anything before `e5c1fa6` (the commit that first introduced
 - **Added** `GameAudio.configure_sfx(channels=, steal_oldest=,
   max_copies_per_sound=)`, also accepted by the constructor as
   `sfx_channels=`, `steal_oldest=` and `max_copies_per_sound=` (left as None,
-  each keeps its setting). When every pool channel is busy, the SFX that has
-  played longest is stopped for the new one (`steal_oldest=True`, the
-  default), or the new one is dropped (`False`). `max_copies_per_sound`
+  each keeps its setting). When every pool channel is busy, the new sound is
+  dropped (`steal_oldest=False`, the default), or, with `steal_oldest=True`,
+  the SFX that has played longest is stopped for it. `max_copies_per_sound`
   (off by default) caps how many copies of one file play at once.
 
 ## [0.25.0] — 2026-10-26

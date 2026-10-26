@@ -73,7 +73,7 @@ def _reset_channels():
         mixer.Channel(ch).set_volume(1.0)
     GameAudio._sfx_volume = 1.0
     GameAudio._sfx_channels = DEFAULT_SFX_CHANNELS
-    GameAudio._steal_oldest = True
+    GameAudio._steal_oldest = False
     GameAudio._max_copies_per_sound = None
     GameAudio._started = {}
     GameAudio._play_count = 0
@@ -275,17 +275,17 @@ def test_configure_sfx_sets_the_pool_size():
 
 
 def test_constructor_passes_sfx_settings_to_configure_sfx():
-    GameAudio(sfx_channels=5, steal_oldest=False, max_copies_per_sound=2)
+    GameAudio(sfx_channels=5, steal_oldest=True, max_copies_per_sound=2)
     assert mixer.get_num_channels() == RESERVED_CHANNELS + 5
-    assert GameAudio._steal_oldest is False
+    assert GameAudio._steal_oldest is True
     assert GameAudio._max_copies_per_sound == 2
 
 
 def test_constructor_without_sfx_settings_keeps_the_current_ones():
-    GameAudio.configure_sfx(channels=5, steal_oldest=False)
+    GameAudio.configure_sfx(channels=5, steal_oldest=True)
     GameAudio()  # e.g. the splash screen's own GameAudio
     assert mixer.get_num_channels() == RESERVED_CHANNELS + 5
-    assert GameAudio._steal_oldest is False
+    assert GameAudio._steal_oldest is True
 
 
 def test_configure_sfx_rejects_bad_values():
@@ -298,10 +298,23 @@ def test_configure_sfx_rejects_bad_values():
 # ── play_sfx: every channel busy ──────────────────────────────────────
 
 
-def test_all_busy_steals_the_oldest_sfx_by_default(
+def test_all_busy_drops_the_new_sound_by_default(
     long_sound_path, other_long_sound_path
 ):
     GameAudio.configure_sfx(channels=3)
+    for _ in range(3):
+        GameAudio.play_sfx(long_sound_path)
+
+    assert GameAudio.play_sfx(other_long_sound_path) is None
+
+    for i in _pool():
+        assert mixer.Channel(i).get_sound() is GameAudio._load(long_sound_path)
+
+
+def test_all_busy_with_steal_oldest_replaces_the_oldest_sfx(
+    long_sound_path, other_long_sound_path
+):
+    GameAudio.configure_sfx(channels=3, steal_oldest=True)
     for _ in range(3):
         GameAudio.play_sfx(long_sound_path)
     oldest = RESERVED_CHANNELS  # the first one played
@@ -318,7 +331,7 @@ def test_all_busy_steals_the_oldest_sfx_by_default(
 def test_all_busy_steals_the_oldest_after_wrapping_round(
     long_sound_path, other_long_sound_path
 ):
-    GameAudio.configure_sfx(channels=2)
+    GameAudio.configure_sfx(channels=2, steal_oldest=True)
     GameAudio.play_sfx(long_sound_path)  # first pool channel
     GameAudio.play_sfx(long_sound_path)  # second
     GameAudio.play_sfx(other_long_sound_path)  # steals the first
@@ -335,7 +348,7 @@ def test_all_busy_steals_the_oldest_after_wrapping_round(
 def test_all_busy_steals_a_sound_other_code_started_first(
     long_sound_path, other_long_sound_path
 ):
-    GameAudio.configure_sfx(channels=2)
+    GameAudio.configure_sfx(channels=2, steal_oldest=True)
     foreign = mixer.Sound(long_sound_path)
     mixer.Channel(RESERVED_CHANNELS + 1).play(foreign, loops=-1)
     GameAudio.play_sfx(other_long_sound_path)  # takes the free channel
@@ -347,7 +360,8 @@ def test_all_busy_steals_a_sound_other_code_started_first(
 def test_all_busy_with_steal_oldest_off_drops_the_new_sound(
     long_sound_path, other_long_sound_path
 ):
-    GameAudio.configure_sfx(steal_oldest=False)
+    GameAudio.configure_sfx(steal_oldest=True)
+    GameAudio.configure_sfx(steal_oldest=False)  # back to the default
     filler = mixer.Sound(long_sound_path)
     for i in _pool():
         mixer.Channel(i).play(filler, loops=-1)
@@ -367,10 +381,10 @@ def test_no_per_sound_limit_by_default(long_sound_path):
     assert len(_busy_pool_channels()) == 5
 
 
-def test_per_sound_limit_restarts_the_oldest_copy(
+def test_per_sound_limit_with_steal_oldest_restarts_the_oldest_copy(
     long_sound_path, other_long_sound_path
 ):
-    GameAudio.configure_sfx(max_copies_per_sound=2)
+    GameAudio.configure_sfx(max_copies_per_sound=2, steal_oldest=True)
     first = GameAudio.play_sfx(long_sound_path)
     other = GameAudio.play_sfx(other_long_sound_path)
     GameAudio.play_sfx(long_sound_path)
@@ -382,10 +396,10 @@ def test_per_sound_limit_restarts_the_oldest_copy(
     assert other.get_sound() is GameAudio._load(other_long_sound_path)
 
 
-def test_per_sound_limit_with_steal_oldest_off_drops_extra_copies(
+def test_per_sound_limit_drops_extra_copies_by_default(
     long_sound_path, other_long_sound_path
 ):
-    GameAudio.configure_sfx(max_copies_per_sound=2, steal_oldest=False)
+    GameAudio.configure_sfx(max_copies_per_sound=2)
     GameAudio.play_sfx(long_sound_path)
     GameAudio.play_sfx(long_sound_path)
 

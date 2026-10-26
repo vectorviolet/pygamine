@@ -13,7 +13,8 @@ Channel layout:
   only keeps channel 1 in step for backward compatibility.
 - RESERVED_CHANNELS onwards: the SFX pool. Each play_sfx() takes a free
   channel from it, so sounds play side by side instead of cutting each other
-  off. The SFX volume is applied to every pool channel, including ones already
+  off. When every pool channel is busy, the new sound is dropped (or, with
+  configure_sfx(steal_oldest=True), replaces the oldest SFX). The SFX volume is applied to every pool channel, including ones already
   playing.
 
 The mixer is process-global, so the SFX settings (volume, pool size, what
@@ -44,7 +45,7 @@ class GameAudio:
     # SFX state, shared by every instance: the mixer is global.
     _sfx_volume: ClassVar[float] = 1.0
     _sfx_channels: ClassVar[int] = DEFAULT_SFX_CHANNELS
-    _steal_oldest: ClassVar[bool] = True
+    _steal_oldest: ClassVar[bool] = False
     _max_copies_per_sound: ClassVar[int | None] = None
     # Decoded sounds by path, and the mixer settings they were decoded for.
     _sounds: ClassVar[dict[str, mixer.Sound]] = {}
@@ -120,13 +121,13 @@ class GameAudio:
         """Sets up the SFX pool. Arguments left as None keep their setting.
 
         channels: how many SFX can play at once (default 16).
-        steal_oldest: when every pool channel is busy, True (the default)
-            stops the SFX that has played longest and plays the new one in its
-            place; False drops the new sound.
+        steal_oldest: when every pool channel is busy, False (the default)
+            drops the new sound; True stops the SFX that has played longest
+            and plays the new one in its place.
         max_copies_per_sound: at most this many copies of one sound file play
             at once (off by default; pass 0 to turn it off again). At the
-            limit, steal_oldest decides again: restart the oldest copy, or
-            drop the new one.
+            limit, steal_oldest decides again: drop the new one (default),
+            or restart the oldest copy.
         """
         if channels is not None:
             if channels < 1:
