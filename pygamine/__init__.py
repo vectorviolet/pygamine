@@ -59,6 +59,7 @@ if TYPE_CHECKING:
     from pygamine.ecs.game_audio import (
         GameAudio as GameAudio,
         MUSIC_CHANNEL as MUSIC_CHANNEL,
+        RESERVED_CHANNELS as RESERVED_CHANNELS,
         SFX_CHANNEL as SFX_CHANNEL,
     )
     from pygamine.ecs.sound_manager import SoundManager as SoundManager
@@ -178,6 +179,7 @@ _EXPORTS: dict[str, str] = {
     "AnimatedSpriteFactory": "pygamine.ecs.animated_sprite",
     "GameAudio": "pygamine.ecs.game_audio",
     "MUSIC_CHANNEL": "pygamine.ecs.game_audio",
+    "RESERVED_CHANNELS": "pygamine.ecs.game_audio",
     "SFX_CHANNEL": "pygamine.ecs.game_audio",
     "SoundManager": "pygamine.ecs.sound_manager",
     # ECS components
