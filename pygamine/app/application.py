@@ -49,7 +49,7 @@ class Application:
         self._is_in_debug_mode = False
         self._window_mode = "windowed"  # overwritten below by full_screen()
         self._resolution_override: tuple[int, int] | None = None
-        # By default (fixed_aspect=False) this is no longer a "design/
+        # By default, (fixed_aspect=False) this is no longer a "design/
         # authoring resolution" -- just the preferred default *windowed*
         # size before the player ever picks one explicitly (see
         # _windowed_physical_size()); the logical canvas (self.window) is
@@ -162,7 +162,7 @@ class Application:
 
     def minimize(self):
         # A bordered window sized to exactly fill the screen has nowhere to
-        # put its title bar/borders -- they get pushed off-screen and it
+        # put its title bar/borders -- they get pushed off-screen, and it
         # looks identical to FULLSCREEN. _windowed_physical_size() shrinks
         # the real OS window enough to leave room for them.
         #
@@ -282,7 +282,7 @@ class Application:
             margin * self.full_screen_width / self.minimized_width,
             margin * self.full_screen_height / self.minimized_height,
         )
-        return (round(self.minimized_width * fit), round(self.minimized_height * fit))
+        return round(self.minimized_width * fit), round(self.minimized_height * fit)
 
     def available_resolutions(self) -> list[tuple[int, int]]:
         """Common resolutions that fit this screen with room to spare for
@@ -418,7 +418,7 @@ class Application:
             self.window.get_height() / physical_height,
         )
 
-    def set_size(self, size: tuple) -> None:
+    def set_size(self, size: tuple[int, int]) -> None:
         self.size = size
 
     @property
