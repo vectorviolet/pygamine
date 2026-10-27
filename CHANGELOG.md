@@ -55,6 +55,16 @@ change. Anything before `e5c1fa6` (the commit that first introduced
 - **Changed** (breaking) `angle_between_delta()` is renamed
   `angle_of_delta()`, both in `pygamine` and `pygamine.util.math_utils`: it
   returns the angle of one delta vector, not an angle between two things.
+- **Fixed** skipping the splash with Space, Enter or a click no longer also
+  fires the game's menu (#7). The splash's skip press used to end with a
+  KEYUP / MOUSEBUTTONUP the game still received, and menus that act on the
+  release (e.g. Chokepoint's main menu) activated their button. `SplashScreen`
+  now remembers each skip key or button pressed during the splash whose
+  release it hasn't seen, and `Application` drops that release (and the key
+  repeats before it) through the new `SplashScreen.swallow_held_input()`,
+  whether it comes before or after the splash returns or the key is held
+  across its end. A fresh press afterwards reaches the game as usual. A game
+  with an event loop of its own should call `swallow_held_input()` too.
 - **Fixed** the `ObjectFactory` type alias `PanelLoader.register()` takes
   now matches what factories actually receive, `(cfg, parent: Transform)`,
   not `(cfg, window_size)`.

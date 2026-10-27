@@ -497,6 +497,10 @@ class Application:
 
     def _handle_events(self) -> None:
         for event in pygame.event.get():
+            # Drops the release of the press that skipped the splash (see
+            # SplashScreen.swallow_held_input()), so it can't fire the menu
+            if self.splash is not None and self.splash.swallow_held_input(event):
+                continue
             self._handle_core_event(event)
             self.handle_event(event)
 

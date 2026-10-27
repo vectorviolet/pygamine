@@ -530,3 +530,60 @@ def test_running_a_finished_splash_again_is_a_no_op(media_items, monkeypatch):
     splash.run(surface, pygame.time.Clock(), fps=0)  # must not raise
 
     assert splash.is_done is True
+
+
+# ── swallow_held_input(): the skip press is consumed whole (#7) ──────────
+
+
+def test_swallows_the_release_of_a_skip_key_once(media_items):
+    splash = SplashScreen(media_items, skip_completely=True)
+    splash._media_items[0].fit((20, 10))
+    splash.handle_event(pygame.event.Event(pygame.KEYDOWN, key=pygame.K_SPACE))
+    up = pygame.event.Event(pygame.KEYUP, key=pygame.K_SPACE)
+
+    assert splash.swallow_held_input(up) is True
+    assert splash.swallow_held_input(up) is False
+
+
+def test_a_release_seen_by_the_splash_is_not_swallowed_again(media_items):
+    splash = SplashScreen(media_items, skip_completely=True)
+    splash._media_items[0].fit((20, 10))
+    splash.handle_event(pygame.event.Event(pygame.MOUSEBUTTONDOWN, button=3))
+    splash.handle_event(pygame.event.Event(pygame.MOUSEBUTTONUP, button=3))
+
+    up = pygame.event.Event(pygame.MOUSEBUTTONUP, button=3)
+    assert splash.swallow_held_input(up) is False
+
+
+def test_non_skip_keys_are_not_tracked(media_items):
+    splash = SplashScreen(media_items)
+    splash.handle_event(pygame.event.Event(pygame.KEYDOWN, key=pygame.K_a))
+
+    up = pygame.event.Event(pygame.KEYUP, key=pygame.K_a)
+    assert splash.swallow_held_input(up) is False
+
+
+def test_a_new_press_of_a_held_button_ends_its_tracking(media_items):
+    """Mouse buttons don't repeat: a second press means the release was
+    lost, so that press and its release reach the game."""
+    splash = SplashScreen(media_items, skip_completely=True)
+    splash._media_items[0].fit((20, 10))
+    splash.handle_event(pygame.event.Event(pygame.MOUSEBUTTONDOWN, button=1))
+
+    down = pygame.event.Event(pygame.MOUSEBUTTONDOWN, button=1)
+    up = pygame.event.Event(pygame.MOUSEBUTTONUP, button=1)
+    assert splash.swallow_held_input(down) is False
+    assert splash.swallow_held_input(up) is False
+
+
+def test_skip_presses_later_in_the_frame_that_ended_the_splash_are_tracked(
+    media_items,
+):
+    splash = SplashScreen(media_items, skip_completely=True)
+    splash._media_items[0].fit((20, 10))
+    splash.handle_event(pygame.event.Event(pygame.KEYDOWN, key=pygame.K_SPACE))
+    assert splash.is_done
+    splash.handle_event(pygame.event.Event(pygame.KEYDOWN, key=pygame.K_RETURN))
+
+    up = pygame.event.Event(pygame.KEYUP, key=pygame.K_RETURN)
+    assert splash.swallow_held_input(up) is True

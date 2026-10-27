@@ -711,6 +711,149 @@ def test_handle_events_calls_handle_event_once_per_queued_event(monkeypatch):
     assert app.handled_events == events
 
 
+# ── the press that skips the splash never reaches the game (#7) ──────────
+
+
+def _key(event_type: int, key: int) -> pygame.event.Event:
+    return pygame.event.Event(event_type, key=key)
+
+
+def _button(event_type: int, button: int = 1) -> pygame.event.Event:
+    return pygame.event.Event(event_type, button=button, pos=(0, 0))
+
+
+@pytest.fixture
+def splash_app(tmp_path):
+    """A _TrackedApp with a one-image splash (long enough that only a skip
+    ends it) and an empty event queue. splash_app.make_splash(...) builds
+    another one like it."""
+    from pygamine.app.splash_screen import ImageMedia, SplashScreen
+
+    app = _TrackedApp()
+    image_path = tmp_path / "splash.png"
+    pygame.image.save(pygame.Surface((4, 4)), str(image_path))
+
+    def make_splash(skip_completely: bool = True) -> SplashScreen:
+        return SplashScreen(
+            [ImageMedia(image_path, fade_in_ms=0, hold_ms=60_000)],
+            skip_completely=skip_completely,
+        )
+
+    app.splash = make_splash()
+    app.make_splash = make_splash
+    pygame.event.clear()
+    yield app
+    pygame.event.clear()
+
+
+def _types_and_codes(events) -> list[tuple[int, int]]:
+    return [(e.type, getattr(e, "key", getattr(e, "button", 0))) for e in events]
+
+
+@pytest.mark.parametrize("key", [pygame.K_SPACE, pygame.K_RETURN, pygame.K_ESCAPE])
+def test_key_skipping_the_splash_never_reaches_the_game(splash_app, key):
+    pygame.event.post(_key(pygame.KEYDOWN, key))
+    splash_app.show_splash()
+    assert splash_app.splash.is_done
+
+    pygame.event.post(_key(pygame.KEYUP, key))  # released after the splash
+    splash_app._handle_events()
+
+    assert splash_app.handled_events == []
+
+
+def test_release_before_the_splash_returns_never_reaches_the_game(splash_app):
+    # Press and release in the same frame: the splash loop sees the release
+    pygame.event.post(_key(pygame.KEYDOWN, pygame.K_SPACE))
+    pygame.event.post(_key(pygame.KEYUP, pygame.K_SPACE))
+    splash_app.show_splash()
+    splash_app._handle_events()
+
+    assert splash_app.handled_events == []
+
+
+def test_mouse_click_skipping_the_splash_never_reaches_the_game(splash_app):
+    pygame.event.post(_button(pygame.MOUSEBUTTONDOWN, 1))
+    splash_app.show_splash()
+    pygame.event.post(_button(pygame.MOUSEBUTTONUP, 1))
+    splash_app._handle_events()
+
+    assert splash_app.handled_events == []
+
+
+def test_skipping_the_last_item_without_skip_completely(splash_app):
+    # A plain skip of the last item ends the splash in that same frame
+    splash_app.splash = splash_app.make_splash(skip_completely=False)
+    pygame.event.post(_key(pygame.KEYDOWN, pygame.K_RETURN))
+    splash_app.show_splash()
+    assert splash_app.splash.is_done
+
+    pygame.event.post(_key(pygame.KEYUP, pygame.K_RETURN))
+    splash_app._handle_events()
+
+    assert splash_app.handled_events == []
+
+
+def test_holding_the_skip_key_across_the_splash_end_triggers_nothing(
+    splash_app, no_real_exit
+):
+    pygame.event.post(_key(pygame.KEYDOWN, pygame.K_ESCAPE))
+    splash_app.show_splash()
+
+    # Key repeats while held, then the release, over several frames
+    for _ in range(3):
+        pygame.event.post(_key(pygame.KEYDOWN, pygame.K_ESCAPE))
+        splash_app._handle_events()
+    pygame.event.post(_key(pygame.KEYUP, pygame.K_ESCAPE))
+    splash_app._handle_events()
+
+    assert splash_app.handled_events == []
+    assert no_real_exit["sys_exit"] == 0  # Escape's repeats didn't quit
+
+
+def test_a_fresh_press_after_the_splash_is_delivered(splash_app):
+    pygame.event.post(_key(pygame.KEYDOWN, pygame.K_SPACE))
+    splash_app.show_splash()
+    pygame.event.post(_key(pygame.KEYUP, pygame.K_SPACE))
+    pygame.event.post(_key(pygame.KEYDOWN, pygame.K_SPACE))
+    pygame.event.post(_key(pygame.KEYUP, pygame.K_SPACE))
+    pygame.event.post(_button(pygame.MOUSEBUTTONDOWN, 1))
+    pygame.event.post(_button(pygame.MOUSEBUTTONUP, 1))
+    splash_app._handle_events()
+
+    assert _types_and_codes(splash_app.handled_events) == [
+        (pygame.KEYDOWN, pygame.K_SPACE),
+        (pygame.KEYUP, pygame.K_SPACE),
+        (pygame.MOUSEBUTTONDOWN, 1),
+        (pygame.MOUSEBUTTONUP, 1),
+    ]
+
+
+def test_other_input_after_the_splash_is_untouched(splash_app):
+    pygame.event.post(_key(pygame.KEYDOWN, pygame.K_SPACE))
+    splash_app.show_splash()
+    pygame.event.post(_key(pygame.KEYUP, pygame.K_a))
+    pygame.event.post(_key(pygame.KEYUP, pygame.K_RETURN))
+    pygame.event.post(_button(pygame.MOUSEBUTTONUP, 1))
+    splash_app._handle_events()
+
+    assert _types_and_codes(splash_app.handled_events) == [
+        (pygame.KEYUP, pygame.K_a),
+        (pygame.KEYUP, pygame.K_RETURN),
+        (pygame.MOUSEBUTTONUP, 1),
+    ]
+
+
+def test_events_reach_the_game_without_a_splash():
+    app = _TrackedApp()
+    assert app.splash is None
+    pygame.event.clear()
+    pygame.event.post(_key(pygame.KEYUP, pygame.K_SPACE))
+    app._handle_events()
+
+    assert _types_and_codes(app.handled_events) == [(pygame.KEYUP, pygame.K_SPACE)]
+
+
 def test_base_handle_event_update_draw_are_harmless_no_ops():
     app = Application(size=(320, 240), title="Base", fps=0)
     app.handle_event(pygame.event.Event(pygame.USEREVENT))
