@@ -24,16 +24,23 @@ change. Anything before `e5c1fa6` (the commit that first introduced
   return typed factories; `TiledMap.iter_objects()`,
   `SpatialGrid.query_radius()` / `query_rect()`, `GameObjectDict.values()`
   and `PanelManager.keys()` return typed iterators/views.
-- **Changed** (breaking) `Application.minimize()` is renamed
-  `Application.set_windowed()`. It never minimized (iconified) the window:
-  it switches to windowed mode, beside `full_screen()` and
-  `borderless_full_screen()`. Saved settings are unaffected (the mode is
-  still stored as `"windowed"`).
+- **Changed** (breaking) the window-mode methods follow one verb style,
+  `set_<mode>()`, with "fullscreen" as one word (as in SDL, Unity and
+  Godot): `Application.minimize()` is renamed `set_windowed()` (it never
+  minimized/iconified the window; it switches to windowed mode),
+  `full_screen()` is renamed `set_fullscreen()`, and
+  `borderless_full_screen()` is renamed `set_borderless_fullscreen()`.
+  `cycle_window_mode()` (F11) is unchanged. Saved settings are unaffected:
+  the `window_mode` values (`"fullscreen"`, `"borderless"`, `"windowed"`)
+  and the `window_size` key are stored and read as before.
 - **Changed** (breaking) `Application.minimized_size`, `minimized_width` and
-  `minimized_height` are renamed `default_size`, `default_width` and
-  `default_height`. They hold the constructor's `size` (the default windowed
-  size, and the design resolution under `fixed_aspect=True`), not a
-  minimized size.
+  `minimized_height` are renamed `windowed_size`, `windowed_width` and
+  `windowed_height`. They hold the constructor's `size` (the preferred
+  windowed size, and the design resolution under `fixed_aspect=True`), not
+  a minimized size.
+- **Changed** (breaking) `Application.full_screen_size`, `full_screen_width`
+  and `full_screen_height` are renamed `fullscreen_size`, `fullscreen_width`
+  and `fullscreen_height`.
 - **Changed** (breaking) `PanelLoader.pm` is renamed
   `PanelLoader.panel_manager`, matching the constructor argument it stores.
 - **Changed** (breaking) `angle_between_delta()` is renamed
