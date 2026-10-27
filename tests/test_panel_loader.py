@@ -9,6 +9,8 @@ e.g. standoff's desktop-vs-mobile render size).
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import pygame
 import pytest
 
@@ -31,17 +33,17 @@ class _Built:
         self.rect = pygame.Rect(0, 0, int(w), int(h))
 
 
-def _factory(obj_def, parent):
+def _factory(obj_def, parent) -> _Built:
     return _Built(obj_def, parent)
 
 
 @pytest.fixture
-def window_transform():
+def window_transform() -> Transform:
     return Transform(position=(0, 0), size=(800, 600))
 
 
 @pytest.fixture
-def assets(tmp_path):
+def assets(tmp_path) -> AssetManager:
     manifest = tmp_path / "assets.yaml"
     manifest.write_text(
         "images:\n"
@@ -54,14 +56,14 @@ def assets(tmp_path):
 
 
 @pytest.fixture
-def loader(window_transform, assets):
+def loader(window_transform, assets) -> PanelLoader:
     pm = PanelManager()
     ld = PanelLoader(pm, window_transform, assets)
     ld.register("object", _factory, default=True)
     return ld
 
 
-def _write(tmp_path, text: str):
+def _write(tmp_path, text: str) -> Path:
     path = tmp_path / "panels.yaml"
     path.write_text(text)
     return path
@@ -81,7 +83,7 @@ def test_load_missing_file_raises(loader):
 def test_add_object_uses_default_type_when_unspecified(loader, tmp_path):
     path = _write(tmp_path, "panels:\n  menu:\n    objects:\n      play: {}\n")
     loader.load(path)
-    assert isinstance(loader.pm["menu"]["play"], _Built)
+    assert isinstance(loader.panel_manager["menu"]["play"], _Built)
 
 
 def test_add_object_raises_when_no_type_and_no_default(
@@ -112,7 +114,7 @@ def test_object_without_parent_gets_window_transform(
 ):
     path = _write(tmp_path, "panels:\n  menu:\n    objects:\n      play: {}\n")
     loader.load(path)
-    assert loader.pm["menu"]["play"].parent is window_transform
+    assert loader.panel_manager["menu"]["play"].parent is window_transform
 
 
 def test_object_with_valid_parent_gets_parent_rect(loader, tmp_path):
@@ -125,7 +127,10 @@ def test_object_with_valid_parent_gets_parent_rect(loader, tmp_path):
         "      play: {parent: panel}\n",
     )
     loader.load(path)
-    assert loader.pm["menu"]["play"].parent is loader.pm["menu"]["panel"].rect
+    assert (
+        loader.panel_manager["menu"]["play"].parent
+        is loader.panel_manager["menu"]["panel"].rect
+    )
 
 
 def test_object_with_unknown_parent_name_raises_keyerror(loader, tmp_path):
@@ -183,8 +188,8 @@ def test_panel_extends_pulls_in_group_objects(loader, tmp_path):
         "      play: {}\n",
     )
     loader.load(path)
-    assert "back_button" in loader.pm["menu"]
-    assert "play" in loader.pm["menu"]
+    assert "back_button" in loader.panel_manager["menu"]
+    assert "play" in loader.panel_manager["menu"]
 
 
 # ── asset resolution ────────────────────────────────────────────────────────
@@ -199,7 +204,7 @@ def test_asset_and_hover_keys_resolved_via_asset_manager(loader, tmp_path):
         "      play: {asset: btn_play, hover: btn_play_hover}\n",
     )
     loader.load(path)
-    obj_def = loader.pm["menu"]["play"].obj_def
+    obj_def = loader.panel_manager["menu"]["play"].obj_def
     assert obj_def["asset"].name == "play"
     assert obj_def["hover"].name == "play_hover"
 

@@ -8,7 +8,7 @@ from pygamine.ecs.components.sprite_renderer2d import SpriteRenderer2D
 
 
 class Animator(Component):
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
         self.clips: dict[str, AnimationClip] = {}
         self._clip: AnimationClip | None = None
@@ -31,7 +31,7 @@ class Animator(Component):
         self._frame = 0
         self._last_step_ms = pygame.time.get_ticks()
         self._playing = True
-        self._apply()
+        self._apply_frame()
 
     def stop(self) -> None:
         self._playing = False
@@ -68,7 +68,7 @@ class Animator(Component):
         steps = elapsed // duration
         self._last_step_ms += steps * duration
         self._advance(int(steps))
-        self._apply()
+        self._apply_frame()
 
     def _advance(self, steps: int) -> None:
         if self._clip is None:
@@ -84,7 +84,7 @@ class Animator(Component):
             self._frame = end
             self._playing = False
 
-    def _apply(self) -> None:
+    def _apply_frame(self) -> None:
         if self._clip is None:
             return
 

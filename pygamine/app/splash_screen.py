@@ -162,7 +162,7 @@ class ImageSequenceMedia:
             else self._read_meta_fps(self._folder) or DEFAULT_SEQUENCE_FPS
         )
         self._audio_path = str(audio_path) if audio_path else None
-        self._audio = audio_manager
+        self._audio_manager = audio_manager
 
         if isinstance(folder_path, SequencePath):
             self._frame_paths = folder_path.frame_paths()
@@ -203,8 +203,8 @@ class ImageSequenceMedia:
         self._loader = threading.Thread(target=self._preload_frames, daemon=True)
         self._loader.start()
 
-        if self._audio and self._audio_path:
-            self._audio.play_music(self._audio_path, loops=0)
+        if self._audio_manager and self._audio_path:
+            self._audio_manager.play_music(self._audio_path, loops=0)
 
     def _preload_frames(self) -> None:
         # Runs on the loader thread. A load error isn't caught: it surfaces
@@ -301,8 +301,8 @@ class ImageSequenceMedia:
     def _stop_audio(self) -> None:
         # Stop, not pause: a paused channel stays occupied, and nothing
         # would ever resume this clip's audio.
-        if self._audio and self._audio_path:
-            self._audio.stop_music()
+        if self._audio_manager and self._audio_path:
+            self._audio_manager.stop_music()
 
 
 def standard_splash_media(
@@ -349,6 +349,15 @@ class SplashScreen:
     any mouse click or Space/Enter/Escape. With `skip_completely`, a skip
     ends the whole splash instead of just the current item. When the last
     item is done, is_done = True.
+
+    A skip press is consumed whole: the splash remembers each skip key or
+    mouse button pressed while it ran whose release it hasn't seen yet, and
+    swallow_held_input() -- called by Application for every event once the
+    splash is over -- drops that release (and the key repeats before it), so
+    the game never sees half of a press it didn't get. Otherwise a menu that
+    acts on KEYUP / MOUSEBUTTONUP would fire on the press that skipped the
+    splash, whether released before or after the splash returns or held
+    across its end.
     """
 
     SKIP_KEYS = [pygame.K_SPACE, pygame.K_RETURN, pygame.K_ESCAPE]
@@ -360,6 +369,9 @@ class SplashScreen:
         self._index = 0
         self.is_done = False
         self.skip_completely = skip_completely
+        # (release event type, key or button) of skip presses whose release
+        # hasn't been seen yet -- see swallow_held_input()
+        self._held_inputs: set[tuple[int, int]] = set()
 
     def run(self, surface: pygame.Surface, clock: pygame.time.Clock, fps: int) -> None:
         # Re-running a finished splash is a no-op: a game may show it itself
@@ -387,8 +399,55 @@ class SplashScreen:
             pygame.display.update()
 
     def handle_event(self, event: pygame.event.Event) -> None:
+        # Tracked even once is_done: later events of the same frame are still
+        # handled here, so the game never sees them either
+        self._track_held_input(event)
         if self.should_skip(event):
             self.skip()
+
+    @staticmethod
+    def _release_of(event: pygame.event.Event) -> tuple[int, int] | None:
+        """The (type, key or button) of the event that ends this press."""
+        if event.type == pygame.KEYDOWN:
+            return pygame.KEYUP, event.key
+        if event.type == pygame.MOUSEBUTTONDOWN:
+            return pygame.MOUSEBUTTONUP, event.button
+        return None
+
+    def _track_held_input(self, event: pygame.event.Event) -> None:
+        if event.type == pygame.KEYUP:
+            self._held_inputs.discard((pygame.KEYUP, event.key))
+        elif event.type == pygame.MOUSEBUTTONUP:
+            self._held_inputs.discard((pygame.MOUSEBUTTONUP, event.button))
+        elif self.should_skip(event):
+            release = self._release_of(event)
+            if release is not None:
+                self._held_inputs.add(release)
+
+    def swallow_held_input(self, event: pygame.event.Event) -> bool:
+        """True if `event` belongs to a skip press the splash consumed and
+        should be dropped instead of reaching the game: the release (KEYUP /
+        MOUSEBUTTONUP) of a key or button pressed during the splash, or a
+        key repeat (KEYDOWN) of that key while it's still held. Each release
+        is swallowed once; after it, that key or button behaves normally.
+
+        Application calls this for every event; a game with an event loop
+        of its own should do the same after running the splash."""
+        if not self._held_inputs:
+            return False
+        if event.type in (pygame.KEYUP, pygame.MOUSEBUTTONUP):
+            code = event.key if event.type == pygame.KEYUP else event.button
+            if (event.type, code) in self._held_inputs:
+                self._held_inputs.discard((event.type, code))
+                return True
+            return False
+        if event.type == pygame.KEYDOWN:
+            return (pygame.KEYUP, event.key) in self._held_inputs
+        if event.type == pygame.MOUSEBUTTONDOWN:
+            # A new press of a held button means its release was lost
+            # (mouse buttons don't repeat): let this press through as usual
+            self._held_inputs.discard((pygame.MOUSEBUTTONUP, event.button))
+        return False
 
     def should_skip(self, event: pygame.event.Event) -> bool:
         return event.type == pygame.MOUSEBUTTONDOWN or (

@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+from collections.abc import Sequence
+from typing import overload
+
 import pygame
 
 from pygamine.util.utils import Anchorable
@@ -116,8 +119,18 @@ class TextObject(GameObject, Anchorable):
         self.rect.size = surface.get_size()
         self.rect.set_position(self._position_spec)
 
+    @overload
     @staticmethod
-    def _parse_color(color):
+    def _parse_color(color: None) -> None: ...
+
+    @overload
+    @staticmethod
+    def _parse_color(color: str | Sequence[int]) -> tuple[int, ...]: ...
+
+    @staticmethod
+    def _parse_color(
+        color: str | Sequence[int] | None,
+    ) -> tuple[int, ...] | None:
         if color is None:
             return None
         if isinstance(color, (list, tuple)):
@@ -125,7 +138,7 @@ class TextObject(GameObject, Anchorable):
         return tuple(pygame.Color(str(color)))
 
     @staticmethod
-    def _parse_padding(padding):
+    def _parse_padding(padding) -> tuple[int, int, int, int]:
         """CSS-style: int -> all sides; [v, h]; [top, right, bottom, left]."""
         if padding is None:
             return (0, 0, 0, 0)
@@ -141,7 +154,8 @@ class TextObject(GameObject, Anchorable):
                 v, h = vals
                 return (v, h, v, h)
             if len(vals) == 4:
-                return tuple(vals)
+                top, right, bottom, left = vals
+                return (top, right, bottom, left)
         raise ValueError(
             f"Invalid padding: {padding!r} (expected int, [v,h], or [top,right,bottom,left])"
         )

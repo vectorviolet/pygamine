@@ -17,13 +17,13 @@ from pygamine.ecs.components.sprite_renderer2d import SpriteRenderer2D
 from pygamine.ecs.game_object import GameObject
 
 
-def _frames(n):
+def _frames(n) -> list[pygame.Surface]:
     return [pygame.Surface((2, 2)) for _ in range(n)]
 
 
-def _rigged_animator():
+def _rigged_animator() -> tuple[Animator, SpriteRenderer2D]:
     """A GameObject with both SpriteRenderer2D and Animator, matching how
-    AnimatedSprite wires them -- Animator._apply() looks up the renderer via
+    AnimatedSprite wires them -- Animator._apply_frame() looks up the renderer via
     get_component()."""
     go = GameObject()
     renderer = go.add_component(SpriteRenderer2D)

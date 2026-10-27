@@ -79,7 +79,17 @@ quote-style = "double"
 # much bigger reformatting pass this isn't about). Not E/W (pycodestyle)
 # either, which would flag ~200 long lines across tests/ that were a
 # deliberate style choice, not an oversight.
-select = ["F", "I002"]
+#
+# ANN201-ANN206: every function and method in pygamine/ declares its return
+# type (`-> None` included). Only the return-type rules, not the argument
+# ones (ANN001...): many parameters are deliberately duck-typed.
+select = ["F", "I002", "ANN201", "ANN202", "ANN204", "ANN205", "ANN206"]
+
+[tool.ruff.lint.per-file-ignores]
+# Test functions don't get `-> None`: pytest calls them and no type checker
+# covers tests/. Fixtures and helpers that return a value still declare it
+# (by convention -- these rules can't tell them apart from test functions).
+"tests/**" = ["ANN201", "ANN202", "ANN204", "ANN205", "ANN206"]
 
 [tool.mypy]
 python_version = "3.12"

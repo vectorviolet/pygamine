@@ -5,6 +5,8 @@ renders a tiny real video with moviepy (from the `video` extra / dev group).
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import pytest
 import yaml
 
@@ -20,7 +22,7 @@ pytestmark = pytest.mark.filterwarnings(
 
 
 @pytest.fixture(scope="module")
-def video(tmp_path_factory):
+def video(tmp_path_factory) -> Path:
     """1 s, 12 fps, 32x16 red clip with a sine-tone audio track."""
     import numpy as np
 

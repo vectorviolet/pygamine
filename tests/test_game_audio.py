@@ -10,6 +10,7 @@ time, so tests that check a sound is still playing use long ones.
 
 from __future__ import annotations
 
+from collections.abc import Iterator
 import struct
 import wave
 
@@ -41,7 +42,7 @@ def _write_wav(path, seconds: float) -> str:
 
 
 @pytest.fixture
-def sound_path(tmp_path):
+def sound_path(tmp_path) -> str:
     path = tmp_path / "sfx.wav"
     with wave.open(str(path), "w") as f:
         f.setnchannels(1)
@@ -52,17 +53,17 @@ def sound_path(tmp_path):
 
 
 @pytest.fixture
-def long_sound_path(tmp_path):
+def long_sound_path(tmp_path) -> str:
     return _write_wav(tmp_path / "long.wav", 5)
 
 
 @pytest.fixture
-def other_long_sound_path(tmp_path):
+def other_long_sound_path(tmp_path) -> str:
     return _write_wav(tmp_path / "other_long.wav", 5)
 
 
 @pytest.fixture(autouse=True)
-def _reset_channels():
+def _reset_channels() -> Iterator[None]:
     """Real mixer channels and GameAudio's class-wide SFX settings persist
     across tests in the same process -- reset them beforehand."""
     if not mixer.get_init():
@@ -71,22 +72,24 @@ def _reset_channels():
     for ch in range(mixer.get_num_channels()):
         mixer.Channel(ch).stop()
         mixer.Channel(ch).set_volume(1.0)
+    GameAudio._master_volume = 1.0
+    GameAudio._music_volume = 1.0
     GameAudio._sfx_volume = 1.0
     GameAudio._sfx_channels = DEFAULT_SFX_CHANNELS
     GameAudio._steal_oldest = False
     GameAudio._max_copies_per_sound = None
-    GameAudio._started = {}
+    GameAudio._play_order = {}
     GameAudio._play_count = 0
     yield
     for ch in range(mixer.get_num_channels()):
         mixer.Channel(ch).stop()
 
 
-def _pool():
+def _pool() -> range:
     return range(RESERVED_CHANNELS, mixer.get_num_channels())
 
 
-def _busy_pool_channels():
+def _busy_pool_channels() -> list[int]:
     return [i for i in _pool() if mixer.Channel(i).get_busy()]
 
 
@@ -526,6 +529,146 @@ def test_music_volume_does_not_change_sfx_already_playing(long_sound_path):
     channel = GameAudio.play_sfx(long_sound_path)
     audio.set_music_volume(0.1)
     assert channel.get_volume() == pytest.approx(0.5, abs=0.01)
+
+
+# ── master volume ───────────────────────────────────────────────────
+
+
+def test_master_volume_defaults_to_one():
+    GameAudio()
+    assert GameAudio.master_volume() == 1.0
+    assert GameAudio.effective_music_volume() == 1.0
+    assert GameAudio.effective_sfx_volume() == 1.0
+
+
+def test_set_master_volume_is_reflected_by_master_volume():
+    GameAudio().set_master_volume(0.4)
+    assert GameAudio.master_volume() == pytest.approx(0.4)
+
+
+def test_set_master_volume_clamps_to_valid_range():
+    audio = GameAudio()
+    audio.set_master_volume(5.0)
+    assert GameAudio.master_volume() == 1.0
+    audio.set_master_volume(-5.0)
+    assert GameAudio.master_volume() == 0.0
+
+
+def test_master_volume_scales_the_music_live(long_sound_path):
+    audio = GameAudio()
+    audio.set_music_volume(0.8)
+    audio.play_music(long_sound_path)
+
+    audio.set_master_volume(0.5)
+
+    assert mixer.Channel(MUSIC_CHANNEL).get_volume() == pytest.approx(0.4, abs=0.01)
+
+
+def test_music_volume_change_keeps_the_master_volume(long_sound_path):
+    audio = GameAudio()
+    audio.set_master_volume(0.5)
+    audio.play_music(long_sound_path)
+
+    audio.set_music_volume(0.6)
+
+    assert mixer.Channel(MUSIC_CHANNEL).get_volume() == pytest.approx(0.3, abs=0.01)
+
+
+def test_play_music_plays_at_the_effective_music_volume(long_sound_path):
+    audio = GameAudio()
+    audio.set_master_volume(0.5)
+    audio.set_music_volume(0.5)
+    mixer.Channel(MUSIC_CHANNEL).set_volume(1.0)  # e.g. after a mixer re-init
+
+    audio.play_music(long_sound_path)
+
+    assert mixer.Channel(MUSIC_CHANNEL).get_volume() == pytest.approx(0.25, abs=0.01)
+
+
+def test_master_volume_scales_sfx_already_playing(
+    long_sound_path, other_long_sound_path
+):
+    audio = GameAudio()
+    audio.set_sfx_volume(0.8)
+    first = GameAudio.play_sfx(long_sound_path)
+    second = GameAudio.play_sfx(other_long_sound_path)
+
+    audio.set_master_volume(0.5)
+
+    assert first.get_volume() == pytest.approx(0.4, abs=0.01)
+    assert second.get_volume() == pytest.approx(0.4, abs=0.01)
+
+
+def test_master_volume_covers_every_pool_channel_and_the_old_sfx_channel():
+    audio = GameAudio()
+    audio.set_sfx_volume(0.6)
+    audio.set_master_volume(0.5)
+    for i in (SFX_CHANNEL, *_pool()):
+        assert mixer.Channel(i).get_volume() == pytest.approx(0.3, abs=0.01)
+
+
+def test_play_sfx_plays_at_the_effective_sfx_volume(long_sound_path):
+    audio = GameAudio()
+    audio.set_master_volume(0.5)
+    audio.set_sfx_volume(0.5)
+    channel = GameAudio.play_sfx(long_sound_path)
+    assert channel.get_volume() == pytest.approx(0.25, abs=0.01)
+
+
+def test_sfx_volume_change_keeps_the_master_volume(long_sound_path):
+    audio = GameAudio()
+    audio.set_master_volume(0.5)
+    channel = GameAudio.play_sfx(long_sound_path)
+
+    audio.set_sfx_volume(0.6)
+
+    assert channel.get_volume() == pytest.approx(0.3, abs=0.01)
+
+
+def test_getters_return_the_values_set_not_multiplied_by_master():
+    audio = GameAudio()
+    audio.set_music_volume(0.6)
+    audio.set_sfx_volume(0.7)
+    audio.set_master_volume(0.5)
+    assert GameAudio.music_volume() == pytest.approx(0.6)
+    assert GameAudio.sfx_volume() == pytest.approx(0.7)
+
+
+def test_effective_volumes_are_master_times_the_value_set():
+    audio = GameAudio()
+    audio.set_music_volume(0.6)
+    audio.set_sfx_volume(0.7)
+    audio.set_master_volume(0.5)
+    assert GameAudio.effective_music_volume() == pytest.approx(0.3)
+    assert GameAudio.effective_sfx_volume() == pytest.approx(0.35)
+
+
+def test_effective_sfx_volume_is_callable_from_an_instance_as_a_getter():
+    """For a game's own channel (e.g. Chokepoint's bell on channel 2)."""
+    audio = GameAudio()
+    getter = audio.effective_sfx_volume
+    audio.set_sfx_volume(0.8)
+    audio.set_master_volume(0.5)
+    assert getter() == pytest.approx(0.4)
+
+
+def test_master_volume_does_not_touch_a_game_owned_channel():
+    mixer.Channel(GAME_OWNED_CHANNEL).set_volume(0.9)
+    GameAudio().set_master_volume(0.2)
+    assert mixer.Channel(GAME_OWNED_CHANNEL).get_volume() == pytest.approx(
+        0.9, abs=0.01
+    )
+
+
+def test_master_volume_is_shared_by_every_instance():
+    GameAudio().set_master_volume(0.3)
+    assert GameAudio().master_volume() == pytest.approx(0.3)
+
+
+def test_music_volume_is_the_value_set_not_the_mixer_read_back():
+    """SDL quantizes channel volume; music_volume() returns the exact value."""
+    GameAudio().set_music_volume(0.3)
+    assert GameAudio.music_volume() == 0.3
 
 
 # ── SoundManager ────────────────────────────────────────────────────────

@@ -20,11 +20,11 @@ class _Box(MouseInteractive):
         self.visible = visible
 
 
-def _mousedown(pos, button=1):
+def _mousedown(pos, button=1) -> pygame.event.Event:
     return pygame.event.Event(pygame.MOUSEBUTTONDOWN, pos=pos, button=button)
 
 
-def _mouseup(pos, button=1):
+def _mouseup(pos, button=1) -> pygame.event.Event:
     return pygame.event.Event(pygame.MOUSEBUTTONUP, pos=pos, button=button)
 
 

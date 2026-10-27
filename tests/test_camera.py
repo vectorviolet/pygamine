@@ -14,7 +14,7 @@ from pygamine.ecs.game_object import GameObject
 
 
 @pytest.fixture
-def camera():
+def camera() -> Camera:
     """An 800x600 viewport onto a 1600x1200 map (2x bigger in both axes) --
     big enough that there's real room to scroll and zoom out."""
     rect = pygame.Rect(0, 0, 800, 600)

@@ -18,6 +18,7 @@ of a smoke test.
 from __future__ import annotations
 
 import time
+from typing import Any
 
 import pygame
 
@@ -52,7 +53,7 @@ def run_briefly(
     def ticks() -> int:
         return real_ticks() + offset_ms
 
-    def get_events(*args, **kwargs):
+    def get_events(*args: Any, **kwargs: Any) -> list[pygame.event.Event]:
         nonlocal offset_ms
         if time.monotonic() > deadline:
             raise RuntimeError(

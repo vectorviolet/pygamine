@@ -11,7 +11,7 @@ from pygamine.app.debug import Debug
 
 
 @pytest.fixture
-def font():
+def font() -> pygame.font.Font:
     return pygame.font.Font(None, 16)
 
 

@@ -21,7 +21,7 @@ the first time it's accessed.
 from __future__ import annotations
 
 from importlib import import_module
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     # For type checkers / IDE autocomplete only -- never executed at runtime
@@ -123,7 +123,7 @@ if TYPE_CHECKING:
     from pygamine.util.math_utils import (
         distance as distance,
         angle_between_points as angle_between_points,
-        angle_between_delta as angle_between_delta,
+        angle_of_delta as angle_of_delta,
     )
 
     # Persistence / world data
@@ -225,7 +225,7 @@ _EXPORTS: dict[str, str] = {
     "resolve_size": "pygamine.util.utils",
     "distance": "pygamine.util.math_utils",
     "angle_between_points": "pygamine.util.math_utils",
-    "angle_between_delta": "pygamine.util.math_utils",
+    "angle_of_delta": "pygamine.util.math_utils",
     # Persistence / world data
     "SaveStore": "pygamine.assets.save_store",
     "Database": "pygamine.assets.database",
@@ -249,7 +249,7 @@ _EXPORTS: dict[str, str] = {
 __all__ = list(_EXPORTS)
 
 
-def __getattr__(name: str):
+def __getattr__(name: str) -> Any:
     module_path = _EXPORTS.get(name)
     if module_path is None:
         raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

@@ -13,6 +13,69 @@ together rather than reconstructing a commit-by-commit rationale for every
 change. Anything before `e5c1fa6` (the commit that first introduced
 `pyproject.toml` itself) isn't versioned at all; see `git log` for that era.
 
+## [Unreleased]
+
+- **Added** a master volume in `GameAudio`, class-wide like the SFX volume:
+  `set_master_volume(v)` and `master_volume()` (0-1, default 1.0, clamped).
+  The music plays at master × music and every SFX (pool channels and
+  channel 1) at master × SFX, applied live, including sounds already playing.
+  `effective_music_volume()` and `effective_sfx_volume()` return those
+  products; a game that plays on a reserved channel of its own (e.g.
+  Chokepoint's life-lost bell on channel 2) should set it to
+  `effective_sfx_volume()` so the master volume applies there too.
+- **Changed** `music_volume()` returns the music volume set (class-wide, like
+  `sfx_volume()`), not the mixer's quantised read-back of channel 0, so it
+  isn't multiplied by the master volume. It's a classmethod now (was a
+  staticmethod); calls on the class or an instance work as before. A volume
+  set on channel 0 directly (`SoundManager.set_volume(0, ...)`) is no longer
+  reflected by it, and `play_music()` now sets channel 0 to the effective
+  music volume before playing. `set_music_volume()` before `mixer.init()`
+  stores the value instead of raising.
+- **Changed** every function and method in `pygamine/` declares its return
+  type (`-> None` included), and ruff's ANN201-ANN206 rules keep it that way
+  in CI (`tests/` is exempt; its fixtures and helpers that return a value are
+  annotated anyway). Annotation-only: no behaviour change. Side effects for
+  type-checked callers: `load_image()` returns `Surface`, or
+  `(Surface, size)` with `return_size=True`; the `make_*_factory()` functions
+  return typed factories; `TiledMap.iter_objects()`,
+  `SpatialGrid.query_radius()` / `query_rect()`, `GameObjectDict.values()`
+  and `PanelManager.keys()` return typed iterators/views.
+- **Changed** (breaking) the window-mode methods follow one verb style,
+  `set_<mode>()`, with "fullscreen" as one word (as in SDL, Unity and
+  Godot): `Application.minimize()` is renamed `set_windowed()` (it never
+  minimized/iconified the window; it switches to windowed mode),
+  `full_screen()` is renamed `set_fullscreen()`, and
+  `borderless_full_screen()` is renamed `set_borderless_fullscreen()`.
+  `cycle_window_mode()` (F11) is unchanged. Saved settings are unaffected:
+  the `window_mode` values (`"fullscreen"`, `"borderless"`, `"windowed"`)
+  and the `window_size` key are stored and read as before.
+- **Changed** (breaking) `Application.minimized_size`, `minimized_width` and
+  `minimized_height` are renamed `windowed_size`, `windowed_width` and
+  `windowed_height`. They hold the constructor's `size` (the preferred
+  windowed size, and the design resolution under `fixed_aspect=True`), not
+  a minimized size.
+- **Changed** (breaking) `Application.full_screen_size`, `full_screen_width`
+  and `full_screen_height` are renamed `fullscreen_size`, `fullscreen_width`
+  and `fullscreen_height`.
+- **Changed** (breaking) `PanelLoader.pm` is renamed
+  `PanelLoader.panel_manager`, matching the constructor argument it stores.
+- **Changed** (breaking) `angle_between_delta()` is renamed
+  `angle_of_delta()`, both in `pygamine` and `pygamine.util.math_utils`: it
+  returns the angle of one delta vector, not an angle between two things.
+- **Fixed** skipping the splash with Space, Enter or a click no longer also
+  fires the game's menu (#7). The splash's skip press used to end with a
+  KEYUP / MOUSEBUTTONUP the game still received, and menus that act on the
+  release (e.g. Chokepoint's main menu) activated their button. `SplashScreen`
+  now remembers each skip key or button pressed during the splash whose
+  release it hasn't seen, and `Application` drops that release (and the key
+  repeats before it) through the new `SplashScreen.swallow_held_input()`,
+  whether it comes before or after the splash returns or the key is held
+  across its end. A fresh press afterwards reaches the game as usual. A game
+  with an event loop of its own should call `swallow_held_input()` too.
+- **Fixed** the `ObjectFactory` type alias `PanelLoader.register()` takes
+  now matches what factories actually receive, `(cfg, parent: Transform)`,
+  not `(cfg, window_size)`.
+
 ## [0.26.0] — 2026-10-26
 
 - **Changed** `GameAudio.play_sfx()` plays each sound effect on a free mixer

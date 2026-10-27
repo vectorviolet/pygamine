@@ -4,6 +4,8 @@ DSL), scale, scale_by, and nine_slice_scale.
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import pygame
 import pytest
 
@@ -17,7 +19,7 @@ def _save_png(path, size, color):
 
 
 @pytest.fixture
-def image_path(tmp_path):
+def image_path(tmp_path) -> Path:
     pygame.display.set_mode((1, 1))  # convert_alpha() needs a display mode set
     path = tmp_path / "img.png"
     _save_png(path, (40, 20), (255, 0, 0))
@@ -133,7 +135,7 @@ PURPLE = (128, 0, 128, 255)
 PINK = (255, 192, 203, 255)
 
 
-def _nine_region_image(cell=10):
+def _nine_region_image(cell=10) -> pygame.Surface:
     """A 3x3 grid (each cell distinctly colored) to verify nine_slice_scale
     places/stretches each of the 9 regions correctly."""
     colors = [

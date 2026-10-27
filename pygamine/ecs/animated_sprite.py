@@ -93,7 +93,7 @@ class AnimatedSprite(GameObject):
 class AnimatedSpriteFactory:
     """Builds AnimatedSprite instances from AssetManager-registered spritesheets."""
 
-    def __init__(self, assets):
+    def __init__(self, assets) -> None:
         self._assets = assets
 
     def from_strip(

@@ -7,8 +7,8 @@ import yaml
 
 from pygamine.ecs.components.transform import Transform
 
-# Factory signature: config dict + window_size → object
-ObjectFactory = Callable[[dict, tuple[int, int]], Any]
+# Factory signature: config dict + parent Transform → object
+ObjectFactory = Callable[[dict, Transform], Any]
 
 
 class PanelLoader:
@@ -16,8 +16,8 @@ class PanelLoader:
 
     def __init__(
         self, panel_manager, window_transform: Transform, asset_manager: AssetManager
-    ):
-        self.pm = panel_manager
+    ) -> None:
+        self.panel_manager = panel_manager
         self.window_transform = window_transform
         self.assets = asset_manager
         self._factories: dict[str, ObjectFactory] = {}
@@ -61,9 +61,9 @@ class PanelLoader:
         panel that defines it -- for objects that need their siblings, which
         may be declared after them (e.g. ScrollingPanel adopting its targets).
         Iterates a snapshot, since a hook may remove objects from the panel."""
-        if tab not in self.pm:
+        if tab not in self.panel_manager:
             return
-        panel = self.pm[tab]
+        panel = self.panel_manager[tab]
         for obj in list(panel.values()):
             hook = getattr(obj, "on_panel_loaded", None)
             if hook is not None:
@@ -81,12 +81,15 @@ class PanelLoader:
 
         parent_name = obj_def.pop("parent", None)
         if parent_name is not None:
-            if tab not in self.pm or parent_name not in self.pm[tab]:
+            if (
+                tab not in self.panel_manager
+                or parent_name not in self.panel_manager[tab]
+            ):
                 raise KeyError(
                     f"Object '{name}' references unknown parent '{parent_name}' in panel '{tab}'. "
                     f"Parent objects must be declared before their children."
                 )
-            parent = self.pm[tab][parent_name].rect
+            parent = self.panel_manager[tab][parent_name].rect
         else:
             parent = self.window_transform
 
@@ -99,7 +102,7 @@ class PanelLoader:
 
         factory = self._factories[type_name]
         obj = factory(obj_def, parent)
-        self.pm.add_object(tab, name, obj)
+        self.panel_manager.add_object(tab, name, obj)
 
     def _scale_def(self, obj_def: dict, window_parented: bool) -> None:
         """Apply the global UI scale (self.scale) to one object's geometry, in place.
@@ -124,7 +127,7 @@ class PanelLoader:
         differs from the authored one. Non-numeric values ("CENTER",
         "WINDOW", ...) pass through untouched.
         """
-        k = self.scale
+        scale = self.scale
         authored = self.authored_size or (
             self.window_transform.width,
             self.window_transform.height,
@@ -132,7 +135,7 @@ class PanelLoader:
         same_canvas = (authored[0] == self.window_transform.width) and (
             authored[1] == self.window_transform.height
         )
-        if k == 1.0 and same_canvas:
+        if scale == 1.0 and same_canvas:
             return  # desktop: authored layout, no scaling needed
 
         size = obj_def.get("size")
@@ -141,16 +144,16 @@ class PanelLoader:
             and len(size) == 2
             and all(isinstance(n, (int, float)) for n in size)
         ):
-            obj_def["size"] = [round(size[0] * k), round(size[1] * k)]
+            obj_def["size"] = [round(size[0] * scale), round(size[1] * scale)]
 
         for key in ("font_size", "text_size"):
             v = obj_def.get(key)
             if isinstance(v, (int, float)):
-                obj_def[key] = max(1, round(v * k))
+                obj_def[key] = max(1, round(v * scale))
 
         speed = obj_def.get("speed")
         if isinstance(speed, (int, float)):
-            obj_def["speed"] = speed * k
+            obj_def["speed"] = speed * scale
 
         pos = obj_def.get("position")
         if isinstance(pos, list) and len(pos) == 2:
@@ -161,20 +164,20 @@ class PanelLoader:
                 and obj_def.get("anchor", "top-left") == "top-left"
             ):
                 # Map authored-window coords → actual-window coords about centre.
-                acx, acy = (
+                actual_cx, actual_cy = (
                     self.window_transform.width / 2,
                     self.window_transform.height / 2,
                 )
-                ocx, ocy = authored[0] / 2, authored[1] / 2
+                authored_cx, authored_cy = authored[0] / 2, authored[1] / 2
                 obj_def["position"] = [
-                    round(acx + (pos[0] - ocx) * k)
+                    round(actual_cx + (pos[0] - authored_cx) * scale)
                     if isinstance(pos[0], (int, float))
                     else pos[0],
-                    round(acy + (pos[1] - ocy) * k)
+                    round(actual_cy + (pos[1] - authored_cy) * scale)
                     if isinstance(pos[1], (int, float))
                     else pos[1],
                 ]
             else:
                 obj_def["position"] = [
-                    round(c * k) if isinstance(c, (int, float)) else c for c in pos
+                    round(c * scale) if isinstance(c, (int, float)) else c for c in pos
                 ]

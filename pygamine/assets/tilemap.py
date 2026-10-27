@@ -10,6 +10,7 @@ Requires `pytmx`.
 
 from __future__ import annotations
 
+from collections.abc import Iterator
 from pathlib import Path
 
 import pygame
@@ -45,7 +46,7 @@ class TiledMap:
 
     # ── object access ─────────────────────────────────────────────────────────
 
-    def iter_objects(self, group_name: str):
+    def iter_objects(self, group_name: str) -> Iterator[pytmx.TiledObject]:
         """Yield objects from every object group named `group_name`."""
         for layer in self.tmx.layers:
             if isinstance(layer, pytmx.TiledObjectGroup) and layer.name == group_name:

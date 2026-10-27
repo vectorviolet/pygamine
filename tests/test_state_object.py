@@ -9,6 +9,8 @@ dummy SDL driver) rather than mocking image loading away.
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import pygame
 import pytest
 
@@ -23,7 +25,7 @@ def _save_png(path, color, size=(20, 20)):
 
 
 @pytest.fixture
-def images(tmp_path, monkeypatch):
+def images(tmp_path, monkeypatch) -> dict[str, Path]:
     monkeypatch.chdir(tmp_path)
     pygame.display.set_mode((1, 1))  # convert_alpha() needs a display mode set
 
@@ -37,11 +39,11 @@ def images(tmp_path, monkeypatch):
 
 
 @pytest.fixture
-def parent():
+def parent() -> Transform:
     return Transform(position=(0, 0), size=(800, 600))
 
 
-def _color(obj):
+def _color(obj) -> pygame.Color:
     return obj._renderer.image.get_at((5, 5))
 
 

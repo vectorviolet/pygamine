@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from collections.abc import KeysView
+
 import pygame
 from pygamine.ecs.game_object_dict import GameObjectDict
 
@@ -16,7 +18,7 @@ class PanelManager:
     def __contains__(self, name: object) -> bool:
         return name in self._panels
 
-    def keys(self):
+    def keys(self) -> KeysView[str]:
         return self._panels.keys()
 
     def handle_event(self, event: pygame.event.Event, mouse_position) -> None:

@@ -22,7 +22,7 @@ def test_get_component_asserts_when_unattached():
 
 def test_get_component_delegates_to_attached_game_object():
     class _FakeGameObject:
-        def get_component(self, component_type):
+        def get_component(self, component_type) -> str:
             return f"got {component_type.__name__}"
 
     comp = Component()

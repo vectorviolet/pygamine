@@ -47,7 +47,7 @@ class Application:
         self._is_running = False
         self._fps = fps
         self._is_in_debug_mode = False
-        self._window_mode = "windowed"  # overwritten below by full_screen()
+        self._window_mode = "windowed"  # overwritten below by set_fullscreen()
         self._resolution_override: tuple[int, int] | None = None
         # By default, (fixed_aspect=False) this is no longer a "design/
         # authoring resolution" -- just the preferred default *windowed*
@@ -56,8 +56,8 @@ class Application:
         # dynamic, rebuilt to match whatever size is actually chosen.
         # fixed_aspect=True changes what this means -- see below.
         self.size: tuple[int, int] = size
-        # The real OS window/screen surface. full_screen() below creates it,
-        # and minimize()/borderless_full_screen() replace it on a mode switch.
+        # The real OS window/screen surface. set_fullscreen() below creates it,
+        # and set_windowed()/set_borderless_fullscreen() replace it on a mode switch.
         self.display_surface: pygame.Surface
         self.window: pygame.Surface | None = None
         # 1.0 (default): self.window always matches the real display exactly,
@@ -74,7 +74,7 @@ class Application:
         # shows more or less of the world, never distortion.
         #
         # True: self.window is locked to `size` (the constructor argument,
-        # cached in self.minimized_size) as a genuinely fixed design
+        # cached in self.windowed_size) as a genuinely fixed design
         # resolution, scaled only by render_scale -- for a hand-authored
         # pixel layout that must never reveal extra space on a wider/
         # taller monitor. _present()/_sync_mouse_scale() then compute a
@@ -100,13 +100,13 @@ class Application:
         self.set_title(title)
         # The constructor's `size`: the default windowed size, and the fixed
         # design resolution under fixed_aspect (see _scaled_render_size()).
-        self.minimized_size = self.minimized_width, self.minimized_height = size
+        self.windowed_size = self.windowed_width, self.windowed_height = size
         # Must run after pygame.init() and before the first set_mode() below:
         # display.Info() only reports the desktop size until a mode is set.
-        self.full_screen_size = self.full_screen_width, self.full_screen_height = (
+        self.fullscreen_size = self.fullscreen_width, self.fullscreen_height = (
             self._query_screen_size()
         )
-        self.full_screen()  # sets display_surface and rebuilds self.window to match it (scaled by render_scale)
+        self.set_fullscreen()  # sets display_surface and rebuilds self.window to match it (scaled by render_scale)
         self.center_window()
         self.clock = pygame.time.Clock()
 
@@ -144,7 +144,7 @@ class Application:
             pass
 
     @staticmethod
-    def center_window():
+    def center_window() -> None:
         os.environ["SDL_VIDEO_CENTERED"] = "1"
 
     @staticmethod
@@ -160,7 +160,7 @@ class Application:
     def set_title(title: str) -> None:
         pygame.display.set_caption(title)
 
-    def minimize(self):
+    def set_windowed(self) -> None:
         # A bordered window sized to exactly fill the screen has nowhere to
         # put its title bar/borders -- they get pushed off-screen, and it
         # looks identical to FULLSCREEN. _windowed_physical_size() shrinks
@@ -168,8 +168,8 @@ class Application:
         #
         # center_window() only sets an env var SDL reads on window creation;
         # __init__ sets it once, but re-set it right before every set_mode()
-        # here too -- position is only meaningful in windowed mode (full_screen
-        # and borderless_full_screen always fill the screen at (0,0)), and
+        # here too -- position is only meaningful in windowed mode (set_fullscreen
+        # and set_borderless_fullscreen always fill the screen at (0,0)), and
         # this is the one call site that can run many times in a session
         # (window mode/resolution pickers, F11), not just at startup.
         self.center_window()
@@ -178,21 +178,21 @@ class Application:
         self._sync_mouse_scale()
         self._window_mode = "windowed"
 
-    def full_screen(self):
+    def set_fullscreen(self) -> None:
         self.display_surface = pygame.display.set_mode(
-            self.full_screen_size, pygame.FULLSCREEN
+            self.fullscreen_size, pygame.FULLSCREEN
         )
         self._rebuild_window_surface()
         self._sync_mouse_scale()
         self._window_mode = "fullscreen"
 
-    def borderless_full_screen(self):
+    def set_borderless_fullscreen(self) -> None:
         # A window sized to exactly the screen with no border/title bar --
         # fills the screen like FULLSCREEN but without an exclusive display
         # mode switch, so no flash/flicker on alt-tab and no interaction
         # with GPU/monitor scaling behavior tied to exclusive mode switches.
         self.display_surface = pygame.display.set_mode(
-            self.full_screen_size, pygame.NOFRAME
+            self.fullscreen_size, pygame.NOFRAME
         )
         self._rebuild_window_surface()
         self._sync_mouse_scale()
@@ -205,7 +205,7 @@ class Application:
         or letterboxing; below 1.0, _present() upscales a smaller render
         target instead (fewer pixels per frame, for weak/mobile hardware).
         A no-op if the size didn't actually change (e.g. toggling between
-        fullscreen and borderless, which share full_screen_size) -- avoids a
+        fullscreen and borderless, which share fullscreen_size) -- avoids a
         spurious on_canvas_resized() and a one-frame black flash from a
         fresh Surface.
         """
@@ -218,10 +218,10 @@ class Application:
 
     def _scaled_render_size(self) -> tuple[int, int]:
         if self.fixed_aspect:
-            # Locked to the authored design resolution (self.minimized_size,
+            # Locked to the authored design resolution (self.windowed_size,
             # the original constructor `size`) regardless of the display's
             # own shape -- _present() letterboxes/pillarboxes the result.
-            base_size = self.minimized_size
+            base_size = self.windowed_size
         else:
             base_size = self.display_surface.get_size()
         if self.render_scale == 1.0:
@@ -255,9 +255,9 @@ class Application:
         the result. F11 calls this with the default step to cycle
         fullscreen -> borderless -> windowed -> fullscreen ..."""
         methods = {
-            "fullscreen": self.full_screen,
-            "borderless": self.borderless_full_screen,
-            "windowed": self.minimize,
+            "fullscreen": self.set_fullscreen,
+            "borderless": self.set_borderless_fullscreen,
+            "windowed": self.set_windowed,
         }
         index = self.WINDOW_MODES.index(self._window_mode)
         new_mode = self.WINDOW_MODES[(index + step) % len(self.WINDOW_MODES)]
@@ -279,10 +279,10 @@ class Application:
         margin = 0.8
         fit = min(
             1.0,
-            margin * self.full_screen_width / self.minimized_width,
-            margin * self.full_screen_height / self.minimized_height,
+            margin * self.fullscreen_width / self.windowed_width,
+            margin * self.fullscreen_height / self.windowed_height,
         )
-        return round(self.minimized_width * fit), round(self.minimized_height * fit)
+        return round(self.windowed_width * fit), round(self.windowed_height * fit)
 
     def available_resolutions(self) -> list[tuple[int, int]]:
         """Common resolutions that fit this screen with room to spare for
@@ -290,8 +290,8 @@ class Application:
         no explicit choice), plus whatever's currently selected so there's
         always at least one entry and the current pick is never dropped."""
         margin = 0.8
-        max_width = margin * self.full_screen_width
-        max_height = margin * self.full_screen_height
+        max_width = margin * self.fullscreen_width
+        max_height = margin * self.fullscreen_height
         fitting = {
             r for r in COMMON_RESOLUTIONS if r[0] <= max_width and r[1] <= max_height
         }
@@ -307,30 +307,30 @@ class Application:
 
     @property
     def resolution(self) -> tuple[int, int]:
-        """The physical size minimize() will use right now -- either an
+        """The physical size set_windowed() will use right now -- either an
         explicit pick from set_resolution()/cycle_resolution(),
         or the automatic best-fit size. Useful for a settings label to show
         the current selection even before the player has ever gone windowed."""
         return self._resolution_override or self._auto_windowed_physical_size()
 
     def set_resolution(self, size: tuple[int, int]) -> None:
-        """Explicitly choose the physical window size minimize() uses,
+        """Explicitly choose the physical window size set_windowed() uses,
         overriding the automatic best-fit calculation. Window mode and
         resolution are independent settings -- picking a resolution never
-        forces a mode switch. If already windowed, minimize() re-runs so
+        forces a mode switch. If already windowed, set_windowed() re-runs so
         the new size is immediately visible; if fullscreen/borderless
         (both always the native monitor resolution, unaffected by this),
         the pick is just remembered for whenever windowed mode is next
         entered, via F11 or the window-mode setting."""
         self._resolution_override = size
         if self._window_mode == "windowed":
-            self.minimize()
+            self.set_windowed()
 
     def clear_resolution_override(self) -> None:
         """Drop any explicit pick, reverting resolution to the
         automatic best-fit calculation. Doesn't switch mode or resize the
-        window itself -- pair with minimize() (or leave it for the next
-        minimize()/F11 press) if the change should be visible immediately."""
+        window itself -- pair with set_windowed() (or leave it for the next
+        set_windowed()/F11 press) if the change should be visible immediately."""
         self._resolution_override = None
 
     def cycle_resolution(self, step: int = 1) -> tuple[int, int]:
@@ -363,11 +363,11 @@ class Application:
             self.set_resolution(tuple(saved_settings["window_size"]))
         mode = saved_settings.get("window_mode", "fullscreen")
         mode_methods = {
-            "fullscreen": self.full_screen,
-            "borderless": self.borderless_full_screen,
-            "windowed": self.minimize,
+            "fullscreen": self.set_fullscreen,
+            "borderless": self.set_borderless_fullscreen,
+            "windowed": self.set_windowed,
         }
-        mode_methods.get(mode, self.full_screen)()
+        mode_methods.get(mode, self.set_fullscreen)()
 
     def window_settings(self) -> dict:
         """The window-mode/resolution portion of a settings dict, for
@@ -382,7 +382,7 @@ class Application:
         (exclusive fullscreen, no resolution override) -- pair with a
         project's own audio/gameplay reset logic for a full settings reset."""
         self.clear_resolution_override()
-        self.full_screen()
+        self.set_fullscreen()
 
     def _fit_rect(self, dst_size: tuple[int, int]) -> pygame.Rect:
         """Largest rect that fits dst_size while preserving self.window's
@@ -497,6 +497,10 @@ class Application:
 
     def _handle_events(self) -> None:
         for event in pygame.event.get():
+            # Drops the release of the press that skipped the splash (see
+            # SplashScreen.swallow_held_input()), so it can't fire the menu
+            if self.splash is not None and self.splash.swallow_held_input(event):
+                continue
             self._handle_core_event(event)
             self.handle_event(event)
 

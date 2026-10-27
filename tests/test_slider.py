@@ -21,19 +21,19 @@ def display_mode():
 
 
 @pytest.fixture
-def parent():
+def parent() -> Transform:
     return Transform(position=(0, 0), size=(800, 600))
 
 
-def _down(pos):
+def _down(pos) -> pygame.event.Event:
     return pygame.event.Event(pygame.MOUSEBUTTONDOWN, button=1, pos=pos)
 
 
-def _up(pos):
+def _up(pos) -> pygame.event.Event:
     return pygame.event.Event(pygame.MOUSEBUTTONUP, button=1, pos=pos)
 
 
-def _move(pos):
+def _move(pos) -> pygame.event.Event:
     return pygame.event.Event(pygame.MOUSEMOTION, pos=pos)
 
 

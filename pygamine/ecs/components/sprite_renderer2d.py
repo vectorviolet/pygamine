@@ -5,11 +5,11 @@ from pygamine.ecs.components.component import Component
 
 
 class SpriteRenderer2D(Component):
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
         self.image: pygame.Surface | None = None
 
-    def set_image(self, image: pygame.Surface):
+    def set_image(self, image: pygame.Surface) -> None:
         self.image = image
 
     def draw(self, surface: pygame.Surface) -> None:
