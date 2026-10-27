@@ -13,7 +13,7 @@ together rather than reconstructing a commit-by-commit rationale for every
 change. Anything before `e5c1fa6` (the commit that first introduced
 `pyproject.toml` itself) isn't versioned at all; see `git log` for that era.
 
-## [Unreleased]
+## [0.27.0] — 2026-10-28
 
 - **Added** a master volume in `GameAudio`, class-wide like the SFX volume:
   `set_master_volume(v)` and `master_volume()` (0-1, default 1.0, clamped).
