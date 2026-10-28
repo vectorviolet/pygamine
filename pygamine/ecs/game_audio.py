@@ -262,26 +262,26 @@ class GameAudio:
         master volume applies there too."""
         return cls._master_volume * cls._sfx_volume
 
-    @classmethod
-    def set_master_volume(cls, volume: float) -> None:
+    @staticmethod
+    def set_master_volume(volume: float) -> None:
         """Scales the music and every SFX, including ones already playing.
         Clamped to 0-1."""
-        cls._master_volume = clamp01(volume)
-        cls._apply_music_volume()
-        cls._apply_sfx_volume()
+        GameAudio._master_volume = clamp01(volume)
+        GameAudio._apply_music_volume()
+        GameAudio._apply_sfx_volume()
 
-    @classmethod
-    def set_music_volume(cls, volume: float) -> None:
+    @staticmethod
+    def set_music_volume(volume: float) -> None:
         """Applies to the music at once. Clamped to 0-1."""
-        cls._music_volume = clamp01(volume)
-        cls._apply_music_volume()
+        GameAudio._music_volume = clamp01(volume)
+        GameAudio._apply_music_volume()
 
-    @classmethod
-    def set_sfx_volume(cls, volume: float) -> None:
+    @staticmethod
+    def set_sfx_volume(volume: float) -> None:
         """Applies to every SFX, including ones already playing. Clamped to
         0-1."""
-        cls._sfx_volume = clamp01(volume)
-        cls._apply_sfx_volume()
+        GameAudio._sfx_volume = clamp01(volume)
+        GameAudio._apply_sfx_volume()
 
     @classmethod
     def _apply_music_volume(cls) -> None:

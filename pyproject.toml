@@ -99,6 +99,9 @@ select = [
     "ANN206",
     "PLR6301",
 ]
+# preview = true also turns on the preview *behaviour* of the selected stable
+# rules (F, ANN, I002), not only PLR6301, so bumping the ruff pin may surface
+# new hits from those rules.
 preview = true
 explicit-preview-rules = true
 

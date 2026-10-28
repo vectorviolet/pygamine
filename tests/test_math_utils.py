@@ -59,6 +59,10 @@ def test_clamp01_clamps_values_outside_the_range():
     assert clamp01(1.5) == 1.0
 
 
+def test_clamp01_maps_nan_to_one():
+    assert clamp01(math.nan) == 1.0
+
+
 def test_clamp01_is_exported_from_the_package():
     import pygamine
 
