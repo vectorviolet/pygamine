@@ -83,13 +83,36 @@ quote-style = "double"
 # ANN201-ANN206: every function and method in pygamine/ declares its return
 # type (`-> None` included). Only the return-type rules, not the argument
 # ones (ANN001...): many parameters are deliberately duck-typed.
-select = ["F", "I002", "ANN201", "ANN202", "ANN204", "ANN205", "ANN206"]
+#
+# PLR6301 (no-self-use): a method that doesn't use `self` is a staticmethod
+# or classmethod, or carries a `noqa` saying why it stays an instance method
+# (e.g. it implements a protocol). It's a preview rule, so preview is on, but
+# explicit-preview-rules keeps every other preview rule off unless it's
+# selected by its exact code.
+select = [
+    "F",
+    "I002",
+    "ANN201",
+    "ANN202",
+    "ANN204",
+    "ANN205",
+    "ANN206",
+    "PLR6301",
+]
+# preview = true also turns on the preview *behaviour* of the selected stable
+# rules (F, ANN, I002), not only PLR6301, so bumping the ruff pin may surface
+# new hits from those rules.
+preview = true
+explicit-preview-rules = true
 
 [tool.ruff.lint.per-file-ignores]
 # Test functions don't get `-> None`: pytest calls them and no type checker
 # covers tests/. Fixtures and helpers that return a value still declare it
 # (by convention -- these rules can't tell them apart from test functions).
-"tests/**" = ["ANN201", "ANN202", "ANN204", "ANN205", "ANN206"]
+#
+# PLR6301 is off in tests/: its hits there are test doubles overriding engine
+# hooks (update, draw, on_enable, ...), which must stay instance methods.
+"tests/**" = ["ANN201", "ANN202", "ANN204", "ANN205", "ANN206", "PLR6301"]
 
 [tool.mypy]
 python_version = "3.12"

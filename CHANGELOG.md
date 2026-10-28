@@ -13,6 +13,22 @@ together rather than reconstructing a commit-by-commit rationale for every
 change. Anything before `e5c1fa6` (the commit that first introduced
 `pyproject.toml` itself) isn't versioned at all; see `git log` for that era.
 
+## [Unreleased]
+
+- **Added** `clamp01(value)` in `pygamine.util.math_utils` (also exported
+  from `pygamine`): clamps a value to 0-1. `GameAudio`, `SoundManager`,
+  `Slider` and the splash fades use it instead of four copies of the same
+  clamp.
+- **Changed** `GameAudio.set_master_volume()`, `set_music_volume()` and
+  `set_sfx_volume()` are staticmethods now (were instance methods). They
+  still write the one class-wide value on `GameAudio`, even when called
+  through a subclass. Calls on an instance work as before; calls on the
+  class work too.
+- **Changed** ruff's `PLR6301` (no-self-use) is enabled for `pygamine/`.
+  `TypedJSONCodec._to_dict` is a staticmethod, `MenuController`'s private
+  `_focus`/`_unfocus` helpers are inlined, and the `JSONCodec`/`PickleCodec`
+  `encode`/`decode` methods stay instance methods (they implement `Codec`).
+
 ## [0.27.0] — 2026-10-28
 
 - **Added** a master volume in `GameAudio`, class-wide like the SFX volume:

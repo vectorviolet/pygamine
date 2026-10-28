@@ -6,6 +6,7 @@ import pygame
 
 from pygamine.ecs.game_object import GameObject
 from pygamine.ecs.components.sprite_renderer2d import SpriteRenderer2D
+from pygamine.util.math_utils import clamp01
 from pygamine.util.utils import Anchorable, MouseInteractive
 
 
@@ -46,7 +47,7 @@ class Slider(Anchorable, MouseInteractive, GameObject):
         # rect used for click/drag hit-testing, so callers opting into that
         # look must accept clicks near the overhang not registering.
         self._handle_size = tuple(handle_size) if handle_size else (size[1], size[1])
-        self._value = self._clamp(value)
+        self._value = clamp01(value)
         self._dragging = False
         self.on_change = on_change
 
@@ -60,7 +61,7 @@ class Slider(Anchorable, MouseInteractive, GameObject):
     def set_value(self, value: float) -> None:
         """Set the value programmatically (e.g. to sync from saved settings)
         without firing `on_change` -- callers already know the new value."""
-        new_value = self._clamp(value)
+        new_value = clamp01(value)
         if new_value == self._value:
             return
         self._value = new_value
@@ -79,7 +80,7 @@ class Slider(Anchorable, MouseInteractive, GameObject):
 
     def _update_from_pointer(self, mouse_x: float) -> None:
         ratio = (mouse_x - self.rect.left) / self.rect.width if self.rect.width else 0.0
-        new_value = self._clamp(ratio)
+        new_value = clamp01(ratio)
         if new_value == self._value:
             return
         self._value = new_value
@@ -114,7 +115,3 @@ class Slider(Anchorable, MouseInteractive, GameObject):
         )
 
         self._renderer.set_image(surface)
-
-    @staticmethod
-    def _clamp(value: float) -> float:
-        return max(0.0, min(1.0, value))

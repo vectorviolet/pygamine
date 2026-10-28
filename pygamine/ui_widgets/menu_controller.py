@@ -29,19 +29,13 @@ class MenuController:
         self.switch_up_path = switch_up_path
         self.switch_down_path = switch_down_path
         if self.buttons:
-            self._focus(self.buttons[0])
-
-    def _focus(self, button) -> None:
-        button.focused = True
-
-    def _unfocus(self, button) -> None:
-        button.focused = False
+            self.buttons[0].focused = True
 
     def _swap_focus(self, from_i: int, to_i: int, sound_path) -> None:
         if sound_path is not None and self.audio is not None:
             self.audio.play_sfx(sound_path)
-        self._unfocus(self.buttons[from_i])
-        self._focus(self.buttons[to_i])
+        self.buttons[from_i].focused = False
+        self.buttons[to_i].focused = True
 
     def _focused_index(self) -> int | None:
         return next((i for i, b in enumerate(self.buttons) if b.focused), None)

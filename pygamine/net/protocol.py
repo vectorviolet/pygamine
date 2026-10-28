@@ -46,10 +46,10 @@ class JSONCodec:
     the wire format from being coupled to your class definitions.
     """
 
-    def encode(self, message: Any) -> bytes:
+    def encode(self, message: Any) -> bytes:  # noqa: PLR6301 -- implements Codec
         return json.dumps(message).encode("utf-8")
 
-    def decode(self, raw: bytes) -> Any:
+    def decode(self, raw: bytes) -> Any:  # noqa: PLR6301 -- implements Codec
         return json.loads(raw.decode("utf-8"))
 
 
@@ -84,7 +84,8 @@ class TypedJSONCodec:
     def decode(self, raw: bytes) -> Any:
         return json.loads(raw.decode("utf-8"), object_hook=self._from_dict)
 
-    def _to_dict(self, obj: Any) -> dict[str, Any]:
+    @staticmethod
+    def _to_dict(obj: Any) -> dict[str, Any]:
         to_dict = getattr(obj, "to_dict", None)
         if callable(to_dict):
             return to_dict()
@@ -103,10 +104,10 @@ class PickleCodec:
     on a fully trusted LAN. Prefer JSONCodec + to_dict/from_dict.
     """
 
-    def encode(self, message: Any) -> bytes:
+    def encode(self, message: Any) -> bytes:  # noqa: PLR6301 -- implements Codec
         return pickle.dumps(message)
 
-    def decode(self, raw: bytes) -> Any:
+    def decode(self, raw: bytes) -> Any:  # noqa: PLR6301 -- implements Codec
         return pickle.loads(raw)
 
 

@@ -448,6 +448,34 @@ def test_sfx_volume_is_callable_from_an_instance_as_a_getter():
     assert getter() == pytest.approx(0.7)
 
 
+@pytest.mark.parametrize(
+    ("setter", "getter", "channels"),
+    [
+        ("set_master_volume", "master_volume", (MUSIC_CHANNEL, SFX_CHANNEL)),
+        ("set_music_volume", "music_volume", (MUSIC_CHANNEL,)),
+        ("set_sfx_volume", "sfx_volume", (SFX_CHANNEL,)),
+    ],
+)
+def test_volume_setters_work_on_the_class_and_on_an_instance(setter, getter, channels):
+    getattr(GameAudio, setter)(0.3)
+    assert getattr(GameAudio, getter)() == pytest.approx(0.3)
+    for ch in channels:
+        assert mixer.Channel(ch).get_volume() == pytest.approx(0.3, abs=0.01)
+    getattr(GameAudio(), setter)(0.6)
+    assert getattr(GameAudio, getter)() == pytest.approx(0.6)
+    for ch in channels:
+        assert mixer.Channel(ch).get_volume() == pytest.approx(0.6, abs=0.01)
+
+
+def test_volume_setters_called_through_a_subclass_set_the_shared_value():
+    class Sub(GameAudio):
+        pass
+
+    Sub.set_music_volume(0.4)
+    assert "_music_volume" not in Sub.__dict__
+    assert GameAudio.music_volume() == pytest.approx(0.4)
+
+
 def test_set_music_volume_clamps_above_one():
     audio = GameAudio()
     audio.set_music_volume(5.0)
