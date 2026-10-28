@@ -39,6 +39,7 @@ from typing import ClassVar, Union
 from pygame import mixer
 
 from pygamine.ecs.sound_manager import SoundManager
+from pygamine.util.math_utils import clamp01
 
 MUSIC_CHANNEL = 0
 # The old shared SFX channel. play_sfx() no longer uses it; kept reserved
@@ -261,23 +262,26 @@ class GameAudio:
         master volume applies there too."""
         return cls._master_volume * cls._sfx_volume
 
-    def set_master_volume(self, volume: float) -> None:
+    @classmethod
+    def set_master_volume(cls, volume: float) -> None:
         """Scales the music and every SFX, including ones already playing.
         Clamped to 0-1."""
-        GameAudio._master_volume = _clamp(volume)
-        GameAudio._apply_music_volume()
-        GameAudio._apply_sfx_volume()
+        cls._master_volume = clamp01(volume)
+        cls._apply_music_volume()
+        cls._apply_sfx_volume()
 
-    def set_music_volume(self, volume: float) -> None:
+    @classmethod
+    def set_music_volume(cls, volume: float) -> None:
         """Applies to the music at once. Clamped to 0-1."""
-        GameAudio._music_volume = _clamp(volume)
-        GameAudio._apply_music_volume()
+        cls._music_volume = clamp01(volume)
+        cls._apply_music_volume()
 
-    def set_sfx_volume(self, volume: float) -> None:
+    @classmethod
+    def set_sfx_volume(cls, volume: float) -> None:
         """Applies to every SFX, including ones already playing. Clamped to
         0-1."""
-        GameAudio._sfx_volume = _clamp(volume)
-        GameAudio._apply_sfx_volume()
+        cls._sfx_volume = clamp01(volume)
+        cls._apply_sfx_volume()
 
     @classmethod
     def _apply_music_volume(cls) -> None:
@@ -292,7 +296,3 @@ class GameAudio:
         volume = cls.effective_sfx_volume()
         for i in (SFX_CHANNEL, *cls._pool()):
             mixer.Channel(i).set_volume(volume)
-
-
-def _clamp(volume: float) -> float:
-    return max(0.0, min(1.0, volume))

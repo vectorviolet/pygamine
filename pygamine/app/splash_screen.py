@@ -10,6 +10,7 @@ import pygame
 
 from pygamine.assets.asset_path import BRANDING_DIR, SequencePath
 from pygamine.ecs.game_audio import GameAudio
+from pygamine.util.math_utils import clamp01
 
 PathArg = Union[str, "os.PathLike[str]"]
 
@@ -32,7 +33,7 @@ def _fade_alpha(
         opacity = min(opacity, elapsed_ms / fade_in_ms)
     if fade_out_ms > 0:
         opacity = min(opacity, (duration_ms - elapsed_ms) / fade_out_ms)
-    return int(255 * max(0.0, min(1.0, opacity)))
+    return int(255 * clamp01(opacity))
 
 
 def _check_fades(fade_in_ms: int, fade_out_ms: int) -> None:

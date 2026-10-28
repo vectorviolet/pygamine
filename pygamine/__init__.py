@@ -124,6 +124,7 @@ if TYPE_CHECKING:
         distance as distance,
         angle_between_points as angle_between_points,
         angle_of_delta as angle_of_delta,
+        clamp01 as clamp01,
     )
 
     # Persistence / world data
@@ -226,6 +227,7 @@ _EXPORTS: dict[str, str] = {
     "distance": "pygamine.util.math_utils",
     "angle_between_points": "pygamine.util.math_utils",
     "angle_of_delta": "pygamine.util.math_utils",
+    "clamp01": "pygamine.util.math_utils",
     # Persistence / world data
     "SaveStore": "pygamine.assets.save_store",
     "Database": "pygamine.assets.database",

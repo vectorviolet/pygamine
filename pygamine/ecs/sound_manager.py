@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from pygame import mixer
 
+from pygamine.util.math_utils import clamp01
+
 
 class SoundManager:
     """Generic per-channel play/pause/volume helpers on top of pygame.mixer.
@@ -23,7 +25,7 @@ class SoundManager:
 
     @staticmethod
     def set_volume(channel: int, volume: float) -> None:
-        mixer.Channel(channel).set_volume(max(0.0, min(1.0, volume)))
+        mixer.Channel(channel).set_volume(clamp01(volume))
 
     @staticmethod
     def pause(channel: int) -> None:

@@ -448,6 +448,21 @@ def test_sfx_volume_is_callable_from_an_instance_as_a_getter():
     assert getter() == pytest.approx(0.7)
 
 
+@pytest.mark.parametrize(
+    ("setter", "getter"),
+    [
+        ("set_master_volume", "master_volume"),
+        ("set_music_volume", "music_volume"),
+        ("set_sfx_volume", "sfx_volume"),
+    ],
+)
+def test_volume_setters_work_on_the_class_and_on_an_instance(setter, getter):
+    getattr(GameAudio, setter)(0.3)
+    assert getattr(GameAudio, getter)() == pytest.approx(0.3)
+    getattr(GameAudio(), setter)(0.6)
+    assert getattr(GameAudio, getter)() == pytest.approx(0.6)
+
+
 def test_set_music_volume_clamps_above_one():
     audio = GameAudio()
     audio.set_music_volume(5.0)
