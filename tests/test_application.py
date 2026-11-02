@@ -1181,3 +1181,19 @@ def test_on_exit_request_delegates_to_exit(no_real_exit):
     app.on_exit_request()
 
     assert calls == [1]
+
+
+def test_init_builds_the_real_canvas_once_and_fires_on_canvas_resized_once():
+    """__init__ starts self.window as an empty placeholder; the first
+    set_fullscreen() must still replace it with the real, display-sized
+    canvas and fire on_canvas_resized() exactly once, as before #14."""
+    calls: list[tuple[int, int]] = []
+
+    class _ResizeApp(_TrackedApp):
+        def on_canvas_resized(self, new_size):
+            calls.append(new_size)
+
+    app = _ResizeApp()
+    assert app.window.get_size() == app.fullscreen_size
+    assert app.window.get_size() != (0, 0)
+    assert calls == [app.fullscreen_size]

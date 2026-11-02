@@ -1,7 +1,12 @@
 from __future__ import annotations
 from dataclasses import dataclass
 from typing import Callable, TypeVar, cast
-from pygamine.ecs.components.component import Component, Behaviour
+from pygamine.ecs.components.component import (
+    DEFAULT_GAME_OBJECT_NAME,
+    Behaviour,
+    Component,
+    describe,
+)
 from pygamine.ecs.components.transform import Transform
 from pygamine.ecs.components.sprite_renderer2d import SpriteRenderer2D
 import pygame
@@ -17,7 +22,7 @@ class _ScheduledCall:
 
 
 class GameObject:
-    def __init__(self, name: str = "game_object") -> None:
+    def __init__(self, name: str = DEFAULT_GAME_OBJECT_NAME) -> None:
         self.name = name
         self._active: bool = True
         self._parent: GameObject | None = None
@@ -119,6 +124,17 @@ class GameObject:
     def get_component(self, component_type: type[C]) -> C | None:
         return cast("C | None", self._components.get(component_type.__name__))
 
+    def require_component(self, component_type: type[C]) -> C:
+        """Like get_component(), but for a component this object must have:
+        returns it typed as non-Optional, or raises LookupError naming this
+        object and the missing component type."""
+        component = self.get_component(component_type)
+        if component is None:
+            raise LookupError(
+                f"{describe(self)} has no {component_type.__name__} component"
+            )
+        return component
+
     @property
     def image(self) -> pygame.Surface | None:
         """Default `Drawable.image` (see camera.py). Settable, backed by
@@ -140,6 +156,15 @@ class GameObject:
     @image.setter
     def image(self, value: pygame.Surface | None) -> None:
         self._image = value
+
+    def require_image(self) -> pygame.Surface:
+        """`image`, typed as non-Optional: raises LookupError naming this
+        object if it has no image yet (neither set directly nor through a
+        SpriteRenderer2D)."""
+        image = self.image
+        if image is None:
+            raise LookupError(f"{describe(self)} has no image yet")
+        return image
 
     def handle_event(self, event: pygame.event.Event, mouse_position) -> None:
         if not self.active:
