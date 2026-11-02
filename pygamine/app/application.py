@@ -59,7 +59,9 @@ class Application:
         # The real OS window/screen surface. set_fullscreen() below creates it,
         # and set_windowed()/set_borderless_fullscreen() replace it on a mode switch.
         self.display_surface: pygame.Surface
-        self.window: pygame.Surface | None = None
+        # The logical render target the game draws on. set_fullscreen() below
+        # creates it, and _rebuild_window_surface() replaces it on a resize.
+        self.window: pygame.Surface
         # 1.0 (default): self.window always matches the real display exactly,
         # so _present() is a plain 1:1 blit -- no scaling, ever. Lower this
         # (see set_render_scale()) to render at a fraction of the real
@@ -210,7 +212,8 @@ class Application:
         fresh Surface.
         """
         new_size = self._scaled_render_size()
-        if self.window is not None and self.window.get_size() == new_size:
+        current: pygame.Surface | None = getattr(self, "window", None)
+        if current is not None and current.get_size() == new_size:
             return
         self.window = pygame.Surface(new_size).convert()
         self.set_size(new_size)
@@ -389,9 +392,6 @@ class Application:
         aspect ratio, centered inside it. Only meaningful under
         fixed_aspect=True -- self.window's aspect always matches dst_size's
         otherwise, so this would just return the full dst_size rect."""
-        assert self.window is not None, (
-            "self.window is only None before __init__ finishes"
-        )
         dst_w, dst_h = dst_size
         src_w, src_h = self.window.get_size()
         scale = min(dst_w / src_w, dst_h / src_h)
@@ -401,9 +401,6 @@ class Application:
     def _sync_mouse_scale(self) -> None:
         if not self.mouse:
             return
-        assert self.window is not None, (
-            "self.window is only None before __init__ finishes"
-        )
         if self.fixed_aspect:
             rect = self._fit_rect(self.display_surface.get_size())
             self.mouse.scale = (
@@ -457,9 +454,6 @@ class Application:
             self._present()
 
     def _present(self) -> None:
-        assert self.window is not None, (
-            "self.window is only None before __init__ finishes"
-        )
         dst_size = self.display_surface.get_size()
 
         if self.fixed_aspect:
@@ -533,9 +527,6 @@ class Application:
         pass
 
     def draw_mouse(self) -> None:
-        assert self.window is not None, (
-            "self.window is only None before __init__ finishes"
-        )
         if self.mouse:
             self.mouse.draw(self.window)
 

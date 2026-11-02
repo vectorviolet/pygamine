@@ -46,3 +46,29 @@ def test_mono_behaviour_lifecycle_hooks_are_harmless_no_ops():
     mb.on_destroy()
     mb.on_enable()
     mb.on_disable()  # none of these should raise
+
+
+def test_require_component_raises_when_unattached():
+    with pytest.raises(RuntimeError, match="Component is not attached"):
+        Component().require_component(Component)
+
+
+def test_require_component_returns_sibling_component():
+    from pygamine.ecs.components.sprite_renderer2d import SpriteRenderer2D
+    from pygamine.ecs.game_object import GameObject
+
+    go = GameObject()
+    renderer = go.add_component(SpriteRenderer2D)
+    behaviour = go.add_component(Behaviour)
+    assert behaviour.require_component(SpriteRenderer2D) is renderer
+
+
+def test_require_component_raises_naming_object_and_component_when_missing():
+    from pygamine.ecs.components.sprite_renderer2d import SpriteRenderer2D
+    from pygamine.ecs.game_object import GameObject
+
+    behaviour = GameObject("enemy").add_component(Behaviour)
+    with pytest.raises(
+        LookupError, match=r"GameObject 'enemy' has no SpriteRenderer2D component"
+    ):
+        behaviour.require_component(SpriteRenderer2D)

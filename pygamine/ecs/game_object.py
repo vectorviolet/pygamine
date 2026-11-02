@@ -119,6 +119,18 @@ class GameObject:
     def get_component(self, component_type: type[C]) -> C | None:
         return cast("C | None", self._components.get(component_type.__name__))
 
+    def require_component(self, component_type: type[C]) -> C:
+        """Like get_component(), but for a component this object must have:
+        returns it typed as non-Optional, or raises LookupError naming this
+        object and the missing component type."""
+        component = self.get_component(component_type)
+        if component is None:
+            raise LookupError(
+                f"{type(self).__name__} {self.name!r} has no "
+                f"{component_type.__name__} component"
+            )
+        return component
+
     @property
     def image(self) -> pygame.Surface | None:
         """Default `Drawable.image` (see camera.py). Settable, backed by
@@ -140,6 +152,15 @@ class GameObject:
     @image.setter
     def image(self, value: pygame.Surface | None) -> None:
         self._image = value
+
+    def require_image(self) -> pygame.Surface:
+        """`image`, typed as non-Optional: raises RuntimeError naming this
+        object if it has no image yet (neither set directly nor through a
+        SpriteRenderer2D)."""
+        image = self.image
+        if image is None:
+            raise RuntimeError(f"{type(self).__name__} {self.name!r} has no image yet")
+        return image
 
     def handle_event(self, event: pygame.event.Event, mouse_position) -> None:
         if not self.active:

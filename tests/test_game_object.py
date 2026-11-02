@@ -6,6 +6,7 @@ invoke_repeating scheduling, the component system, and per-frame dispatch
 from __future__ import annotations
 
 import pygame
+import pytest
 
 from pygamine.ecs.components.component import Behaviour, Component
 from pygamine.ecs.components.transform import Transform
@@ -425,3 +426,51 @@ def test_plain_component_without_enabled_flag_always_runs():
     go.update()
 
     assert calls == [1]
+
+
+# ── require_component / require_image ───────────────────────────────────────
+
+
+def test_require_component_returns_the_attached_component():
+    from pygamine.ecs.components.sprite_renderer2d import SpriteRenderer2D
+
+    go = GameObject("tower")
+    renderer = go.add_component(SpriteRenderer2D)
+    assert go.require_component(SpriteRenderer2D) is renderer
+    assert go.require_component(Transform) is go.rect
+
+
+def test_require_component_raises_naming_object_and_component_when_missing():
+    from pygamine.ecs.components.rigidbody2d import Rigidbody2D
+
+    go = GameObject("tower")
+    with pytest.raises(LookupError, match=r"GameObject 'tower' has no Rigidbody2D"):
+        go.require_component(Rigidbody2D)
+
+
+def test_require_component_does_not_change_get_component():
+    from pygamine.ecs.components.rigidbody2d import Rigidbody2D
+
+    assert GameObject().get_component(Rigidbody2D) is None
+
+
+def test_require_image_returns_the_image_when_set():
+    go = GameObject()
+    image = pygame.Surface((4, 4))
+    go.image = image
+    assert go.require_image() is image
+
+
+def test_require_image_falls_back_to_the_sprite_renderer():
+    from pygamine.ecs.components.sprite_renderer2d import SpriteRenderer2D
+
+    go = GameObject()
+    image = pygame.Surface((4, 4))
+    go.add_component(SpriteRenderer2D).set_image(image)
+    assert go.require_image() is image
+
+
+def test_require_image_raises_naming_object_when_missing():
+    go = GameObject("plane")
+    with pytest.raises(RuntimeError, match=r"GameObject 'plane' has no image"):
+        go.require_image()
