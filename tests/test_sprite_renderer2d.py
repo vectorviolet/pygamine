@@ -48,10 +48,20 @@ def test_require_image_returns_the_image_once_set():
 
 def test_require_image_raises_naming_the_owner_before_set_image():
     renderer = GameObject("tile").add_component(SpriteRenderer2D)
-    with pytest.raises(RuntimeError, match=r"SpriteRenderer2D on 'tile' has no image"):
+    with pytest.raises(
+        LookupError, match=r"SpriteRenderer2D on GameObject 'tile' has no image"
+    ):
         renderer.require_image()
 
 
 def test_require_image_raises_when_unattached_and_empty():
-    with pytest.raises(RuntimeError, match=r"SpriteRenderer2D has no image"):
+    with pytest.raises(LookupError, match=r"^SpriteRenderer2D has no image yet$"):
         SpriteRenderer2D().require_image()
+
+
+def test_require_image_with_default_owner_name_names_only_the_class():
+    renderer = GameObject().add_component(SpriteRenderer2D)
+    with pytest.raises(
+        LookupError, match=r"^SpriteRenderer2D on GameObject has no image yet$"
+    ):
+        renderer.require_image()

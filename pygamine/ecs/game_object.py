@@ -1,7 +1,12 @@
 from __future__ import annotations
 from dataclasses import dataclass
 from typing import Callable, TypeVar, cast
-from pygamine.ecs.components.component import Component, Behaviour
+from pygamine.ecs.components.component import (
+    DEFAULT_GAME_OBJECT_NAME,
+    Behaviour,
+    Component,
+    describe,
+)
 from pygamine.ecs.components.transform import Transform
 from pygamine.ecs.components.sprite_renderer2d import SpriteRenderer2D
 import pygame
@@ -17,7 +22,7 @@ class _ScheduledCall:
 
 
 class GameObject:
-    def __init__(self, name: str = "game_object") -> None:
+    def __init__(self, name: str = DEFAULT_GAME_OBJECT_NAME) -> None:
         self.name = name
         self._active: bool = True
         self._parent: GameObject | None = None
@@ -126,8 +131,7 @@ class GameObject:
         component = self.get_component(component_type)
         if component is None:
             raise LookupError(
-                f"{type(self).__name__} {self.name!r} has no "
-                f"{component_type.__name__} component"
+                f"{describe(self)} has no {component_type.__name__} component"
             )
         return component
 
@@ -154,12 +158,12 @@ class GameObject:
         self._image = value
 
     def require_image(self) -> pygame.Surface:
-        """`image`, typed as non-Optional: raises RuntimeError naming this
+        """`image`, typed as non-Optional: raises LookupError naming this
         object if it has no image yet (neither set directly nor through a
         SpriteRenderer2D)."""
         image = self.image
         if image is None:
-            raise RuntimeError(f"{type(self).__name__} {self.name!r} has no image yet")
+            raise LookupError(f"{describe(self)} has no image yet")
         return image
 
     def handle_event(self, event: pygame.event.Event, mouse_position) -> None:

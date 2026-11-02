@@ -59,9 +59,12 @@ class Application:
         # The real OS window/screen surface. set_fullscreen() below creates it,
         # and set_windowed()/set_borderless_fullscreen() replace it on a mode switch.
         self.display_surface: pygame.Surface
-        # The logical render target the game draws on. set_fullscreen() below
-        # creates it, and _rebuild_window_surface() replaces it on a resize.
-        self.window: pygame.Surface
+        # The logical render target the game draws on. This empty placeholder
+        # never matches a real render size, so set_fullscreen() below always
+        # replaces it with the real canvas (firing the first
+        # on_canvas_resized()); _rebuild_window_surface() replaces it again
+        # on every later resize.
+        self.window: pygame.Surface = pygame.Surface((0, 0))
         # 1.0 (default): self.window always matches the real display exactly,
         # so _present() is a plain 1:1 blit -- no scaling, ever. Lower this
         # (see set_render_scale()) to render at a fraction of the real
@@ -212,8 +215,7 @@ class Application:
         fresh Surface.
         """
         new_size = self._scaled_render_size()
-        current: pygame.Surface | None = getattr(self, "window", None)
-        if current is not None and current.get_size() == new_size:
+        if self.window.get_size() == new_size:
             return
         self.window = pygame.Surface(new_size).convert()
         self.set_size(new_size)

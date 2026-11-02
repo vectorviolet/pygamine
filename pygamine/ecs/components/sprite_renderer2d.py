@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import pygame
-from pygamine.ecs.components.component import Component
+from pygamine.ecs.components.component import Component, describe
 
 
 class SpriteRenderer2D(Component):
@@ -13,12 +13,15 @@ class SpriteRenderer2D(Component):
         self.image = image
 
     def require_image(self) -> pygame.Surface:
-        """`image`, typed as non-Optional: raises RuntimeError if
-        set_image() hasn't been called yet."""
+        """`image`, typed as non-Optional: raises LookupError naming the
+        owner if set_image() hasn't been called yet."""
         if self.image is None:
-            name = getattr(self.game_object, "name", None)
-            owner = f" on {name!r}" if name is not None else ""
-            raise RuntimeError(f"SpriteRenderer2D{owner} has no image yet")
+            owner = (
+                f" on {describe(self.game_object)}"
+                if self.game_object is not None
+                else ""
+            )
+            raise LookupError(f"{type(self).__name__}{owner} has no image yet")
         return self.image
 
     def draw(self, surface: pygame.Surface) -> None:

@@ -472,5 +472,12 @@ def test_require_image_falls_back_to_the_sprite_renderer():
 
 def test_require_image_raises_naming_object_when_missing():
     go = GameObject("plane")
-    with pytest.raises(RuntimeError, match=r"GameObject 'plane' has no image"):
+    with pytest.raises(LookupError, match=r"GameObject 'plane' has no image"):
         go.require_image()
+
+
+def test_require_component_with_default_name_does_not_quote_a_placeholder():
+    from pygamine.ecs.components.rigidbody2d import Rigidbody2D
+
+    with pytest.raises(LookupError, match=r"^GameObject has no Rigidbody2D component$"):
+        GameObject().require_component(Rigidbody2D)

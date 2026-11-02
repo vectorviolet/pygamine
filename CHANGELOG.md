@@ -18,17 +18,17 @@ change. Anything before `e5c1fa6` (the commit that first introduced
 - **Added** `GameObject.require_component(cls)` and
   `Component.require_component(cls)`: like `get_component()`, but the result
   is typed as the requested class (not Optional), and a missing component
-  raises `LookupError` naming the object and the component type.
+  raises `LookupError` naming the object and the component type (also
+  `LookupError` for a component not attached to an object).
   `get_component()` is unchanged (#14).
 - **Added** `GameObject.require_image()` and `SpriteRenderer2D.require_image()`:
-  the image typed as `pygame.Surface` (not Optional), raising `RuntimeError`
+  the image typed as `pygame.Surface` (not Optional), raising `LookupError`
   naming the object if no image is set yet. `image` itself stays Optional,
   since it's legitimately unset before `set_image()` (#14).
 - **Changed** `Application.window` is typed `pygame.Surface` instead of
-  `pygame.Surface | None`: `__init__` always creates it (through
-  `set_fullscreen()`), so games no longer need a `None` check before drawing
+  `pygame.Surface | None`: `__init__` always creates it (an empty placeholder
+  that `set_fullscreen()` replaces with the real canvas), so games no longer need a `None` check before drawing
   on it. The internal `assert self.window is not None` checks are gone (#14).
-
 - **Added** `clamp01(value)` in `pygamine.util.math_utils` (also exported
   from `pygamine`): clamps a value to 0-1. `GameAudio`, `SoundManager`,
   `Slider` and the splash fades use it instead of four copies of the same
