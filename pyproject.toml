@@ -59,7 +59,7 @@ include = ["pygamine*"]
 pygamine = ["py.typed", "branding/**/*", "licenses/**/*"]
 
 [dependency-groups]
-dev = ["pytest>=8", "pytest-cov>=5", "ruff==0.17.2", "mypy>=1.13", "types-PyYAML", "moviepy>=2", "pillow"]
+dev = ["pytest>=8", "pytest-cov>=5", "ruff==0.17.3", "mypy>=1.13", "types-PyYAML", "moviepy>=2", "pillow"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
