@@ -41,7 +41,10 @@ pygamine-mp4-converter = "pygamine.devtools.mp4_converter:main"
 [project.optional-dependencies]
 # Only the mp4 converter devtool needs it (it bundles ffmpeg); games that
 # just play image sequences don't.
-video = ["moviepy>=2"]
+# The converter imports PIL directly, so pillow is declared too -- with no
+# lower bound on purpose: moviepy caps pillow<12, so a >=13 here would make
+# the extra unresolvable with pip.
+video = ["moviepy>=2", "pillow"]
 
 [tool.setuptools.packages.find]
 include = ["pygamine*"]
@@ -56,7 +59,7 @@ include = ["pygamine*"]
 pygamine = ["py.typed", "branding/**/*", "licenses/**/*"]
 
 [dependency-groups]
-dev = ["pytest>=8", "pytest-cov>=5", "ruff==0.17.2", "mypy>=1.13", "types-PyYAML", "moviepy>=2"]
+dev = ["pytest>=8", "pytest-cov>=5", "ruff==0.17.2", "mypy>=1.13", "types-PyYAML", "moviepy>=2", "pillow"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -145,7 +148,12 @@ ignore_missing_imports = true
 required-imports = ["from __future__ import annotations"]
 
 [tool.uv]
-# moviepy 2.2.1 (the latest) caps pillow<12, which pins the lock to Pillow
-# 11.3.0 and its security advisories (fixed only in 12.1.1 to 13.0.0).
+# moviepy 2.2.1 (the latest) caps pillow<12, which pins this repo's lock to
+# Pillow 11.3.0 and its security advisories (fixed only in 12.1.1 to 13.0.0).
 # Force Pillow 13 until moviepy allows it, then remove this override.
-override-dependencies = ["pillow>=13"]
+# It applies to THIS repo's lock only: `uv run --with moviepy
+# pygamine-mp4-converter` and pip installs of `pygamine[video]` still follow
+# moviepy's pillow<12. Known limit: imageio 2.38.1 (latest) assigns the
+# read-only Image.mode on Pillow 13 when reading 16-bit grayscale (mode I)
+# images; pygamine never reads such images through imageio.
+override-dependencies = ["pillow>=13,<14"]

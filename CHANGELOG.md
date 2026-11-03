@@ -17,10 +17,14 @@ change. Anything before `e5c1fa6` (the commit that first introduced
 
 ### Changed
 
-- **Changed** the lock now resolves Pillow 13.0.0 (was 11.3.0) through a uv
-  `override-dependencies` entry, which clears the open Pillow security alerts.
-  Pillow is only pulled in by moviepy (the `video` extra and the dev group),
-  whose 2.2.1 release caps it below 12 (#17).
+- **Changed** this repo's lock now resolves Pillow 13.0.0 (was 11.3.0) through
+  a uv `override-dependencies` entry (`pillow>=13,<14`), which clears the open
+  Pillow security alerts. Pillow comes in through moviepy (the `video` extra
+  and the dev group), whose 2.2.1 release caps it below 12, and the converter
+  also imports it directly, so `pillow` is now declared in both (without a
+  lower bound, so the extra stays installable with pip). The override covers
+  only this lock: `uv run --with moviepy pygamine-mp4-converter` and pip
+  installs of `pygamine[video]` still follow moviepy's cap (#17).
 
 ## [0.28.0] — 2026-11-03
 

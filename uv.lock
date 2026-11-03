@@ -7,7 +7,7 @@ resolution-markers = [
 ]
 
 [manifest]
-overrides = [{ name = "pillow", specifier = ">=13" }]
+overrides = [{ name = "pillow", specifier = ">=13,<14" }]
 
 [[package]]
 name = "ast-serialize"
@@ -536,12 +536,14 @@ dependencies = [
 [package.optional-dependencies]
 video = [
     { name = "moviepy" },
+    { name = "pillow" },
 ]
 
 [package.dev-dependencies]
 dev = [
     { name = "moviepy" },
     { name = "mypy" },
+    { name = "pillow" },
     { name = "pytest" },
     { name = "pytest-cov" },
     { name = "ruff" },
@@ -551,6 +553,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "moviepy", marker = "extra == 'video'", specifier = ">=2" },
+    { name = "pillow", marker = "extra == 'video'" },
     { name = "pygame-ce" },
     { name = "pytmx" },
     { name = "pyyaml" },
@@ -561,6 +564,7 @@ provides-extras = ["video"]
 dev = [
     { name = "moviepy", specifier = ">=2" },
     { name = "mypy", specifier = ">=1.13" },
+    { name = "pillow" },
     { name = "pytest", specifier = ">=8" },
     { name = "pytest-cov", specifier = ">=5" },
     { name = "ruff", specifier = "==0.17.2" },
