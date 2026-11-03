@@ -147,7 +147,7 @@ class PanelLoader:
             return  # desktop: authored layout, no scaling needed
 
         self._scale_lengths(obj_def, scale)
-        self._scale_position(obj_def, window_parented, authored)
+        self._scale_position(obj_def, scale, window_parented, authored)
 
     @staticmethod
     def _scale_lengths(obj_def: dict, scale: float) -> None:
@@ -170,11 +170,13 @@ class PanelLoader:
             obj_def["speed"] = speed * scale
 
     def _scale_position(
-        self, obj_def: dict, window_parented: bool, authored: tuple[int, int]
+        self,
+        obj_def: dict,
+        scale: float,
+        window_parented: bool,
+        authored: tuple[int, int],
     ) -> None:
-        """Scales (or centre-remaps) `position`, in place. Run after
-        `_scale_lengths`, since a "WINDOW" size is checked here."""
-        scale = self.scale
+        """Scales (or center-remaps) `position`, in place."""
         pos = obj_def.get("position")
         if not (isinstance(pos, list) and len(pos) == 2):
             return
@@ -184,7 +186,7 @@ class PanelLoader:
             and not fills_window
             and obj_def.get("anchor", "top-left") == "top-left"
         ):
-            # Map authored-window coords → actual-window coords about centre.
+            # Map authored-window coords → actual-window coords about center.
             actual_cx, actual_cy = (
                 self.window_transform.width / 2,
                 self.window_transform.height / 2,

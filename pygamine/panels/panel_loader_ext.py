@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, override
+from typing import Any, NamedTuple, override
 
 from pygamine.panels.panel_loader import PanelLoader
 
@@ -23,8 +23,17 @@ def _expand_layouts(data: dict) -> None:
             _expand_in(objects)
 
 
-def _parse_layout(name: str, layout: dict) -> tuple[bool, Any, Any]:
-    """Validates one layout block. Returns (main_axis_is_y, main_val, cross_val)."""
+class _Layout(NamedTuple):
+    """A validated layout block."""
+
+    main_axis_is_y: bool
+    main_val: int | float
+    cross_val: Any  # may be a non-numeric value such as "CENTER"
+    spacing: int | float
+
+
+def _parse_layout(name: str, layout: dict) -> _Layout:
+    """Validates one layout block and resolves its axes."""
     direction = layout.get("direction", "vertical")
     if direction not in ("vertical", "horizontal"):
         raise ValueError(
@@ -45,16 +54,13 @@ def _parse_layout(name: str, layout: dict) -> tuple[bool, Any, Any]:
             f"({'y' if main_axis_is_y else 'x'}) must be numeric for "
             f"{direction} layout, got {main_val!r}"
         )
-    return main_axis_is_y, main_val, cross_val
+    return _Layout(main_axis_is_y, main_val, cross_val, layout.get("spacing", 0))
 
 
 def _place_children(
     name: str,
     obj_def: dict,
-    main_axis_is_y: bool,
-    main_val: Any,
-    cross_val: Any,
-    spacing: Any,
+    layout: _Layout,
     new_entries: dict,
 ) -> None:
     """Validates the children of a layout group and adds them, positioned, to
@@ -72,11 +78,12 @@ def _place_children(
                 f"itself be a layout group (nesting not supported)"
             )
         child = dict(child_def)
-        offset = i * spacing
-        if main_axis_is_y:
-            child["position"] = [cross_val, main_val + offset]
+        offset = i * layout.spacing
+        main = layout.main_val + offset
+        if layout.main_axis_is_y:
+            child["position"] = [layout.cross_val, main]
         else:
-            child["position"] = [main_val + offset, cross_val]
+            child["position"] = [main, layout.cross_val]
         if group_parent is not None:
             child["parent"] = group_parent
         if child_name in new_entries:
@@ -94,12 +101,8 @@ def _expand_in(objects: dict) -> None:
             new_entries[name] = obj_def
             continue
 
-        layout = obj_def["layout"] or {}
-        main_axis_is_y, main_val, cross_val = _parse_layout(name, layout)
-        spacing = layout.get("spacing", 0)
-        _place_children(
-            name, obj_def, main_axis_is_y, main_val, cross_val, spacing, new_entries
-        )
+        parsed = _parse_layout(name, obj_def["layout"] or {})
+        _place_children(name, obj_def, parsed, new_entries)
 
     objects.clear()
     objects.update(new_entries)

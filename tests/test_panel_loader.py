@@ -362,12 +362,11 @@ def test_scale_lengths_leaves_non_numeric_size_alone():
 
 def test_scale_position_ignores_missing_position(loader):
     obj_def = {"size": [1, 1]}
-    loader._scale_position(obj_def, True, (100, 100))
+    loader._scale_position(obj_def, 1.0, True, (100, 100))
     assert obj_def == {"size": [1, 1]}
 
 
 def test_scale_position_scales_directly_when_not_window_parented(loader):
-    loader.scale = 2.0
     obj_def = {"position": [10, "CENTER"]}
-    loader._scale_position(obj_def, False, (100, 100))
+    loader._scale_position(obj_def, 2.0, False, (100, 100))
     assert obj_def["position"] == [20, "CENTER"]
