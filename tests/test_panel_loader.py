@@ -343,3 +343,31 @@ def test_scale_def_keeps_a_window_sized_overlay_at_the_window_origin():
 
     assert obj_def["position"] == [0, 0]
     assert obj_def["size"] == "WINDOW"
+
+
+# ── _scale_lengths / _scale_position ─────────────────────────────────────
+
+
+def test_scale_lengths_scales_size_fonts_and_speed():
+    obj_def = {"size": [10, 20], "font_size": 10, "text_size": 1, "speed": 3.0}
+    PanelLoader._scale_lengths(obj_def, 1.5)
+    assert obj_def == {"size": [15, 30], "font_size": 15, "text_size": 2, "speed": 4.5}
+
+
+def test_scale_lengths_leaves_non_numeric_size_alone():
+    obj_def = {"size": "WINDOW"}
+    PanelLoader._scale_lengths(obj_def, 2.0)
+    assert obj_def == {"size": "WINDOW"}
+
+
+def test_scale_position_ignores_missing_position(loader):
+    obj_def = {"size": [1, 1]}
+    loader._scale_position(obj_def, True, (100, 100))
+    assert obj_def == {"size": [1, 1]}
+
+
+def test_scale_position_scales_directly_when_not_window_parented(loader):
+    loader.scale = 2.0
+    obj_def = {"position": [10, "CENTER"]}
+    loader._scale_position(obj_def, False, (100, 100))
+    assert obj_def["position"] == [20, "CENTER"]

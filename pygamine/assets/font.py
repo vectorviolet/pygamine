@@ -13,10 +13,12 @@ from __future__ import annotations
 
 import pygame
 
+from pygamine.assets.asset_resolver import AssetResolver
+
 
 def load_font(
     cfg: dict,
-    assets,
+    assets: AssetResolver,
     font_key: str = "font",
     size_key: str = "font_size",
     bold_key: str = "bold",

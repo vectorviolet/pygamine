@@ -15,7 +15,20 @@ change. Anything before `e5c1fa6` (the commit that first introduced
 
 ## [Unreleased]
 
+### Added
+
+- **Added** `pygamine.assets.asset_resolver.AssetResolver`, a protocol for the
+  `image_path` / `sound_path` / `font_path` lookups. The panel loaders, panel
+  factories and `load_font` are annotated with it instead of `AssetManager`
+  (type-only; `AssetManager` satisfies it) (#4).
+
 ### Changed
+
+- **Changed** internal refactor of the panel loaders: `PanelLoader.load()` now
+  calls a no-op `_preprocess(data)` hook that `PanelLoaderExt` overrides instead
+  of copying `load()`; `_expand_in`, `_scale_def`, `_add_object` and
+  `make_factory`'s builder are split into smaller helpers. No behavior change,
+  public names and signatures unchanged (#4).
 
 - **Changed** this repo's lock now resolves Pillow 13.0.0 (was 11.3.0) through
   a uv `override-dependencies` entry (`pillow>=13,<14`), which clears the open
