@@ -5,6 +5,10 @@ from typing import overload
 
 import pygame
 
+from pygamine.util.localization import (
+    Localization,
+    localization as default_localization,
+)
 from pygamine.util.utils import Anchorable
 from pygamine.ecs.game_object import GameObject
 from pygamine.ecs.components.sprite_renderer2d import SpriteRenderer2D
@@ -17,6 +21,13 @@ class TextObject(GameObject, Anchorable):
     "hover": ..., "purchased": ...}` and the object auto-syncs to its parent's
     `_state` / `_hovered` on each event tick — drop a TextObject as a child of a
     HoverableStateObject to get state-driven labels without a wrapping Button class.
+
+    With `text_key=...` the default-state text comes from the localization
+    table (`tr(text_key)`) and the label re-renders when the language changes;
+    `text` and a default state are then an error. `text_params` fills the
+    key's `{placeholders}` and persists across language switches (change it
+    with `set_params`). Calling `set_text` on the default state replaces the
+    key with a literal. Call `on_removed()` when the label is dropped.
     """
 
     def __init__(
@@ -30,6 +41,9 @@ class TextObject(GameObject, Anchorable):
         padding=None,
         anchor: str = "top-left",
         states: dict | None = None,
+        text_key: str | None = None,
+        text_params: dict | None = None,
+        localization: Localization | None = None,
     ) -> None:
         GameObject.__init__(self)
 
@@ -42,7 +56,19 @@ class TextObject(GameObject, Anchorable):
         self.padding = self._parse_padding(padding)
 
         self.states: dict = dict(states) if states else {}
-        if "default" not in self.states:
+        self.text_key = text_key
+        self.text_params: dict = dict(text_params) if text_params else {}
+        self._localization = localization or default_localization
+        if text_key is not None:
+            if text or "default" in self.states:
+                raise ValueError(
+                    f"text_key '{text_key}' cannot be combined with text or "
+                    f"a default state"
+                )
+            text = self._localization.tr(text_key, **self.text_params)
+            self._localization.register(self)
+
+        if text_key is not None or "default" not in self.states:
             self.states["default"] = text or ""
         self.state: str | None = "default"
         self.text: str = self.states[self.state]
@@ -50,9 +76,31 @@ class TextObject(GameObject, Anchorable):
         self.add_component(SpriteRenderer2D)
         self._reflow()
 
+    def apply_localized_text(self, text: str) -> None:
+        """Sets the default-state text from the localization, keeping the key."""
+        self._set_state_text("default", text)
+
+    def set_params(self, **params) -> None:
+        """Replaces the placeholder values of a `text_key` label and re-renders."""
+        assert self.text_key is not None, "set_params() needs a text_key"
+        text = self._localization.tr(self.text_key, **params)
+        self.text_params = params
+        self.apply_localized_text(text)
+
+    def on_removed(self) -> None:
+        """Stops following language changes (called when a panel drops the label)."""
+        self._localization.unregister(self)
+
     def set_text(self, text: str, *, state: str | None = None) -> None:
         """Update text content. With no state, edits the currently-active state."""
         target = state if state is not None else (self.state or "default")
+        if target == "default":
+            # A literal set by the game replaces the key.
+            self.text_key = None
+            self.on_removed()
+        self._set_state_text(target, text)
+
+    def _set_state_text(self, target: str, text: str) -> None:
         if self.states.get(target) == text:
             return
         self.states[target] = text

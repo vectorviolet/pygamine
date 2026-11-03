@@ -56,5 +56,9 @@ class PanelManager:
 
         self._panels[name] = GameObjectDict()
 
+    def remove_panel(self, name: str) -> None:
+        """Drops a panel and releases its objects (e.g. before reloading it)."""
+        self._panels.pop(name).clear()
+
     def open_panel(self, panel: str) -> None:
         self.current_panel = panel

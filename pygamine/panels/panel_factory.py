@@ -162,6 +162,8 @@ def make_text_factory(assets: AssetResolver) -> Callable[[dict, Transform], Text
             padding=cfg.get("padding"),
             anchor=cfg.get("anchor", "top-left"),
             states=cfg.get("states"),
+            text_key=cfg.get("text_key"),
+            text_params=cfg.get("text_params"),
         )
 
     return make_text_object
