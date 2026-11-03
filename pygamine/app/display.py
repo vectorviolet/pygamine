@@ -85,6 +85,7 @@ class Display:
         window_modes: tuple[WindowMode, ...] = WINDOW_MODES,
         mode_setters: Mapping[WindowMode, Callable[[], None]] | None = None,
         resolution_setter: Callable[[tuple[int, int]], None] | None = None,
+        window_mode_setter: Callable[[WindowMode], None] | None = None,
     ) -> None:
         """Query the screen size; creates no window yet. The owner must call
         set_fullscreen() (or another mode setter) once it is ready for
@@ -100,11 +101,18 @@ class Display:
         for it; the owner passes its own set_* methods so that subclass
         overrides of them still take effect. Defaults to this Display's own.
         `resolution_setter` is the same for set_resolution(), which
-        cycle_resolution() and restore_window_settings() call.
+        cycle_resolution() and restore_window_settings() call, and
+        `window_mode_setter` is the same for set_window_mode(), which
+        cycle_window_mode() and restore_window_settings() call.
         """
         self._on_canvas_resized = on_canvas_resized
         # Which modes cycle_window_mode()/set_window_mode() accept, in order.
         self.window_modes = window_modes
+        self._window_mode_setter: Callable[[WindowMode], None] = (
+            window_mode_setter
+            if window_mode_setter is not None
+            else self.set_window_mode
+        )
         self._resolution_setter: Callable[[tuple[int, int]], None] = (
             resolution_setter if resolution_setter is not None else self.set_resolution
         )
@@ -227,7 +235,7 @@ class Display:
         fullscreen -> borderless -> windowed -> fullscreen ..."""
         index = self.window_modes.index(self._window_mode)
         new_mode = self.window_modes[(index + step) % len(self.window_modes)]
-        self.set_window_mode(new_mode)
+        self._window_mode_setter(new_mode)
 
     # ── render target ───────────────────────────────────────────────────
 
@@ -369,9 +377,9 @@ class Display:
         # An unknown saved mode falls back to the first WINDOW_MODES entry
         # (exclusive fullscreen) rather than raising.
         try:
-            self.set_window_mode(mode)
+            self._window_mode_setter(mode)
         except ValueError:
-            self.set_window_mode(self.window_modes[0])
+            self._window_mode_setter(self.window_modes[0])
 
     def window_settings(self) -> dict:
         """The window-mode/resolution portion of a settings dict, for

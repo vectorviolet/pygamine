@@ -113,6 +113,7 @@ class Application:
                 "windowed": lambda: self.set_windowed(),
             },
             lambda size: self.set_resolution(size),
+            lambda mode: self.set_window_mode(mode),
         )
         self.set_fullscreen()  # sets display_surface and rebuilds self.window to match it (scaled by render_scale)
         self.center_window()

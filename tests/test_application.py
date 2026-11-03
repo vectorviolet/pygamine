@@ -1369,3 +1369,17 @@ def test_subclass_set_resolution_override_runs_from_cycle_and_restore():
     cycled = app.cycle_resolution()
     app.restore_window_settings({"window_size": [800, 600]})
     assert picks == [cycled, (800, 600)]
+
+
+def test_subclass_set_window_mode_override_runs_from_cycle_and_restore():
+    modes = []
+
+    class _Custom(_TrackedApp):
+        def set_window_mode(self, mode):
+            modes.append(mode)
+            super().set_window_mode(mode)
+
+    app = _Custom()
+    app.cycle_window_mode()
+    app.restore_window_settings({"window_mode": "windowed"})
+    assert modes == ["borderless", "windowed"]

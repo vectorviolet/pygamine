@@ -25,7 +25,7 @@ not break them.
   overridable `on_canvas_resized` hook, in the same order as before.
 - Behavior subclasses could change stays on the subclass: `Application` passes its
   `WINDOW_MODES` and its (call-time looked-up) `set_fullscreen`,
-  `set_borderless_fullscreen`, `set_windowed` and `set_resolution` to `Display`, so
+  `set_borderless_fullscreen`, `set_windowed`, `set_resolution` and `set_window_mode` to `Display`, so
   overriding them still affects `set_window_mode`, `cycle_window_mode`, F11,
   `set_resolution`, `cycle_resolution`, `restore_window_settings` and
   `reset_window_settings`.
@@ -43,9 +43,6 @@ not break them.
 
 ## Known limits
 
-`Display` calls its own `set_window_mode` from `cycle_window_mode` and
-`restore_window_settings`, so an `Application` subclass overriding
-`set_window_mode` itself is not called from those two. The setters it dispatches to
-(`set_fullscreen`, `set_borderless_fullscreen`, `set_windowed`) and
-`set_resolution` are routed through `Application`, so overriding any of those is
-honored from every nested path. No game overrides any of them.
+None known. Every `Display` call that reaches a public setter (`set_window_mode`,
+the three mode setters, `set_resolution`) goes through the `Application` method, so
+a subclass override is honored from every nested path.
