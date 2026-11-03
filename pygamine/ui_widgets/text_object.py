@@ -24,8 +24,10 @@ class TextObject(GameObject, Anchorable):
 
     With `text_key=...` the default-state text comes from the localization
     table (`tr(text_key)`) and the label re-renders when the language changes;
-    `text` is then ignored. Calling `set_text` on the default state replaces
-    the key with a literal.
+    `text` and a default state are then an error. `text_params` fills the
+    key's `{placeholders}` and persists across language switches (change it
+    with `set_params`). Calling `set_text` on the default state replaces the
+    key with a literal. Call `on_removed()` when the label is dropped.
     """
 
     def __init__(
@@ -40,6 +42,7 @@ class TextObject(GameObject, Anchorable):
         anchor: str = "top-left",
         states: dict | None = None,
         text_key: str | None = None,
+        text_params: dict | None = None,
         localization: Localization | None = None,
     ) -> None:
         GameObject.__init__(self)
@@ -52,13 +55,19 @@ class TextObject(GameObject, Anchorable):
         self.background_color = self._parse_color(background_color)
         self.padding = self._parse_padding(padding)
 
+        self.states: dict = dict(states) if states else {}
         self.text_key = text_key
+        self.text_params: dict = dict(text_params) if text_params else {}
         self._localization = localization or default_localization
         if text_key is not None:
-            text = self._localization.tr(text_key)
+            if text or "default" in self.states:
+                raise ValueError(
+                    f"text_key '{text_key}' cannot be combined with text or "
+                    f"a default state"
+                )
+            text = self._localization.tr(text_key, **self.text_params)
             self._localization.register(self)
 
-        self.states: dict = dict(states) if states else {}
         if text_key is not None or "default" not in self.states:
             self.states["default"] = text or ""
         self.state: str | None = "default"
@@ -67,18 +76,31 @@ class TextObject(GameObject, Anchorable):
         self.add_component(SpriteRenderer2D)
         self._reflow()
 
-    def relocalize(self) -> None:
-        """Re-reads the default-state text from `text_key` (language changed)."""
-        assert self.text_key is not None, "relocalize() needs a text_key"
-        self.set_text(self._localization.tr(self.text_key), state="default")
+    def apply_localized_text(self, text: str) -> None:
+        """Sets the default-state text from the localization, keeping the key."""
+        self._set_state_text("default", text)
+
+    def set_params(self, **params) -> None:
+        """Replaces the placeholder values of a `text_key` label and re-renders."""
+        assert self.text_key is not None, "set_params() needs a text_key"
+        text = self._localization.tr(self.text_key, **params)
+        self.text_params = params
+        self.apply_localized_text(text)
+
+    def on_removed(self) -> None:
+        """Stops following language changes (called when a panel drops the label)."""
+        self._localization.unregister(self)
 
     def set_text(self, text: str, *, state: str | None = None) -> None:
         """Update text content. With no state, edits the currently-active state."""
         target = state if state is not None else (self.state or "default")
-        if target == "default" and state is None:
+        if target == "default":
             # A literal set by the game replaces the key.
             self.text_key = None
-            self._localization.unregister(self)
+            self.on_removed()
+        self._set_state_text(target, text)
+
+    def _set_state_text(self, target: str, text: str) -> None:
         if self.states.get(target) == text:
             return
         self.states[target] = text

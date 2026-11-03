@@ -16,26 +16,40 @@ the solution has to fit that, and it has to be checkable in each game's CI.
   file stem. `_meta: {name: "Türkçe"}` holds the display name.
 - **Keys:** nested mappings, addressed with dots (`settings.title`). Leaves must be
   strings (a bare `yes` or `10` is rejected: quote it).
-- **Lookup:** `tr(key, **params)` fills `{name}` placeholders with `str.format`.
+- **Lookup:** `tr(key, **params)` always runs `str.format_map(params)` (also with
+  no params), so `{name}` is filled and `{{` is a literal brace everywhere.
   A key missing in the current language falls back to `en`.
 - **Missing everywhere raises `KeyError`.** The alternative, returning the key,
   hides typos: the label shows `settings.titel` and nobody notices until a player
   does. A raise fails in tests and at panel load, where a developer sees it. The
   key-coverage check keeps shipped language files consistent, so a missing key
   is a developer error, not a runtime condition to degrade gracefully.
-- **Panels:** `text_key:` on a text object (`make_text_factory`); a literal `text:`
-  works as before. The `TextObject` itself owns the key (`text_key`), so code that
-  builds labels directly gets the same behavior.
-- **Live switch:** `set_language(code)` re-renders every registered `TextObject`
-  (`relocalize()`), then calls the `on_language_changed` callbacks, which games use
-  to re-set text they format themselves. The registry is a `WeakSet`, so reloaded
-  or dropped panels leak nothing. `TextObject.set_text()` on the default state
-  replaces the key with a literal and unregisters the label.
-- **Checks for game CI:** `check_key_coverage()` (missing and extra keys against
-  `en.yaml`) and `check_glyph_coverage(font)`. `pygame.font.Font.metrics` does
-  not return `None` for a missing glyph in pygame-ce 2.5 (it returns the font's
-  `.notdef` box metrics), so a character counts as missing when it renders
-  pixel-identical to U+FFFF, which no font defines.
+- **Panels:** `text_key:` (and optional `text_params:`) on a text object
+  (`make_text_factory`); a literal `text:` works as before. Combining `text_key` with
+  `text` or a `states.default` is a `ValueError` naming the object. The `TextObject`
+  owns the key (`text_key`, `text_params`), so code building labels directly gets the
+  same behavior; `set_params(**p)` changes the values, which persist across switches.
+- **Live switch:** `set_language(code)` first computes the new text of every
+  registered label (nothing changes if one cannot render), then applies it and calls
+  every `on_language_changed` callback; if callbacks raise, all still run and the
+  errors are re-raised as an `ExceptionGroup`. `load(folder)` validates the new tables
+  first (including that live labels' keys still exist), then swaps, re-renders and
+  fires the callbacks if the tables or the effective language changed (also on a
+  fallback from `tr` to `en`); on a validation error nothing changes.
+- **Registry lifetime:** deterministic. `TextObject.on_removed()` unregisters the
+  label; `GameObjectDict` calls that optional hook when an object is replaced or the
+  dict is cleared, and `PanelManager.remove_panel(name)` clears the panel (use it
+  before reloading a panel). A `WeakSet` stays as a safety net for objects dropped
+  another way (`GameObjectDict.pop` does not call the hook: the caller owns that
+  object). `set_text()` on the default state replaces the key with a literal and
+  unregisters.
+- **Checks for game CI:** `check_key_coverage()` reports missing keys, extra keys
+  and keys whose `{placeholder}` names differ from `en.yaml`;
+  `check_glyph_coverage(font_path)` takes the font file. Glyphs are detected with
+  `pygame.freetype.Font.get_metrics`, which returns `None` for a glyph the font lacks
+  (checked on pygame-ce 2.5.7 with a missing CJK character and U+2800).
+  `pygame.font.Font.metrics` is not usable: it returns the `.notdef` box metrics.
+  Placeholders are skipped and escaped braces are checked.
 - **State:** a process-wide `localization` instance with module-level `tr` and
   `set_language`. `Localization` can be instantiated separately (used in tests).
 

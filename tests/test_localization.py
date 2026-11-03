@@ -3,11 +3,21 @@
 from __future__ import annotations
 
 import gc
+import weakref
 
 import pygame
 import pytest
 
-from pygamine.util.localization import Localization, flatten_strings, missing_glyphs
+from pygamine.ecs.game_object_dict import GameObjectDict
+from pygamine.panels.panel_loader import PanelLoader
+from pygamine.panels.panel_manager import PanelManager
+from pygamine.util.localization import (
+    Localization,
+    flatten_strings,
+    literal_text,
+    missing_glyphs,
+    placeholder_names,
+)
 from pygamine.panels.panel_factory import make_text_factory
 from pygamine.ui_widgets.text_object import TextObject
 
@@ -148,13 +158,45 @@ def test_unknown_text_key_raises_at_construction(loc, font):
         TextObject(None, (0, 0), font=font, text_key="nope", localization=loc)
 
 
-def test_registry_does_not_keep_text_objects_alive(loc, font):
+def test_on_removed_unregisters_deterministically(loc, font):
     label = TextObject(None, (0, 0), font=font, text_key="menu.play", localization=loc)
     assert len(loc._text_objects) == 1
+    label.on_removed()
+    assert len(loc._text_objects) == 0
+    loc.set_language("tr")
+    assert label.text == "Play"  # no longer follows the language
+
+
+def test_game_object_dict_unregisters_on_replace_and_clear(loc, font):
+    objects = GameObjectDict()
+    a = TextObject(None, (0, 0), font=font, text_key="menu.play", localization=loc)
+    b = TextObject(None, (0, 0), font=font, text_key="menu.play", localization=loc)
+    objects["x"] = a
+    objects["x"] = a  # same object again: stays registered
+    assert a in loc._text_objects
+    objects["x"] = b
+    assert a not in loc._text_objects and b in loc._text_objects
+    objects.clear()
+    assert len(loc._text_objects) == 0
+    objects["plain"] = object()
+    objects.clear()
+
+
+def test_panel_manager_remove_panel_releases(loc, font):
+    manager = PanelManager()
+    label = TextObject(None, (0, 0), font=font, text_key="menu.play", localization=loc)
+    manager.add_object("main", "play", label)
+    manager.remove_panel("main")
+    assert "main" not in manager
+    assert len(loc._text_objects) == 0
+
+
+def test_weak_safety_net(loc, font):
+    label = TextObject(None, (0, 0), font=font, text_key="menu.play", localization=loc)
+    ref = weakref.ref(label)
     del label
     gc.collect()
-    assert len(loc._text_objects) == 0
-    loc.set_language("tr")  # nothing to refresh, no error
+    assert ref() is None
 
 
 def test_load_refreshes_live_text(loc, lang_dir, font):
@@ -187,7 +229,11 @@ def test_text_key_in_panel_factory(lang_dir, monkeypatch):
 
 def test_key_coverage_report(loc):
     assert loc.check_key_coverage() == {
-        "tr": {"missing": ["menu.only_en"], "extra": ["menu.extra"]}
+        "tr": {
+            "missing": ["menu.only_en"],
+            "extra": ["menu.extra"],
+            "placeholders": {},
+        }
     }
 
 
@@ -199,17 +245,170 @@ def test_key_coverage_clean(tmp_path):
     assert loc.check_key_coverage() == {}
 
 
-def test_missing_glyphs(font):
-    assert missing_glyphs(font, "ğşıİçöü abc") == []
-    assert missing_glyphs(font, "a\u4e2d\u4e2d b") == ["\u4e2d"]
+def test_missing_glyphs():
+    assert missing_glyphs(None, "ğşıİçöü abc") == []
+    assert missing_glyphs(None, "a中中 b⠀") == ["⠀", "中"]
+    assert missing_glyphs(None, " \n") == []
 
 
-def test_glyph_coverage_report(tmp_path, font):
+def test_glyph_coverage_report(tmp_path):
     (tmp_path / "en.yaml").write_text("a: Hello {name}\n", encoding="utf-8")
     (tmp_path / "tr.yaml").write_text(
-        '_meta: {name: "Türkçe"}\na: "Merhaba \u4e2d {x}"\n', encoding="utf-8"
+        '_meta: {name: "Türkçe"}\na: "Merhaba 中 {x}"\nb: "{{⠀}}"\n',
+        encoding="utf-8",
     )
     loc = Localization()
     loc.load(tmp_path)
-    assert loc.check_glyph_coverage(font) == {"tr": ["\u4e2d"]}
-    assert loc.check_glyph_coverage(font, codes=["en"]) == {}
+    assert loc.check_glyph_coverage() == {"tr": ["⠀", "中"]}
+    assert loc.check_glyph_coverage(codes=["en"]) == {}
+
+
+def test_placeholder_helpers():
+    assert placeholder_names("a {x} {{y}} {z.w} {q[0]:>3}") == {"x", "z", "q"}
+    assert literal_text("a {x} {{y}}") == "a  {y}"
+    with pytest.raises(ValueError):
+        placeholder_names("{oops")
+
+
+def test_malformed_braces_rejected_at_load(tmp_path):
+    (tmp_path / "en.yaml").write_text('a: "{oops"\n', encoding="utf-8")
+    with pytest.raises(ValueError, match="en.yaml"):
+        Localization().load(tmp_path)
+
+
+def test_meta_must_be_mapping(tmp_path):
+    (tmp_path / "en.yaml").write_text("_meta: English\na: x\n", encoding="utf-8")
+    with pytest.raises(ValueError, match="en.yaml"):
+        Localization().load(tmp_path)
+
+
+def test_tr_formats_even_without_params(tmp_path):
+    (tmp_path / "en.yaml").write_text('a: "100% {{done}}"\n', encoding="utf-8")
+    loc = Localization()
+    loc.load(tmp_path)
+    assert loc.tr("a") == "100% {done}"
+    assert loc.tr("a", x=1) == "100% {done}"
+
+
+def test_placeholder_mismatch_reported(tmp_path):
+    (tmp_path / "en.yaml").write_text('a: "{n} items"\nb: plain\n', encoding="utf-8")
+    (tmp_path / "tr.yaml").write_text('a: "{count} öğe"\nb: düz\n', encoding="utf-8")
+    loc = Localization()
+    loc.load(tmp_path)
+    assert loc.check_key_coverage() == {
+        "tr": {
+            "missing": [],
+            "extra": [],
+            "placeholders": {"a": {"expected": ["n"], "found": ["count"]}},
+        }
+    }
+
+
+def test_text_params_persist_across_switch(loc, font):
+    label = TextObject(
+        None,
+        (0, 0),
+        font=font,
+        text_key="settings.volume",
+        text_params={"percent": 30},
+        localization=loc,
+    )
+    assert label.text == "Volume: 30%"
+    loc.set_language("tr")
+    assert label.text == "Ses: %30"
+    label.set_params(percent=80)
+    assert label.text == "Ses: %80"
+    loc.set_language("en")
+    assert label.text == "Volume: 80%"
+    assert label.text_params == {"percent": 80}
+
+
+def test_set_text_with_explicit_default_state_drops_key(loc, font):
+    label = TextObject(
+        None, (0, 0), font=font, text_key="settings.title", localization=loc
+    )
+    label.set_text("X", state="default")
+    assert label.text_key is None
+    loc.set_language("tr")
+    assert label.text == "X"
+
+
+def test_text_key_with_text_or_default_state_rejected(loc, font):
+    with pytest.raises(ValueError):
+        TextObject(None, (0, 0), "x", font, text_key="menu.play", localization=loc)
+    with pytest.raises(ValueError):
+        TextObject(
+            None,
+            (0, 0),
+            font=font,
+            states={"default": "x"},
+            text_key="menu.play",
+            localization=loc,
+        )
+
+
+def test_panel_loader_rejects_text_key_with_text():
+    loader = PanelLoader(PanelManager(), None, None)  # type: ignore[arg-type]
+    with pytest.raises(ValueError, match="'title' in panel 'main'"):
+        loader._add_object("main", "title", {"text_key": "a", "text": "b"})
+    with pytest.raises(ValueError, match="'title'"):
+        loader._add_object(
+            "main", "title", {"text_key": "a", "states": {"default": "b"}}
+        )
+
+
+def test_set_language_is_atomic_for_labels(tmp_path, font):
+    (tmp_path / "en.yaml").write_text('a: "{n}"\nb: B\n', encoding="utf-8")
+    (tmp_path / "tr.yaml").write_text('a: "{m}"\nb: Bt\n', encoding="utf-8")
+    loc = Localization()
+    loc.load(tmp_path)
+    good = TextObject(None, (0, 0), font=font, text_key="b", localization=loc)
+    bad = TextObject(
+        None, (0, 0), font=font, text_key="a", text_params={"n": 1}, localization=loc
+    )
+    with pytest.raises(KeyError):  # tr's "{m}" has no value
+        loc.set_language("tr")
+    assert loc.language == "en"
+    assert good.text == "B" and bad.text == "1"
+
+
+def test_all_callbacks_run_then_errors_group(loc):
+    seen: list[str] = []
+
+    def boom(code):
+        raise RuntimeError("boom")
+
+    loc.on_language_changed(boom)
+    loc.on_language_changed(seen.append)
+    with pytest.raises(ExceptionGroup) as info:
+        loc.set_language("tr")
+    assert seen == ["tr"] and loc.language == "tr"
+    assert isinstance(info.value.exceptions[0], RuntimeError)
+
+
+def test_load_is_atomic_and_fires_callbacks(loc, lang_dir, font):
+    label = TextObject(None, (0, 0), font=font, text_key="menu.play", localization=loc)
+    seen: list[str] = []
+    loc.on_language_changed(seen.append)
+
+    loc.load(lang_dir)  # nothing changed: no callback
+    assert seen == []
+
+    (lang_dir / "en.yaml").write_text("other: x\n", encoding="utf-8")
+    with pytest.raises(KeyError):  # live label's key is gone
+        loc.load(lang_dir)
+    assert label.text == "Play" and loc.tr("menu.play") == "Play" and seen == []
+
+    (lang_dir / "en.yaml").write_text(EN.replace("Play", "Start"), encoding="utf-8")
+    loc.load(lang_dir)
+    assert label.text == "Start" and seen == ["en"]
+
+
+def test_load_falls_back_to_english_and_notifies(loc, lang_dir, font):
+    loc.set_language("tr")
+    label = TextObject(None, (0, 0), font=font, text_key="menu.play", localization=loc)
+    seen: list[str] = []
+    loc.on_language_changed(seen.append)
+    (lang_dir / "tr.yaml").unlink()
+    loc.load(lang_dir)
+    assert loc.language == "en" and label.text == "Play" and seen == ["en"]

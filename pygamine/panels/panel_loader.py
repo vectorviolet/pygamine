@@ -77,6 +77,13 @@ class PanelLoader:
 
     def _add_object(self, tab: str, name: str, obj_def: dict) -> None:
         obj_def = dict(obj_def)
+        if "text_key" in obj_def and (
+            "text" in obj_def or "default" in (obj_def.get("states") or {})
+        ):
+            raise ValueError(
+                f"Object '{name}' in panel '{tab}' has text_key together with "
+                f"text or a default state; use one"
+            )
         factory = self._factory_for(name, obj_def)
         parent_name = obj_def.pop("parent", None)
         parent = self._parent_for(tab, name, parent_name)

@@ -170,9 +170,11 @@ set_language("tr")  # re-renders every text_key label at once
 
 `config/lang/en.yaml`: `_meta: {name: English}` plus nested keys
 (`settings: {title: Settings}`). In panels YAML use `text_key: settings.title`
-instead of `text:`. Missing keys fall back to English; a key missing in English
+instead of `text:` (optional `text_params:` fills `{placeholders}`). Missing keys fall back to English; a key missing in English
 raises `KeyError`. In your tests call `localization.check_key_coverage()` and
-`localization.check_glyph_coverage(font)` (both return `{}` when clean). See
+`localization.check_glyph_coverage("assets/fonts/Game.ttf")` (both return `{}` when
+clean). Before reloading a panel call `panel_manager.remove_panel(name)` so its
+labels stop following language changes. See
 `docs/decisions/0001-localization.md`.
 
 ### Database
