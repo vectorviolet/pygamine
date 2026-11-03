@@ -36,6 +36,13 @@ def _fade_alpha(
     return int(255 * clamp01(opacity))
 
 
+def _fit_size(src: tuple[int, int], target: tuple[int, int]) -> tuple[int, int]:
+    """`src` scaled, aspect ratio kept, to the largest size inside `target`
+    (truncated to whole pixels)."""
+    scale = min(target[0] / src[0], target[1] / src[1])
+    return int(src[0] * scale), int(src[1] * scale)
+
+
 def _check_fades(fade_in_ms: int, fade_out_ms: int) -> None:
     if fade_in_ms < 0 or fade_out_ms < 0:
         raise ValueError(
@@ -81,10 +88,7 @@ class ImageMedia:
         self._finished = False
 
     def fit(self, target_size: tuple[int, int]) -> None:
-        tw, th = target_size
-        iw, ih = self._original_image.get_size()
-        scale = min(tw / iw, th / ih)
-        new_size = (int(iw * scale), int(ih * scale))
+        new_size = _fit_size(self._original_image.get_size(), target_size)
         self._image = pygame.transform.smoothscale(self._original_image, new_size)
         self._start_time = pygame.time.get_ticks()
 
@@ -118,6 +122,98 @@ class ImageMedia:
 
     def skip(self) -> None:
         self._finished = True
+
+
+class _FrameLoader:
+    """Loads (and scales to fit) numbered frames on a background thread into a
+    small bounded queue, so the consumer never waits on disk and memory stays
+    flat. Owns the thread, the queue and the stop event; the consumer polls
+    with get_nowait() and ends loading with stop()."""
+
+    def __init__(
+        self,
+        frame_paths: list[Path],
+        buffer_frames: int,
+        put_timeout_s: float,
+    ) -> None:
+        self._frame_paths = frame_paths
+        self._put_timeout_s = put_timeout_s
+        self._queue: queue.Queue[tuple[int, pygame.Surface]] = queue.Queue(
+            maxsize=buffer_frames
+        )
+        self._stop_event = threading.Event()
+        self._thread: threading.Thread | None = None
+        self._target_size: tuple[int, int] | None = None
+
+    @property
+    def started(self) -> bool:
+        return self._thread is not None
+
+    def start(self, target_size: tuple[int, int]) -> None:
+        assert self._thread is None, "_FrameLoader.start() called twice"
+        self._target_size = target_size
+        self._thread = threading.Thread(target=self._run, daemon=True)
+        self._thread.start()
+
+    def get_nowait(self) -> tuple[int, pygame.Surface]:
+        """The next buffered (index, frame); raises queue.Empty if none."""
+        return self._queue.get_nowait()
+
+    def buffered(self) -> int:
+        return self._queue.qsize()
+
+    def stop(self) -> None:
+        """Ask the thread to exit (within the put timeout) and release the
+        buffered surfaces."""
+        self._stop_event.set()
+        self._drain()
+
+    def join(self, timeout: float | None = None) -> None:
+        if self._thread is not None:
+            self._thread.join(timeout)
+
+    def is_alive(self) -> bool:
+        return self._thread is not None and self._thread.is_alive()
+
+    def _run(self) -> None:
+        # Runs on the loader thread. A load error isn't caught: it surfaces
+        # through threading's excepthook, and playback still ends on time.
+        target = self._target_size
+        assert target is not None  # start() sets it before the thread exists
+        try:
+            for idx, path in enumerate(self._frame_paths):
+                if self._stop_event.is_set():
+                    return
+                img = pygame.image.load(str(path))
+                new_size = _fit_size(img.get_size(), target)
+                if new_size != img.get_size():
+                    img = pygame.transform.smoothscale(img, new_size)
+                if not self._put(idx, img):
+                    return
+        finally:
+            # stop()'s drain frees buffer space, which can let a put() already
+            # in flight land afterwards -- so drain again on the way out
+            if self._stop_event.is_set():
+                self._drain()
+
+    def _put(self, idx: int, img: pygame.Surface) -> bool:
+        """Blocks while the buffer is full, but never past a stop request --
+        a plain blocking put() would hang this thread forever once playback
+        stops consuming. Returns False if stopped."""
+        while not self._stop_event.is_set():
+            try:
+                self._queue.put((idx, img), timeout=self._put_timeout_s)
+                return True
+            except queue.Full:
+                continue
+        return False
+
+    def _drain(self) -> None:
+        while True:
+            try:
+                self._queue.get_nowait()
+            except queue.Empty:
+                break
 
 
 class ImageSequenceMedia:
@@ -172,17 +268,14 @@ class ImageSequenceMedia:
         self._total_frames = len(self._frame_paths)
         self._duration_ms = self._total_frames * 1000 / self._fps
 
-        self._frame_queue: queue.Queue[tuple[int, pygame.Surface]] = queue.Queue(
-            maxsize=self._BUFFER_FRAMES
+        self._loader = _FrameLoader(
+            self._frame_paths, self._BUFFER_FRAMES, self._PUT_TIMEOUT_S
         )
-        self._stop_event = threading.Event()
-        self._loader: threading.Thread | None = None
 
         self._start_time: int | None = None
         self._shown_frame_idx = -1
         self._finished = self._total_frames == 0
         self._current_surface: pygame.Surface | None = None
-        self._target_size: tuple[int, int] | None = None
 
     @staticmethod
     def _read_meta_fps(folder: Path) -> float | None:
@@ -196,51 +289,13 @@ class ImageSequenceMedia:
         return float(fps) if fps else None
 
     def fit(self, target_size: tuple[int, int]) -> None:
-        if self._finished or self._loader is not None:
+        if self._finished or self._loader.started:
             return
-        self._target_size = target_size
         self._start_time = pygame.time.get_ticks()
-
-        self._loader = threading.Thread(target=self._preload_frames, daemon=True)
-        self._loader.start()
+        self._loader.start(target_size)
 
         if self._audio_manager and self._audio_path:
             self._audio_manager.play_music(self._audio_path, loops=0)
-
-    def _preload_frames(self) -> None:
-        # Runs on the loader thread. A load error isn't caught: it surfaces
-        # through threading's excepthook, and playback still ends on time.
-        try:
-            for idx, path in enumerate(self._frame_paths):
-                if self._stop_event.is_set():
-                    return
-                img = pygame.image.load(str(path))
-                if self._target_size:
-                    tw, th = self._target_size
-                    iw, ih = img.get_size()
-                    scale = min(tw / iw, th / ih)
-                    new_size = (int(iw * scale), int(ih * scale))
-                    if new_size != (iw, ih):
-                        img = pygame.transform.smoothscale(img, new_size)
-                if not self._put_frame(idx, img):
-                    return
-        finally:
-            # _stop()'s drain frees buffer space, which can let a put() already
-            # in flight land afterwards -- so drain again on the way out
-            if self._stop_event.is_set():
-                self._drain_queue()
-
-    def _put_frame(self, idx: int, img: pygame.Surface) -> bool:
-        """Blocks while the buffer is full, but never past a stop request --
-        a plain blocking put() would hang this thread forever once playback
-        stops consuming. Returns False if stopped."""
-        while not self._stop_event.is_set():
-            try:
-                self._frame_queue.put((idx, img), timeout=self._PUT_TIMEOUT_S)
-                return True
-            except queue.Full:
-                continue
-        return False
 
     def update(self) -> None:
         if self._finished or self._start_time is None:
@@ -261,7 +316,7 @@ class ImageSequenceMedia:
         newest = None
         while self._shown_frame_idx < due_idx:
             try:
-                self._shown_frame_idx, newest = self._frame_queue.get_nowait()
+                self._shown_frame_idx, newest = self._loader.get_nowait()
             except queue.Empty:
                 break
         if newest is not None:
@@ -286,18 +341,10 @@ class ImageSequenceMedia:
         if self._finished:
             return
         self._finished = True
-        self._stop_event.set()
+        # Releases buffered surfaces; the loader exits within _PUT_TIMEOUT_S
+        self._loader.stop()
         self._stop_audio()
         self._current_surface = None
-        # Release buffered surfaces; the loader exits within _PUT_TIMEOUT_S
-        self._drain_queue()
-
-    def _drain_queue(self) -> None:
-        while True:
-            try:
-                self._frame_queue.get_nowait()
-            except queue.Empty:
-                break
 
     def _stop_audio(self) -> None:
         # Stop, not pause: a paused channel stays occupied, and nothing

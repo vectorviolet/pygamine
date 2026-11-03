@@ -20,6 +20,8 @@ from pygamine.app.splash_screen import (
     ImageMedia,
     ImageSequenceMedia,
     SplashScreen,
+    _fit_size,
+    _FrameLoader,
     standard_splash_media,
 )
 from pygamine.ecs.game_audio import GameAudio
@@ -175,7 +177,7 @@ def frames_dir(tmp_path) -> Path:
 def _wait_for_buffer(media, count, timeout_s=2.0):
     """Waits until the loader thread has buffered `count` frames."""
     deadline = time.monotonic() + timeout_s
-    while media._frame_queue.qsize() < count:
+    while media._loader.buffered() < count:
         assert time.monotonic() < deadline, "loader thread never buffered the frames"
         time.sleep(0.005)
 
@@ -255,7 +257,7 @@ def test_image_sequence_never_consumes_frames_ahead_of_time(frames_dir, fake_tic
     fake_ticks["t"] = 250
     media.update()
     assert media._shown_frame_idx == 2
-    assert media._frame_queue.qsize() == 7  # frames 3..9 still buffered
+    assert media._loader.buffered() == 7  # frames 3..9 still buffered
     media.skip()
 
 
@@ -336,9 +338,78 @@ def test_image_sequence_skip_stops_loader_blocked_on_full_buffer(
 
     media._loader.join(timeout=1)
     assert not media._loader.is_alive()
-    assert media._frame_queue.empty()
+    assert media._loader.buffered() == 0
     assert media.is_finished() is True
     assert audio.stopped is True
+
+
+# ── _fit_size ──────────────────────────────────────────────────────────
+
+
+@pytest.mark.parametrize(
+    ("src", "target", "expected"),
+    [
+        ((20, 10), (40, 40), (40, 20)),  # width-bound upscale
+        ((10, 20), (40, 40), (20, 40)),  # height-bound upscale
+        ((100, 50), (20, 20), (20, 10)),  # downscale
+        ((30, 30), (30, 30), (30, 30)),  # already fits
+        ((3, 2), (10, 10), (10, 6)),  # truncated, not rounded (6.67)
+    ],
+)
+def test_fit_size_keeps_aspect_inside_target(src, target, expected):
+    assert _fit_size(src, target) == expected
+
+
+# ── _FrameLoader ────────────────────────────────────────────────────────
+
+
+def _wait_until(predicate, timeout_s=2.0):
+    deadline = time.monotonic() + timeout_s
+    while not predicate():
+        assert time.monotonic() < deadline, "condition never became true"
+        time.sleep(0.005)
+
+
+def test_frame_loader_delivers_scaled_frames_in_order(frames_dir):
+    paths = sorted(frames_dir.glob("*.jpg"))
+    loader = _FrameLoader(paths, buffer_frames=20, put_timeout_s=0.05)
+    assert loader.started is False
+    loader.start((40, 40))
+    _wait_until(lambda: loader.buffered() == 10)
+
+    indices = []
+    for _ in range(10):
+        idx, surface = loader.get_nowait()
+        indices.append(idx)
+        assert surface.get_size() == (40, 20)
+    assert indices == list(range(10))
+    loader.stop()
+    loader.join(timeout=1)
+    assert not loader.is_alive()
+
+
+def test_frame_loader_stop_unblocks_a_full_buffer_and_empties_it(frames_dir):
+    paths = sorted(frames_dir.glob("*.jpg"))
+    loader = _FrameLoader(paths, buffer_frames=2, put_timeout_s=0.05)
+    loader.start((20, 10))
+    _wait_until(lambda: loader.buffered() == 2)
+
+    loader.stop()
+
+    loader.join(timeout=1)
+    assert not loader.is_alive()
+    assert loader.buffered() == 0
+
+
+def test_frame_loader_start_twice_is_rejected(frames_dir):
+    loader = _FrameLoader(sorted(frames_dir.glob("*.jpg")), 2, 0.05)
+    loader.start((20, 10))
+    try:
+        with pytest.raises(AssertionError):
+            loader.start((20, 10))
+    finally:
+        loader.stop()
+        loader.join(timeout=1)
 
 
 # ── standard_splash_media ──────────────────────────────────────────────
