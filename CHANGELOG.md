@@ -13,7 +13,9 @@ together rather than reconstructing a commit-by-commit rationale for every
 change. Anything before `e5c1fa6` (the commit that first introduced
 `pyproject.toml` itself) isn't versioned at all; see `git log` for that era.
 
-## [Unreleased]
+## [0.28.0] — 2026-11-03
+
+### Added
 
 - **Added** `GameObject.require_component(cls)` and
   `Component.require_component(cls)`: like `get_component()`, but the result
@@ -25,23 +27,31 @@ change. Anything before `e5c1fa6` (the commit that first introduced
   the image typed as `pygame.Surface` (not Optional), raising `LookupError`
   naming the object if no image is set yet. `image` itself stays Optional,
   since it's legitimately unset before `set_image()` (#14).
-- **Changed** `Application.window` is typed `pygame.Surface` instead of
-  `pygame.Surface | None`: `__init__` always creates it (an empty placeholder
-  that `set_fullscreen()` replaces with the real canvas), so games no longer need a `None` check before drawing
-  on it. The internal `assert self.window is not None` checks are gone (#14).
 - **Added** `clamp01(value)` in `pygamine.util.math_utils` (also exported
   from `pygamine`): clamps a value to 0-1. `GameAudio`, `SoundManager`,
   `Slider` and the splash fades use it instead of four copies of the same
-  clamp.
-- **Changed** `GameAudio.set_master_volume()`, `set_music_volume()` and
-  `set_sfx_volume()` are staticmethods now (were instance methods). They
+  clamp (#4).
+
+### Changed (breaking)
+
+- **Changed** (breaking) `Application.window` is typed `pygame.Surface`
+  instead of `pygame.Surface | None`: `__init__` always creates it (an empty
+  placeholder that `set_fullscreen()` replaces with the real canvas), so
+  games no longer need a `None` check before drawing on it. The internal
+  `assert self.window is not None` checks are gone (#14).
+
+### Changed
+
+- **Changed** `GameAudio.set_master_volume()`, `set_music_volume()`
+  and `set_sfx_volume()` are staticmethods now (were instance methods). They
   still write the one class-wide value on `GameAudio`, even when called
   through a subclass. Calls on an instance work as before; calls on the
-  class work too.
+  class work too (#4).
 - **Changed** ruff's `PLR6301` (no-self-use) is enabled for `pygamine/`.
   `TypedJSONCodec._to_dict` is a staticmethod, `MenuController`'s private
   `_focus`/`_unfocus` helpers are inlined, and the `JSONCodec`/`PickleCodec`
-  `encode`/`decode` methods stay instance methods (they implement `Codec`).
+  `encode`/`decode` methods stay instance methods (they implement `Codec`)
+  (#4).
 
 ## [0.27.0] — 2026-10-28
 
