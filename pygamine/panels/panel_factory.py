@@ -8,10 +8,11 @@ register them alongside these.
 
 from __future__ import annotations
 
-from typing import Callable
+from typing import Any, Callable
 
 import pygame
 
+from pygamine.assets.asset_resolver import AssetResolver
 from pygamine.assets.font import load_font
 from pygamine.assets.sprite_sheet import SpriteSheet
 from pygamine.ui_widgets.text_object import TextObject
@@ -22,56 +23,69 @@ from pygamine.ecs.components.transform import Transform
 from pygamine.ecs.state_object import StateObject, HoverableStateObject
 
 
-def make_factory(assets) -> Callable[[dict, Transform], StateObject]:
-    def make_gui_object(cfg: dict, parent: Transform) -> StateObject:
-        pos = cfg["position"]
-        size = tuple(cfg["size"]) if cfg["size"] != "WINDOW" else parent.size
-        asset = cfg.get("asset")
-        hover = cfg.get("hover")
-        extra_states = cfg.get("states", {})
-        nine_slice = cfg.get("nine_slice", 0)
-        anchor = cfg.get("anchor", "top-left")
-        color = cfg.get("color")
+def _state_asset(assets: AssetResolver, value: Any) -> Any:
+    """Resolves a manifest key (str) to an image path; passes anything else through."""
+    return assets.image_path(value) if isinstance(value, str) else value
 
-        if color is not None and asset is None:
-            obj = StateObject(
-                parent=parent, pos=pos, size=size, image_path=None, anchor=anchor
-            )
-            surf = pygame.Surface(size, pygame.SRCALPHA)
-            surf.fill(tuple(color))
-            obj.images[None] = surf
-            obj.set_state(None)
-        elif hover is not None or extra_states:
-            obj = HoverableStateObject(
-                parent=parent,
-                pos=pos,
-                size=size,
-                image_path=asset,
-                hover_image_path=hover,
-                nine_slice=nine_slice,
-                anchor=anchor,
-            )
-            for state_key, state_cfg in extra_states.items():
-                state_asset = (
-                    assets.image_path(state_cfg["asset"])
-                    if isinstance(state_cfg["asset"], str)
-                    else state_cfg["asset"]
-                )
-                state_hover = (
-                    assets.image_path(state_cfg["hover"])
-                    if isinstance(state_cfg.get("hover"), str)
-                    else state_cfg.get("hover")
-                )
-                obj.add_state(state_key, state_asset, state_hover)
+
+def _build_color_object(cfg: dict, parent: Transform, size: Any) -> StateObject:
+    obj = StateObject(
+        parent=parent,
+        pos=cfg["position"],
+        size=size,
+        image_path=None,
+        anchor=cfg.get("anchor", "top-left"),
+    )
+    surf = pygame.Surface(size, pygame.SRCALPHA)
+    surf.fill(tuple(cfg["color"]))
+    obj.images[None] = surf
+    obj.set_state(None)
+    return obj
+
+
+def _build_hoverable_object(
+    assets: AssetResolver, cfg: dict, parent: Transform, size: Any
+) -> HoverableStateObject:
+    obj = HoverableStateObject(
+        parent=parent,
+        pos=cfg["position"],
+        size=size,
+        image_path=cfg.get("asset"),
+        hover_image_path=cfg.get("hover"),
+        nine_slice=cfg.get("nine_slice", 0),
+        anchor=cfg.get("anchor", "top-left"),
+    )
+    for state_key, state_cfg in cfg.get("states", {}).items():
+        obj.add_state(
+            state_key,
+            _state_asset(assets, state_cfg["asset"]),
+            _state_asset(assets, state_cfg.get("hover")),
+        )
+    return obj
+
+
+def _build_image_object(cfg: dict, parent: Transform, size: Any) -> StateObject:
+    return StateObject(
+        parent=parent,
+        pos=cfg["position"],
+        size=size,
+        image_path=cfg.get("asset"),
+        nine_slice=cfg.get("nine_slice", 0),
+        anchor=cfg.get("anchor", "top-left"),
+    )
+
+
+def make_factory(assets: AssetResolver) -> Callable[[dict, Transform], StateObject]:
+    def make_gui_object(cfg: dict, parent: Transform) -> StateObject:
+        size = tuple(cfg["size"]) if cfg["size"] != "WINDOW" else parent.size
+
+        obj: StateObject
+        if cfg.get("color") is not None and cfg.get("asset") is None:
+            obj = _build_color_object(cfg, parent, size)
+        elif cfg.get("hover") is not None or cfg.get("states", {}):
+            obj = _build_hoverable_object(assets, cfg, parent, size)
         else:
-            obj = StateObject(
-                parent=parent,
-                pos=pos,
-                size=size,
-                image_path=asset,
-                nine_slice=nine_slice,
-                anchor=anchor,
-            )
+            obj = _build_image_object(cfg, parent, size)
 
         click_sound = cfg.get("on_click_sound")
         if click_sound:
@@ -81,7 +95,9 @@ def make_factory(assets) -> Callable[[dict, Transform], StateObject]:
     return make_gui_object
 
 
-def make_animated_factory(assets) -> Callable[[dict, Transform], AnimatedSprite]:
+def make_animated_factory(
+    assets: AssetResolver,
+) -> Callable[[dict, Transform], AnimatedSprite]:
     def make_animated_object(cfg: dict, parent: Transform) -> AnimatedSprite:
         pos = cfg["position"]
         size = tuple(cfg["size"]) if cfg.get("size") not in (None, "WINDOW") else (0, 0)
@@ -101,7 +117,7 @@ def make_animated_factory(assets) -> Callable[[dict, Transform], AnimatedSprite]
     return make_animated_object
 
 
-def make_slider_factory(assets) -> Callable[[dict, Transform], Slider]:
+def make_slider_factory(assets: AssetResolver) -> Callable[[dict, Transform], Slider]:
     def make_slider(cfg: dict, parent: Transform) -> Slider:
         return Slider(
             parent=parent,
@@ -114,7 +130,9 @@ def make_slider_factory(assets) -> Callable[[dict, Transform], Slider]:
     return make_slider
 
 
-def make_scrolling_panel_factory(assets) -> Callable[[dict, Transform], ScrollingPanel]:
+def make_scrolling_panel_factory(
+    assets: AssetResolver,
+) -> Callable[[dict, Transform], ScrollingPanel]:
     def make_scrolling_panel(cfg: dict, parent: Transform) -> ScrollingPanel:
         size = (
             tuple(cfg["size"]) if cfg.get("size", "WINDOW") != "WINDOW" else parent.size
@@ -132,7 +150,7 @@ def make_scrolling_panel_factory(assets) -> Callable[[dict, Transform], Scrollin
     return make_scrolling_panel
 
 
-def make_text_factory(assets) -> Callable[[dict, Transform], TextObject]:
+def make_text_factory(assets: AssetResolver) -> Callable[[dict, Transform], TextObject]:
     def make_text_object(cfg: dict, parent: Transform) -> TextObject:
         return TextObject(
             parent,

@@ -302,3 +302,53 @@ def test_layout_children_can_also_extend_templates(loader, tmp_path):
     assert play["size"] == [200, 40]
     assert play["position"] == [10, 10]
     assert loader.panel_manager["menu"]["exit"].obj_def["position"] == [10, 60]
+
+
+# ── extracted helpers ────────────────────────────────────────────────────
+
+
+def test_parse_layout_vertical_returns_axes():
+    from pygamine.panels.panel_loader_ext import _parse_layout
+
+    assert _parse_layout("g", {"start": [10, 20]}) == (True, 20, 10, 0)
+
+
+def test_parse_layout_horizontal_returns_axes():
+    from pygamine.panels.panel_loader_ext import _parse_layout
+
+    assert _parse_layout(
+        "g", {"direction": "horizontal", "start": [10, 20], "spacing": 4}
+    ) == (
+        False,
+        10,
+        20,
+        4,
+    )
+
+
+def test_parse_layout_rejects_bad_direction_start_and_non_numeric_main_axis():
+    from pygamine.panels.panel_loader_ext import _parse_layout
+
+    with pytest.raises(ValueError, match="direction"):
+        _parse_layout("g", {"direction": "diagonal", "start": [0, 0]})
+    with pytest.raises(ValueError, match="start must be"):
+        _parse_layout("g", {"start": [0]})
+    with pytest.raises(ValueError, match="numeric"):
+        _parse_layout("g", {"start": [0, "CENTER"]})
+
+
+def test_place_children_offsets_along_main_axis_and_inherits_parent():
+    from pygamine.panels.panel_loader_ext import _Layout, _place_children
+
+    out: dict = {}
+    obj_def = {"parent": "p", "objects": {"a": {}, "b": {}}}
+    _place_children("g", obj_def, _Layout(True, 100, 5, 50), out)
+    assert out["a"] == {"position": [5, 100], "parent": "p"}
+    assert out["b"] == {"position": [5, 150], "parent": "p"}
+
+
+def test_place_children_rejects_duplicate_names():
+    from pygamine.panels.panel_loader_ext import _Layout, _place_children
+
+    with pytest.raises(KeyError, match="duplicate"):
+        _place_children("g", {"objects": {"a": {}}}, _Layout(True, 0, 0, 1), {"a": {}})
