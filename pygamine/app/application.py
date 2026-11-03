@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from typing import Literal
 import sys
 import os
 import pygame
@@ -27,6 +28,8 @@ COMMON_RESOLUTIONS: tuple[tuple[int, int], ...] = (
     (3840, 2160),
 )
 
+WindowMode = Literal["fullscreen", "borderless", "windowed"]
+
 # Fraction of the screen a windowed-mode window may occupy, leaving headroom
 # for window chrome (title bar/borders).
 WINDOW_MARGIN = 0.8
@@ -35,6 +38,8 @@ WINDOW_MARGIN = 0.8
 def fit_rect(src_size: tuple[int, int], dst_size: tuple[int, int]) -> pygame.Rect:
     """Largest rect with src_size's aspect ratio that fits inside dst_size,
     centered in it. Pure geometry, so it needs no display."""
+    assert src_size[0] > 0 and src_size[1] > 0, f"fit_rect: bad source size {src_size}"
+    assert dst_size[0] > 0 and dst_size[1] > 0, f"fit_rect: bad target size {dst_size}"
     dst_w, dst_h = dst_size
     src_w, src_h = src_size
     scale = min(dst_w / src_w, dst_h / src_h)
@@ -47,7 +52,7 @@ class Application:
     # display mode switch) -> borderless fullscreen (screen-filling window,
     # no mode switch -- avoids the flash/flicker of a mode switch and plays
     # nicer with Windows DPI/GPU scaling) -> bordered windowed.
-    WINDOW_MODES: tuple[str, ...] = ("fullscreen", "borderless", "windowed")
+    WINDOW_MODES: tuple[WindowMode, ...] = ("fullscreen", "borderless", "windowed")
 
     def __init__(
         self,
@@ -61,7 +66,9 @@ class Application:
         self._is_running = False
         self._fps = fps
         self._is_in_debug_mode = False
-        self._window_mode = "windowed"  # overwritten below by set_fullscreen()
+        self._window_mode: WindowMode = (
+            "windowed"  # overwritten below by set_fullscreen()
+        )
         self._resolution_override: tuple[int, int] | None = None
         # By default, (fixed_aspect=False) this is no longer a "design/
         # authoring resolution" -- just the preferred default *windowed*
@@ -212,27 +219,29 @@ class Application:
             "borderless",
         )
 
-    def _apply_display(self, surface: pygame.Surface, mode: str) -> None:
+    def _apply_display(self, surface: pygame.Surface, mode: WindowMode) -> None:
         """Shared tail of the three mode setters: adopt the new display
-        surface, rebuild the render surface and mouse scale, record the mode."""
+        surface and record the mode, then rebuild the render surface and mouse
+        scale. The mode is recorded first so window_mode is already current
+        inside the on_canvas_resized() hook."""
         self.display_surface = surface
+        self._window_mode = mode
         self._rebuild_window_surface()
         self._sync_mouse_scale()
-        self._window_mode = mode
 
     @property
-    def window_mode(self) -> str:
+    def window_mode(self) -> WindowMode:
         """Current window mode, one of WINDOW_MODES (read-only)."""
         return self._window_mode
 
-    def set_window_mode(self, mode: str) -> None:
+    def set_window_mode(self, mode: WindowMode) -> None:
         """Apply one of WINDOW_MODES; raises ValueError for anything else."""
         methods = {
             "fullscreen": self.set_fullscreen,
             "borderless": self.set_borderless_fullscreen,
             "windowed": self.set_windowed,
         }
-        if mode not in methods:
+        if mode not in self.WINDOW_MODES:
             raise ValueError(
                 f"Unknown window mode {mode!r}; expected one of {self.WINDOW_MODES}"
             )
@@ -395,8 +404,12 @@ class Application:
         if "window_size" in saved_settings:
             self.set_resolution(tuple(saved_settings["window_size"]))
         mode = saved_settings.get("window_mode", "fullscreen")
-        # An unknown saved mode falls back to fullscreen rather than raising.
-        self.set_window_mode(mode if mode in self.WINDOW_MODES else "fullscreen")
+        # An unknown saved mode falls back to the first WINDOW_MODES entry
+        # (exclusive fullscreen) rather than raising.
+        try:
+            self.set_window_mode(mode)
+        except ValueError:
+            self.set_window_mode(self.WINDOW_MODES[0])
 
     def window_settings(self) -> dict:
         """The window-mode/resolution portion of a settings dict, for

@@ -252,38 +252,6 @@ def _set_display_surface(app, size: tuple[int, int]) -> None:
     app.display_surface = pygame.Surface(size)
 
 
-def test_fit_rect_pillarboxes_when_display_is_wider_than_design_aspect():
-    """1600x900 (16:9) is relatively wider than the fixed 320x240 (4:3)
-    design resolution, so it's height-constrained -- equal bars land on
-    the left/right instead of stretching width and height differently."""
-    app = _TrackedApp(fixed_aspect=True)
-    _set_display_surface(app, (1600, 900))
-
-    rect = fit_rect(app.window.get_size(), app.display_surface.get_size())
-
-    assert rect == pygame.Rect(200, 0, 1200, 900)
-
-
-def test_fit_rect_letterboxes_when_display_is_taller_than_design_aspect():
-    """800x900 is relatively taller/narrower than 4:3, so it's width-
-    constrained -- bars land on top/bottom instead."""
-    app = _TrackedApp(fixed_aspect=True)
-    _set_display_surface(app, (800, 900))
-
-    rect = fit_rect(app.window.get_size(), app.display_surface.get_size())
-
-    assert rect == pygame.Rect(0, 150, 800, 600)
-
-
-def test_fit_rect_fills_the_display_when_aspect_ratios_already_match():
-    app = _TrackedApp(fixed_aspect=True)
-    _set_display_surface(app, (1280, 960))  # same 4:3 as the 320x240 design
-
-    rect = fit_rect(app.window.get_size(), app.display_surface.get_size())
-
-    assert rect == pygame.Rect(0, 0, 1280, 960)
-
-
 def test_sync_mouse_scale_accounts_for_the_pillarbox_offset():
     app = _TrackedApp(fixed_aspect=True)
     _set_display_surface(app, (1600, 900))
@@ -587,12 +555,36 @@ def test_fit_rect_function_aspect_cases(src, dst, expected):
     assert fit_rect(src, dst) == expected
 
 
-def test_fit_rect_function_with_the_window_margin():
-    screen = (1920, 1080)
-    dst = (WINDOW_MARGIN * screen[0], WINDOW_MARGIN * screen[1])
-    rect = fit_rect((1280, 800), (int(dst[0]), int(dst[1])))
-    assert rect.width <= dst[0] and rect.height <= dst[1]
-    assert rect.center == (int(dst[0]) // 2, int(dst[1]) // 2)
+@pytest.mark.parametrize("bad", [(0, 240), (320, 0)])
+def test_fit_rect_rejects_a_zero_sized_source(bad):
+    with pytest.raises(AssertionError, match="source size"):
+        fit_rect(bad, (800, 600))
+
+
+def test_fit_rect_rejects_a_zero_sized_target():
+    with pytest.raises(AssertionError, match="target size"):
+        fit_rect((320, 240), (0, 600))
+
+
+def test_window_margin_bounds_windowed_size_and_available_resolutions():
+    app = _TrackedApp()
+    app.fullscreen_width = app.fullscreen_height = 1000
+    max_w = WINDOW_MARGIN * app.fullscreen_width
+    max_h = WINDOW_MARGIN * app.fullscreen_height
+
+    # The preferred 320x240 fits inside the margin, so it is used unchanged;
+    # an oversized preference is shrunk until it fits exactly.
+    assert app._windowed_physical_size() == (320, 240)
+    app.windowed_width, app.windowed_height = 2000, 1000
+    w, h = app._windowed_physical_size()
+    assert w == max_w and h <= max_h
+
+    resolutions = app.available_resolutions()
+    assert (1024, 576) not in resolutions  # 1024 > 0.8 * 1000
+    assert (1024, 576) not in resolutions and (3840, 2160) not in resolutions
+    assert all(
+        r == app.resolution or (r[0] <= max_w and r[1] <= max_h) for r in resolutions
+    )
 
 
 # ── window_mode / set_window_mode ───────────────────────────────────────
@@ -618,16 +610,48 @@ def test_window_mode_is_read_only():
         app.window_mode = "windowed"  # type: ignore[misc]
 
 
+def test_window_mode_is_current_inside_on_canvas_resized():
+    seen = []
+
+    class _Hook(_TrackedApp):
+        def _rebuild_window_surface(self):
+            seen.append(self.window_mode)
+            super()._rebuild_window_surface()
+
+    app = _Hook()
+    seen.clear()
+    app.set_window_mode("borderless")
+    app.set_window_mode("windowed")
+    assert seen == ["borderless", "windowed"]
+
+
+def test_set_window_mode_validates_against_window_modes():
+    class _NoFullscreen(_TrackedApp):
+        WINDOW_MODES = ("borderless", "windowed")
+
+    app = _NoFullscreen()
+    with pytest.raises(ValueError):
+        app.set_window_mode("fullscreen")
+    app.restore_window_settings({"window_mode": "bogus"})
+    assert app.window_mode == "borderless"
+
+
 def test_cycle_and_restore_go_through_set_window_mode(monkeypatch):
     app = _TrackedApp()
     calls = []
-    monkeypatch.setattr(app, "set_window_mode", calls.append)
+    real = app.set_window_mode
+
+    def spy(mode):
+        calls.append(mode)
+        real(mode)
+
+    monkeypatch.setattr(app, "set_window_mode", spy)
 
     app.cycle_window_mode()
     app.restore_window_settings({"window_mode": "windowed"})
     app.restore_window_settings({"window_mode": "bogus"})
 
-    assert calls == ["borderless", "windowed", "fullscreen"]
+    assert calls == ["borderless", "windowed", "bogus", "fullscreen"]
 
 
 # ── _handle_core_event: debug toggle, F11, escape/quit -> exit ──────────
