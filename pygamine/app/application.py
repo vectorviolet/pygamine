@@ -27,6 +27,20 @@ COMMON_RESOLUTIONS: tuple[tuple[int, int], ...] = (
     (3840, 2160),
 )
 
+# Fraction of the screen a windowed-mode window may occupy, leaving headroom
+# for window chrome (title bar/borders).
+WINDOW_MARGIN = 0.8
+
+
+def fit_rect(src_size: tuple[int, int], dst_size: tuple[int, int]) -> pygame.Rect:
+    """Largest rect with src_size's aspect ratio that fits inside dst_size,
+    centered in it. Pure geometry, so it needs no display."""
+    dst_w, dst_h = dst_size
+    src_w, src_h = src_size
+    scale = min(dst_w / src_w, dst_h / src_h)
+    w, h = round(src_w * scale), round(src_h * scale)
+    return pygame.Rect((dst_w - w) // 2, (dst_h - h) // 2, w, h)
+
 
 class Application:
     # Cycle order for F11 / cycle_window_mode(): exclusive fullscreen (real
@@ -83,7 +97,7 @@ class Application:
         # resolution, scaled only by render_scale -- for a hand-authored
         # pixel layout that must never reveal extra space on a wider/
         # taller monitor. _present()/_sync_mouse_scale() then compute a
-        # centered _fit_rect() and blit into that instead of the full
+        # centered fit_rect() and blit into that instead of the full
         # display, filling the leftover bars with black; Mouse.offset
         # accounts for those bars so clicks still map to the right logical
         # coordinate. This is the direct opposite tradeoff from the default:
@@ -178,30 +192,51 @@ class Application:
         # this is the one call site that can run many times in a session
         # (window mode/resolution pickers, F11), not just at startup.
         self.center_window()
-        self.display_surface = pygame.display.set_mode(self._windowed_physical_size())
-        self._rebuild_window_surface()
-        self._sync_mouse_scale()
-        self._window_mode = "windowed"
+        self._apply_display(
+            pygame.display.set_mode(self._windowed_physical_size()), "windowed"
+        )
 
     def set_fullscreen(self) -> None:
-        self.display_surface = pygame.display.set_mode(
-            self.fullscreen_size, pygame.FULLSCREEN
+        self._apply_display(
+            pygame.display.set_mode(self.fullscreen_size, pygame.FULLSCREEN),
+            "fullscreen",
         )
-        self._rebuild_window_surface()
-        self._sync_mouse_scale()
-        self._window_mode = "fullscreen"
 
     def set_borderless_fullscreen(self) -> None:
         # A window sized to exactly the screen with no border/title bar --
         # fills the screen like FULLSCREEN but without an exclusive display
         # mode switch, so no flash/flicker on alt-tab and no interaction
         # with GPU/monitor scaling behavior tied to exclusive mode switches.
-        self.display_surface = pygame.display.set_mode(
-            self.fullscreen_size, pygame.NOFRAME
+        self._apply_display(
+            pygame.display.set_mode(self.fullscreen_size, pygame.NOFRAME),
+            "borderless",
         )
+
+    def _apply_display(self, surface: pygame.Surface, mode: str) -> None:
+        """Shared tail of the three mode setters: adopt the new display
+        surface, rebuild the render surface and mouse scale, record the mode."""
+        self.display_surface = surface
         self._rebuild_window_surface()
         self._sync_mouse_scale()
-        self._window_mode = "borderless"
+        self._window_mode = mode
+
+    @property
+    def window_mode(self) -> str:
+        """Current window mode, one of WINDOW_MODES (read-only)."""
+        return self._window_mode
+
+    def set_window_mode(self, mode: str) -> None:
+        """Apply one of WINDOW_MODES; raises ValueError for anything else."""
+        methods = {
+            "fullscreen": self.set_fullscreen,
+            "borderless": self.set_borderless_fullscreen,
+            "windowed": self.set_windowed,
+        }
+        if mode not in methods:
+            raise ValueError(
+                f"Unknown window mode {mode!r}; expected one of {self.WINDOW_MODES}"
+            )
+        methods[mode]()
 
     def _rebuild_window_surface(self) -> None:
         """Keep the logical render target (self.window) matching the real OS
@@ -259,14 +294,9 @@ class Application:
         """Advance through WINDOW_MODES by `step` (wraps around) and apply
         the result. F11 calls this with the default step to cycle
         fullscreen -> borderless -> windowed -> fullscreen ..."""
-        methods = {
-            "fullscreen": self.set_fullscreen,
-            "borderless": self.set_borderless_fullscreen,
-            "windowed": self.set_windowed,
-        }
         index = self.WINDOW_MODES.index(self._window_mode)
         new_mode = self.WINDOW_MODES[(index + step) % len(self.WINDOW_MODES)]
-        methods[new_mode]()
+        self.set_window_mode(new_mode)
 
     @property
     def _is_fullscreen(self) -> bool:
@@ -281,11 +311,10 @@ class Application:
             return self._resolution_override
         # Leave headroom for window chrome (title bar/borders) and never
         # upscale past the preferred windowed size -- cap the shrink factor at 1.0.
-        margin = 0.8
         fit = min(
             1.0,
-            margin * self.fullscreen_width / self.windowed_width,
-            margin * self.fullscreen_height / self.windowed_height,
+            WINDOW_MARGIN * self.fullscreen_width / self.windowed_width,
+            WINDOW_MARGIN * self.fullscreen_height / self.windowed_height,
         )
         return round(self.windowed_width * fit), round(self.windowed_height * fit)
 
@@ -294,9 +323,8 @@ class Application:
         window chrome (same margin _windowed_physical_size() uses when there's
         no explicit choice), plus whatever's currently selected so there's
         always at least one entry and the current pick is never dropped."""
-        margin = 0.8
-        max_width = margin * self.fullscreen_width
-        max_height = margin * self.fullscreen_height
+        max_width = WINDOW_MARGIN * self.fullscreen_width
+        max_height = WINDOW_MARGIN * self.fullscreen_height
         fitting = {
             r for r in COMMON_RESOLUTIONS if r[0] <= max_width and r[1] <= max_height
         }
@@ -367,12 +395,8 @@ class Application:
         if "window_size" in saved_settings:
             self.set_resolution(tuple(saved_settings["window_size"]))
         mode = saved_settings.get("window_mode", "fullscreen")
-        mode_methods = {
-            "fullscreen": self.set_fullscreen,
-            "borderless": self.set_borderless_fullscreen,
-            "windowed": self.set_windowed,
-        }
-        mode_methods.get(mode, self.set_fullscreen)()
+        # An unknown saved mode falls back to fullscreen rather than raising.
+        self.set_window_mode(mode if mode in self.WINDOW_MODES else "fullscreen")
 
     def window_settings(self) -> dict:
         """The window-mode/resolution portion of a settings dict, for
@@ -389,22 +413,11 @@ class Application:
         self.clear_resolution_override()
         self.set_fullscreen()
 
-    def _fit_rect(self, dst_size: tuple[int, int]) -> pygame.Rect:
-        """Largest rect that fits dst_size while preserving self.window's
-        aspect ratio, centered inside it. Only meaningful under
-        fixed_aspect=True -- self.window's aspect always matches dst_size's
-        otherwise, so this would just return the full dst_size rect."""
-        dst_w, dst_h = dst_size
-        src_w, src_h = self.window.get_size()
-        scale = min(dst_w / src_w, dst_h / src_h)
-        w, h = round(src_w * scale), round(src_h * scale)
-        return pygame.Rect((dst_w - w) // 2, (dst_h - h) // 2, w, h)
-
     def _sync_mouse_scale(self) -> None:
         if not self.mouse:
             return
         if self.fixed_aspect:
-            rect = self._fit_rect(self.display_surface.get_size())
+            rect = fit_rect(self.window.get_size(), self.display_surface.get_size())
             self.mouse.scale = (
                 self.window.get_width() / rect.width,
                 self.window.get_height() / rect.height,
@@ -456,25 +469,30 @@ class Application:
             self._present()
 
     def _present(self) -> None:
-        dst_size = self.display_surface.get_size()
-
         if self.fixed_aspect:
-            # self.window is locked to the design resolution (see
-            # _scaled_render_size()), so its aspect ratio generally does
-            # NOT match dst_size -- fill the whole display with black first,
-            # then scale into a centered, aspect-preserving sub-rect rather
-            # than stretching across the full (differently-shaped) display.
-            rect = self._fit_rect(dst_size)
-            if rect.size == dst_size:
-                pygame.transform.scale(self.window, dst_size, self.display_surface)
-            else:
-                self.display_surface.fill((0, 0, 0))
-                pygame.transform.scale(
-                    self.window, rect.size, self.display_surface.subsurface(rect)
-                )
-            pygame.display.update()
-            return
+            self._present_letterboxed()
+        else:
+            self._present_scaled()
+        pygame.display.update()
 
+    def _present_letterboxed(self) -> None:
+        dst_size = self.display_surface.get_size()
+        # self.window is locked to the design resolution (see
+        # _scaled_render_size()), so its aspect ratio generally does
+        # NOT match dst_size -- fill the whole display with black first,
+        # then scale into a centered, aspect-preserving sub-rect rather
+        # than stretching across the full (differently-shaped) display.
+        rect = fit_rect(self.window.get_size(), dst_size)
+        if rect.size == dst_size:
+            pygame.transform.scale(self.window, dst_size, self.display_surface)
+        else:
+            self.display_surface.fill((0, 0, 0))
+            pygame.transform.scale(
+                self.window, rect.size, self.display_surface.subsurface(rect)
+            )
+
+    def _present_scaled(self) -> None:
+        dst_size = self.display_surface.get_size()
         # At the default render_scale (1.0), self.window always matches
         # display_surface's size exactly (kept in sync by
         # _rebuild_window_surface() on every mode/resolution/render_scale
@@ -484,7 +502,6 @@ class Application:
             self.display_surface.blit(self.window, (0, 0))
         else:
             pygame.transform.scale(self.window, dst_size, self.display_surface)
-        pygame.display.update()
 
     def _listen_inputs(self) -> None:
         if self.mouse:

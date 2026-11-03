@@ -16,7 +16,7 @@ import sys
 import pygame
 import pytest
 
-from pygamine.app.application import Application
+from pygamine.app.application import WINDOW_MARGIN, Application, fit_rect
 from pygamine.app.mouse import Mouse
 
 
@@ -232,7 +232,7 @@ def test_sync_mouse_scale_is_a_noop_without_a_mouse():
 # fixed_aspect=True locks self.window to the design resolution (`size`,
 # cached as windowed_size) regardless of the real display's own shape --
 # the opposite default from fixed_aspect=False (self.window always matches
-# the display's aspect, see above). _fit_rect/_present/_sync_mouse_scale
+# the display's aspect, see above). fit_rect/_present/_sync_mouse_scale
 # then center the locked-aspect window inside the display with black bars,
 # rather than either distorting it (naive stretch) or letting extra world
 # space show through on a mismatched monitor.
@@ -259,7 +259,7 @@ def test_fit_rect_pillarboxes_when_display_is_wider_than_design_aspect():
     app = _TrackedApp(fixed_aspect=True)
     _set_display_surface(app, (1600, 900))
 
-    rect = app._fit_rect(app.display_surface.get_size())
+    rect = fit_rect(app.window.get_size(), app.display_surface.get_size())
 
     assert rect == pygame.Rect(200, 0, 1200, 900)
 
@@ -270,7 +270,7 @@ def test_fit_rect_letterboxes_when_display_is_taller_than_design_aspect():
     app = _TrackedApp(fixed_aspect=True)
     _set_display_surface(app, (800, 900))
 
-    rect = app._fit_rect(app.display_surface.get_size())
+    rect = fit_rect(app.window.get_size(), app.display_surface.get_size())
 
     assert rect == pygame.Rect(0, 150, 800, 600)
 
@@ -279,7 +279,7 @@ def test_fit_rect_fills_the_display_when_aspect_ratios_already_match():
     app = _TrackedApp(fixed_aspect=True)
     _set_display_surface(app, (1280, 960))  # same 4:3 as the 320x240 design
 
-    rect = app._fit_rect(app.display_surface.get_size())
+    rect = fit_rect(app.window.get_size(), app.display_surface.get_size())
 
     assert rect == pygame.Rect(0, 0, 1280, 960)
 
@@ -568,6 +568,66 @@ def test_reset_window_settings_returns_to_fullscreen_with_no_override():
 
     assert app._window_mode == "fullscreen"
     assert app._resolution_override is None
+
+
+# ── fit_rect (pure geometry) ────────────────────────────────────────────
+
+
+@pytest.mark.parametrize(
+    ("src", "dst", "expected"),
+    [
+        ((320, 240), (1600, 900), pygame.Rect(200, 0, 1200, 900)),  # pillarbox
+        ((320, 240), (800, 900), pygame.Rect(0, 150, 800, 600)),  # letterbox
+        ((320, 240), (1280, 960), pygame.Rect(0, 0, 1280, 960)),  # exact fit
+        ((320, 240), (320, 240), pygame.Rect(0, 0, 320, 240)),  # identity
+        ((1920, 1080), (960, 960), pygame.Rect(0, 210, 960, 540)),  # downscale
+    ],
+)
+def test_fit_rect_function_aspect_cases(src, dst, expected):
+    assert fit_rect(src, dst) == expected
+
+
+def test_fit_rect_function_with_the_window_margin():
+    screen = (1920, 1080)
+    dst = (WINDOW_MARGIN * screen[0], WINDOW_MARGIN * screen[1])
+    rect = fit_rect((1280, 800), (int(dst[0]), int(dst[1])))
+    assert rect.width <= dst[0] and rect.height <= dst[1]
+    assert rect.center == (int(dst[0]) // 2, int(dst[1]) // 2)
+
+
+# ── window_mode / set_window_mode ───────────────────────────────────────
+
+
+@pytest.mark.parametrize("mode", Application.WINDOW_MODES)
+def test_set_window_mode_applies_every_mode(mode):
+    app = _TrackedApp()
+    app.set_window_mode(mode)
+    assert app.window_mode == mode
+
+
+def test_set_window_mode_rejects_an_invalid_mode():
+    app = _TrackedApp()
+    with pytest.raises(ValueError):
+        app.set_window_mode("maximized")
+    assert app.window_mode == "fullscreen"
+
+
+def test_window_mode_is_read_only():
+    app = _TrackedApp()
+    with pytest.raises(AttributeError):
+        app.window_mode = "windowed"  # type: ignore[misc]
+
+
+def test_cycle_and_restore_go_through_set_window_mode(monkeypatch):
+    app = _TrackedApp()
+    calls = []
+    monkeypatch.setattr(app, "set_window_mode", calls.append)
+
+    app.cycle_window_mode()
+    app.restore_window_settings({"window_mode": "windowed"})
+    app.restore_window_settings({"window_mode": "bogus"})
+
+    assert calls == ["borderless", "windowed", "fullscreen"]
 
 
 # ── _handle_core_event: debug toggle, F11, escape/quit -> exit ──────────

@@ -25,9 +25,18 @@ change. Anything before `e5c1fa6` (the commit that first introduced
   `image_path` / `sound_path` / `font_path` lookups. The panel loaders, panel
   factories and `load_font` are annotated with it instead of `AssetManager`
   (type-only; `AssetManager` satisfies it) (#4).
+- **Added** `Application.window_mode` (read-only property) and
+  `Application.set_window_mode(mode)` (raises `ValueError` for an unknown mode),
+  plus a module-level `pygamine.app.application.fit_rect(src_size, dst_size)` and
+  `WINDOW_MARGIN`. `cycle_window_mode` and `restore_window_settings` share one
+  mode-to-method mapping (#4).
 
 ### Changed
 
+- **Changed** internal refactor of `Application`: `_present` is split into
+  `_present_letterboxed` and `_present_scaled`, the three window-mode setters share
+  `_apply_display`, and the private `_fit_rect` method became the module-level
+  `fit_rect`. No behavior change (#4).
 - **Changed** internal refactor of the panel loaders: `PanelLoader.load()` now
   calls a no-op `_preprocess(data)` hook that `PanelLoaderExt` overrides instead
   of copying `load()`; `_expand_in`, `_scale_def`, `_add_object` and
