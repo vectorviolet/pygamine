@@ -15,6 +15,8 @@ change. Anything before `e5c1fa6` (the commit that first introduced
 
 ## [Unreleased]
 
+## [0.29.0] — 2026-11-04
+
 ### Added
 
 - **Added** `pygamine.util.localization`: YAML string tables per language,
@@ -35,6 +37,15 @@ change. Anything before `e5c1fa6` (the commit that first introduced
   `_hovered` / `_renderer`, and now types `buttons` and `audio` with the small
   `Focusable` and `SfxPlayer` protocols (`HoverableStateObject` and `GameAudio`
   satisfy them) (#4).
+
+### Changed (breaking)
+
+- **Changed** (breaking, for test code) `Application._window_mode` is now a
+  read-only property that forwards to `Display`; code that assigned it must call
+  `set_window_mode()` instead. Test fakes that build a `Game`/`Application`
+  without running `__init__` (e.g. via `object.__new__`) must also set
+  `app.display`, since every display call now goes through it. Real games are
+  unaffected; Chokepoint and Highrise fix their fakes in their 0.29.0 bump PRs (#4).
 
 ### Changed
 
@@ -67,7 +78,6 @@ change. Anything before `e5c1fa6` (the commit that first introduced
   of copying `load()`; `_expand_in`, `_scale_def`, `_add_object` and
   `make_factory`'s builder are split into smaller helpers. No behavior change,
   public names and signatures unchanged (#4).
-
 - **Changed** this repo's lock now resolves Pillow 13.0.0 (was 11.3.0) through
   a uv `override-dependencies` entry (`pillow>=13,<14`), which clears the open
   Pillow security alerts. Pillow comes in through moviepy (the `video` extra
@@ -76,7 +86,7 @@ change. Anything before `e5c1fa6` (the commit that first introduced
   lower bound, so the extra stays installable with pip). The override covers
   only this lock: `uv run --with moviepy pygamine-mp4-converter` and pip
   installs of `pygamine[video]` still follow moviepy's cap (#17).
-- ruff now enforces complexity ceilings: `C901` max-complexity 8, `PLR0912`
+- **Changed** ruff now enforces complexity ceilings: `C901` max-complexity 8, `PLR0912`
   max-branches 8, `PLR0915` max-statements 25 (`PLR0913` stays off). This closes
   the #4 audit (#4).
 
