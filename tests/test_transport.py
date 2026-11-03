@@ -10,6 +10,7 @@ but without any game logic. Reliability rules followed here:
 from __future__ import annotations
 
 import queue
+import socket
 import struct
 import threading
 
@@ -108,4 +109,56 @@ def test_broadcast_reaches_every_client(free_port):
     finally:
         c1.disconnect()
         c2.disconnect()
+        server.close()
+
+
+def test_listen_binds_and_marks_the_server_running(free_port):
+    statuses: list[str] = []
+    server = BaseServer(on_status=statuses.append)
+    try:
+        assert server._listen(("127.0.0.1", free_port)) is True
+        assert server.is_running is True
+        assert statuses == [f"[SERVER] listening on ('127.0.0.1', {free_port})"]
+    finally:
+        server.close()
+
+
+def test_listen_failure_is_reported_and_start_returns_instead_of_accepting(free_port):
+    # TEST-NET-1 (RFC 5737) is no local interface, so bind() raises OSError
+    # on default hosts -- unlike a busy port, which SO_REUSEADDR can share.
+    address = ("203.0.113.1", free_port)
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as probe:
+        try:
+            probe.bind(address)
+        except OSError:
+            pass
+        else:  # e.g. Linux with net.ipv4.ip_nonlocal_bind=1
+            pytest.skip("this host allows binding to a non-local address")
+    statuses: list[str] = []
+    server = BaseServer(on_status=statuses.append)
+    try:
+        assert server._listen(address) is False
+        server.start(address)  # must return, not block in the accept loop
+        assert server.is_running is False
+        assert len(statuses) == 2
+        assert all(m.startswith("[SERVER] bind/listen failed") for m in statuses)
+    finally:
+        server.close()
+
+
+def test_accept_loop_registers_and_announces_each_connection(free_port):
+    connected: queue.Queue = queue.Queue()
+    server = BaseServer(on_connect=connected.put)
+    assert server._listen(("127.0.0.1", free_port))
+    # Daemon thread: closing a listening socket doesn't wake a blocked accept()
+    # on every platform, so the test doesn't wait for the loop to return.
+    threading.Thread(target=server._accept_loop, daemon=True).start()
+    client = BaseClient(on_message=lambda msg: None)
+
+    try:
+        assert client.connect(("127.0.0.1", free_port))
+        connection = connected.get(timeout=2)
+        assert connection in server._connections
+    finally:
+        client.disconnect()
         server.close()

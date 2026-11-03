@@ -34,29 +34,38 @@ def load_image(
     - A zero component in `size` means 'keep the source dimension on that axis'.
     - If nine_slice > 0, scale to size using 9-slice (corners pixel-perfect).
     """
+    img = _cached_surface(path)
+    resolved = _resolve_size(size, img)
+    if resolved is None:
+        return (img, list(img.get_size())) if return_size else img
+
+    if nine_slice > 0:
+        result = nine_slice_scale(img, (resolved[0], resolved[1]), nine_slice)
+    else:
+        result = pygame.transform.scale(img, resolved)
+    return (result, resolved) if return_size else result
+
+
+def _cached_surface(path) -> pygame.Surface:
+    """The converted surface for `path`, loaded from disk on first use."""
     path_str = str(path)
     if path_str not in _cache:
         _cache[path_str] = pygame.image.load(path).convert_alpha()
-    img = _cache[path_str]
+    return _cache[path_str]
 
-    if size is None:
-        size = [0, 0]
-    elif isinstance(size, tuple):
-        size = list(size)
 
-    if size == [0, 0]:
-        return (img, list(img.get_size())) if return_size else img
-
-    if size[0] == 0:
-        size[0] = img.get_width()
-    if size[1] == 0:
-        size[1] = img.get_height()
-
-    if nine_slice > 0:
-        result = nine_slice_scale(img, (size[0], size[1]), nine_slice)
-    else:
-        result = pygame.transform.scale(img, size)
-    return (result, size) if return_size else result
+def _resolve_size(size, img: pygame.Surface) -> list[int] | None:
+    """The target `[w, h]` for `size`, with a zero component replaced by
+    `img`'s dimension on that axis; None if no scaling was asked for
+    (size None or (0, 0))."""
+    resolved = [0, 0] if size is None else list(size)
+    if resolved == [0, 0]:
+        return None
+    if resolved[0] == 0:
+        resolved[0] = img.get_width()
+    if resolved[1] == 0:
+        resolved[1] = img.get_height()
+    return resolved
 
 
 def scale(image: pygame.Surface, size) -> pygame.Surface:

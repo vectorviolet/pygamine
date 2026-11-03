@@ -139,6 +139,15 @@ class HoverableStateObject(StateObject):
                 return self._hover_images[None]
         return self.images[self._state]
 
+    def clear_hover(self) -> None:
+        """Drop the mouse-hover state and redraw, e.g. when the keyboard takes
+        over and the mouse is still resting on this object. Hover comes back
+        on the next mouse motion over it."""
+        if not self._hovered:
+            return
+        self._hovered = False
+        self._renderer.set_image(self._active_surface)
+
     def handle_event(self, event, mouse_pos: tuple) -> None:
         if event.type != pygame.MOUSEMOTION:
             return

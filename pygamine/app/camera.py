@@ -103,23 +103,30 @@ class Camera:
         keep the scroll rate independent of the actual frame rate."""
         if not self.scroll_rect.collidepoint(mouse_pos):
             return
-        mx, my = mouse_pos
-        step = self._speed * frames
-        dx = dy = 0.0
-        if mx > self.scroll_rect.right - self._edge_scroll_zone:
-            dx = -step
-        if mx < self.scroll_rect.left + self._edge_scroll_zone:
-            dx = +step
-        if my > self.scroll_rect.bottom - self._edge_scroll_zone:
-            dy = -step
-        if my < self.scroll_rect.top + self._edge_scroll_zone:
-            dy = +step
+        dx, dy = self._edge_scroll_delta(mouse_pos, self._speed * frames)
         if dx or dy:
             self._offset.x += dx
             self._offset.y += dy
             self._clamp_offset()
 
     # ── internals ─────────────────────────────────────────────────────────────
+
+    def _edge_scroll_delta(self, pos, step: float) -> tuple[float, float]:
+        """The offset change for the mouse at `pos`: `step` px away from
+        each scroll_rect edge it is within the edge zone of (0 on an axis
+        it isn't near either edge of)."""
+        mx, my = pos
+        zone = self._edge_scroll_zone
+        dx = dy = 0.0
+        if mx > self.scroll_rect.right - zone:
+            dx = -step
+        if mx < self.scroll_rect.left + zone:
+            dx = +step
+        if my > self.scroll_rect.bottom - zone:
+            dy = -step
+        if my < self.scroll_rect.top + zone:
+            dy = +step
+        return dx, dy
 
     def _inside_viewport(self, screen_pos) -> bool:
         return self.rect.collidepoint(screen_pos)

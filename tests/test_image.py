@@ -9,7 +9,14 @@ from pathlib import Path
 import pygame
 import pytest
 
-from pygamine.assets.image import load_image, nine_slice_scale, scale, scale_by
+from pygamine.assets.image import (
+    _cached_surface,
+    _resolve_size,
+    load_image,
+    nine_slice_scale,
+    scale,
+    scale_by,
+)
 
 
 def _save_png(path, size, color):
@@ -190,3 +197,29 @@ def test_nine_slice_scale_to_the_same_size_is_pixel_identical():
     assert result.get_at((5, 5)) == RED
     assert result.get_at((15, 15)) == CYAN
     assert result.get_at((25, 25)) == PINK
+
+
+# ── load_image helpers ──────────────────────────────────────────────────
+
+
+def test_cached_surface_loads_once_per_path(image_path):
+    assert _cached_surface(image_path) is _cached_surface(str(image_path))
+
+
+@pytest.mark.parametrize("size", [None, (0, 0), [0, 0]])
+def test_resolve_size_is_none_when_no_scaling_is_asked_for(image_path, size):
+    assert _resolve_size(size, _cached_surface(image_path)) is None
+
+
+@pytest.mark.parametrize(
+    ("size", "expected"),
+    [((10, 5), [10, 5]), ((0, 5), [40, 5]), ([10, 0], [10, 20])],
+)
+def test_resolve_size_fills_a_zero_axis_from_the_source(image_path, size, expected):
+    assert _resolve_size(size, _cached_surface(image_path)) == expected
+
+
+def test_resolve_size_does_not_mutate_the_callers_list(image_path):
+    size = [0, 5]
+    _resolve_size(size, _cached_surface(image_path))
+    assert size == [0, 5]

@@ -5,12 +5,14 @@ the path host projects' smoke tests otherwise never exercise.
 
 from __future__ import annotations
 
+import time
+
 import pygame
 import pytest
 
 from pygamine.app.application import Application
 from pygamine.app.splash_screen import ImageMedia, SplashScreen
-from pygamine.devtools.smoke import run_briefly
+from pygamine.devtools.smoke import _fast_forward_splash, _FrameCounter, run_briefly
 
 
 @pytest.fixture(autouse=True)
@@ -118,3 +120,51 @@ def test_a_splash_that_never_ends_fails_instead_of_hanging():
     app = CountingApp([NeverEndingMedia()])
     with pytest.raises(RuntimeError, match="didn't finish"):
         run_briefly(app, frames=3, timeout_s=0.2)
+
+
+# ── helpers ─────────────────────────────────────────────────────────────
+
+
+def test_fast_forward_splash_advances_the_clock_only_while_the_splash_runs(tmp_path):
+    app = CountingApp([_logo(tmp_path, "a")])
+    real_get, real_ticks = pygame.event.get, pygame.time.get_ticks
+
+    with _fast_forward_splash(app, 1000, time.monotonic() + 30, "timed out"):
+        before = pygame.time.get_ticks()
+        pygame.event.get()
+        assert pygame.time.get_ticks() - before >= 1000
+        app.splash.is_done = True
+        settled = pygame.time.get_ticks()
+        pygame.event.get()
+        assert pygame.time.get_ticks() - settled < 1000  # no further jump
+
+    assert pygame.event.get is real_get
+    assert pygame.time.get_ticks is real_ticks
+
+
+def test_fast_forward_splash_restores_the_patches_after_a_timeout():
+    app = CountingApp()
+    real_get, real_ticks = pygame.event.get, pygame.time.get_ticks
+
+    with pytest.raises(RuntimeError, match="timed out"):
+        with _fast_forward_splash(app, 1, time.monotonic() - 1, "timed out"):
+            pygame.event.get()
+
+    assert pygame.event.get is real_get
+    assert pygame.time.get_ticks is real_ticks
+
+
+def test_frame_counter_counts_updates_stops_the_loop_and_unpatches():
+    app = CountingApp()
+    app._is_running = True
+    counter = _FrameCounter(app, 2)
+
+    with counter.installed():
+        app.update()
+        assert app._is_running is True
+        app.update()
+        assert app._is_running is False
+
+    assert counter.count == 2
+    assert app.updates == 2  # the app's own update still ran each time
+    assert "update" not in vars(app)

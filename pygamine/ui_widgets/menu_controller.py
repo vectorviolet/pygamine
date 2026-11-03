@@ -1,28 +1,50 @@
 """Keyboard-navigable menu controller.
 
-Takes a list of button objects (HoverableStateObject-derived; must expose
-`focused`, `_hovered`, `_renderer`, `is_mouse_over`) and adds arrow-key /
+Takes a list of button objects (HoverableStateObject-derived; anything that
+satisfies the Focusable protocol) and adds arrow-key /
 mouse cycling between buttons with switch-up/down sounds. The focused
-button renders its hover image (HoverableStateObject's _active_surface
-swaps on `_hovered OR _focused`).
+button renders its hover image (HoverableStateObject's active surface
+swaps on hovered OR focused).
 
 Decouples menu *behaviour* from menu *layout* — the buttons themselves
 are declared in YAML as regular image objects with child text objects.
 
-The `audio` arg only needs a `.play_sfx(path)` method; the up/down sound
-paths are passed in so projects control their own assets.
+The `audio` arg only needs to satisfy SfxPlayer (a `.play_sfx(path)`
+method); the up/down sound paths are passed in so projects control their
+own assets.
 """
 
 from __future__ import annotations
 
-from typing import Any
+from collections.abc import Sequence
+from typing import Any, Protocol
 
 import pygame
 
 
+class Focusable(Protocol):
+    """What MenuController needs from a button (HoverableStateObject fits)."""
+
+    focused: bool
+
+    def is_mouse_over(self, pos: Any) -> bool: ...
+
+    def clear_hover(self) -> None: ...
+
+
+class SfxPlayer(Protocol):
+    """What MenuController needs from `audio` (GameAudio fits)."""
+
+    def play_sfx(self, path: Any) -> Any: ...
+
+
 class MenuController:
     def __init__(
-        self, buttons: list, audio=None, switch_up_path=None, switch_down_path=None
+        self,
+        buttons: Sequence[Focusable],
+        audio: SfxPlayer | None = None,
+        switch_up_path=None,
+        switch_down_path=None,
     ) -> None:
         self.buttons = buttons
         self.audio = audio
@@ -71,9 +93,8 @@ class MenuController:
         """When keyboard takes focus, drop any mouse-hover still set on
         non-focused buttons — they un-freeze the next time MOUSEMOTION fires."""
         for b in self.buttons:
-            if not b.focused and b._hovered:
-                b._hovered = False
-                b._renderer.set_image(b._active_surface)
+            if not b.focused:
+                b.clear_hover()
 
     def handle_event(self, event, mouse_position) -> None:
         if event.type == pygame.MOUSEMOTION:
@@ -82,5 +103,5 @@ class MenuController:
             self._handle_key(event)
 
     @property
-    def focused(self) -> Any:
+    def focused(self) -> Focusable | None:
         return next((b for b in self.buttons if b.focused), None)
