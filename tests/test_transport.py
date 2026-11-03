@@ -10,6 +10,7 @@ but without any game logic. Reliability rules followed here:
 from __future__ import annotations
 
 import queue
+import socket
 import struct
 import threading
 
@@ -123,11 +124,18 @@ def test_listen_binds_and_marks_the_server_running(free_port):
 
 
 def test_listen_failure_is_reported_and_start_returns_instead_of_accepting(free_port):
+    # TEST-NET-1 (RFC 5737) is no local interface, so bind() raises OSError
+    # on default hosts -- unlike a busy port, which SO_REUSEADDR can share.
+    address = ("203.0.113.1", free_port)
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as probe:
+        try:
+            probe.bind(address)
+        except OSError:
+            pass
+        else:  # e.g. Linux with net.ipv4.ip_nonlocal_bind=1
+            pytest.skip("this host allows binding to a non-local address")
     statuses: list[str] = []
     server = BaseServer(on_status=statuses.append)
-    # TEST-NET-1 (RFC 5737) is no local interface, so bind() raises OSError
-    # on every platform -- unlike a busy port, which SO_REUSEADDR can share.
-    address = ("203.0.113.1", free_port)
     try:
         assert server._listen(address) is False
         server.start(address)  # must return, not block in the accept loop
