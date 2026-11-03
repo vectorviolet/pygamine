@@ -190,6 +190,12 @@ class BaseServer:
         Bind to ("", port) to listen on 0.0.0.0 and avoid hostname-resolution
         flakiness.
         """
+        if self._listen(address):
+            self._accept_loop()
+
+    def _listen(self, address) -> bool:
+        """Bind and listen on `address`. Returns False (after reporting it)
+        if that failed; on success the server is running."""
         self._server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self._server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 
@@ -198,14 +204,19 @@ class BaseServer:
             self._server_socket.listen()
         except OSError as exc:
             self._on_status(f"[SERVER] bind/listen failed: {exc}")
-            return
+            return False
 
         self.is_running = True
         self._on_status(f"[SERVER] listening on {address}")
+        return True
 
+    def _accept_loop(self) -> None:
+        """Accept connections, one reader thread each, until close()."""
+        server_socket = self._server_socket
+        assert server_socket is not None  # _listen() created it
         while self.is_running:
             try:
-                sock, peer = self._server_socket.accept()
+                sock, peer = server_socket.accept()
             except OSError:
                 if self.is_running:
                     self._on_status("[SERVER] accept failed")

@@ -18,9 +18,74 @@ of a smoke test.
 from __future__ import annotations
 
 import time
+from collections.abc import Iterator
+from contextlib import contextmanager
 from typing import Any
 
 import pygame
+
+
+def _splash_running(app) -> bool:
+    splash = getattr(app, "splash", None)
+    return splash is not None and not splash.is_done
+
+
+@contextmanager
+def _fast_forward_splash(
+    app, step_ms: int, deadline: float, timeout_message: str
+) -> Iterator[None]:
+    """While the splash is on screen, jumps pygame's clock `step_ms` ahead on
+    every event poll; raises RuntimeError(`timeout_message`) from an event
+    poll once time.monotonic() passes `deadline`. The clock stays monotonic:
+    the offset gained is kept, and both functions are restored on exit."""
+    real_get = pygame.event.get
+    real_ticks = pygame.time.get_ticks
+    offset_ms = 0
+
+    def ticks() -> int:
+        return real_ticks() + offset_ms
+
+    def get_events(*args: Any, **kwargs: Any) -> list[pygame.event.Event]:
+        nonlocal offset_ms
+        if time.monotonic() > deadline:
+            raise RuntimeError(timeout_message)
+        if _splash_running(app):
+            offset_ms += step_ms
+        return real_get(*args, **kwargs)
+
+    pygame.event.get = get_events
+    pygame.time.get_ticks = ticks
+    try:
+        yield
+    finally:
+        pygame.event.get = real_get
+        pygame.time.get_ticks = real_ticks
+
+
+class _FrameCounter:
+    """Counts `app.update()` calls and stops the app's loop after `frames`."""
+
+    def __init__(self, app, frames: int) -> None:
+        self.count = 0
+        self._app = app
+        self._frames = frames
+
+    @contextmanager
+    def installed(self) -> Iterator[None]:
+        real_update = self._app.update  # bound, so a project's own override is kept
+
+        def update_then_count() -> None:
+            real_update()
+            self.count += 1
+            if self.count >= self._frames:
+                self._app._is_running = False
+
+        self._app.update = update_then_count
+        try:
+            yield
+        finally:
+            # drop the instance attribute; the class method shows through again
+            del self._app.update
 
 
 def run_briefly(
@@ -40,52 +105,22 @@ def run_briefly(
     Raises RuntimeError if the splash or the loop hasn't finished within
     timeout_s, so a hang fails CI instead of stalling it.
     """
-    real_get = pygame.event.get
-    real_ticks = pygame.time.get_ticks
-    deadline = time.monotonic() + timeout_s
-    offset_ms = 0
-    counted = 0
-
-    def splash_running() -> bool:
-        splash = getattr(app, "splash", None)
-        return splash is not None and not splash.is_done
-
-    def ticks() -> int:
-        return real_ticks() + offset_ms
-
-    def get_events(*args: Any, **kwargs: Any) -> list[pygame.event.Event]:
-        nonlocal offset_ms
-        if time.monotonic() > deadline:
-            raise RuntimeError(
-                f"app didn't finish its splash and {frames} frames within {timeout_s}s"
-            )
-        if splash_running():
-            offset_ms += splash_step_ms
-        return real_get(*args, **kwargs)
-
-    real_update = app.update  # the bound method, so a project's own override is kept
-
-    def update_then_count() -> None:
-        nonlocal counted
-        real_update()
-        counted += 1
-        if counted >= frames:
-            app._is_running = False
-
-    pygame.event.get = get_events
-    pygame.time.get_ticks = ticks
-    app.update = update_then_count
-    try:
+    counter = _FrameCounter(app, frames)
+    timeout_message = (
+        f"app didn't finish its splash and {frames} frames within {timeout_s}s"
+    )
+    with (
+        _fast_forward_splash(
+            app, splash_step_ms, time.monotonic() + timeout_s, timeout_message
+        ),
+        counter.installed(),
+    ):
         app.run()
-    finally:
-        pygame.event.get = real_get
-        pygame.time.get_ticks = real_ticks
-        del (
-            app.update
-        )  # drop the instance attribute; the class method shows through again
 
-    if splash_running():
+    if _splash_running(app):
         raise RuntimeError("run() returned before the splash finished")
-    if counted < frames:
-        raise RuntimeError(f"main loop stopped after {counted} of {frames} frames")
-    return counted
+    if counter.count < frames:
+        raise RuntimeError(
+            f"main loop stopped after {counter.count} of {frames} frames"
+        )
+    return counter.count

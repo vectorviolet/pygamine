@@ -227,6 +227,36 @@ def test_hoverable_add_state_without_hover_only_registers_base(images):
     assert "purchased" not in obj._hover_images
 
 
+# ── HoverableStateObject.clear_hover ─────────────────────────────────────
+
+
+def test_clear_hover_drops_hover_and_redraws_the_base_image(images):
+    obj = HoverableStateObject(
+        size=(20, 20), image_path=images["base"], hover_image_path=images["hover"]
+    )
+    obj.handle_event(
+        pygame.event.Event(pygame.MOUSEMOTION, pos=obj.rect.center), obj.rect.center
+    )
+    assert obj._hovered is True
+
+    obj.clear_hover()
+
+    assert obj._hovered is False
+    assert obj._renderer.require_image().get_at((5, 5)) == (255, 0, 0, 255)
+
+
+def test_clear_hover_when_not_hovered_does_not_redraw(images):
+    obj = HoverableStateObject(
+        size=(20, 20), image_path=images["base"], hover_image_path=images["hover"]
+    )
+    redraws = []
+    obj._renderer.set_image = redraws.append  # type: ignore[method-assign]
+
+    obj.clear_hover()
+
+    assert redraws == []
+
+
 # ── HoverableStateObject._active_surface ─────────────────────────────────
 
 

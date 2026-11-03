@@ -402,3 +402,23 @@ def test_center_on_accounts_for_zoom():
     cam.center_on((800, 600))
 
     assert cam.world_to_screen((800, 600)) == pygame.math.Vector2(400, 300)
+
+
+# ── _edge_scroll_delta ──────────────────────────────────────────────────
+
+
+@pytest.mark.parametrize(
+    ("pos", "expected"),
+    [
+        ((400, 300), (0, 0)),  # middle
+        ((790, 300), (-10, 0)),  # right edge pans the world left
+        ((10, 300), (10, 0)),  # left edge
+        ((400, 590), (0, -10)),  # bottom edge
+        ((400, 10), (0, 10)),  # top edge
+        ((790, 10), (-10, 10)),  # a corner scrolls both axes
+        ((770, 300), (0, 0)),  # on the 30px zone boundary
+        ((771, 300), (-10, 0)),  # first pixel inside it
+    ],
+)
+def test_edge_scroll_delta(camera, pos, expected):
+    assert camera._edge_scroll_delta(pos, 10) == expected

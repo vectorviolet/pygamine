@@ -21,6 +21,7 @@ from __future__ import annotations
 import argparse
 import shutil
 from pathlib import Path
+from typing import Any
 
 JPG_QUALITY = 90
 
@@ -30,7 +31,7 @@ def export_files(video_path: str | Path, output_folder: str | Path) -> int:
     output_folder. Returns the number of frames written."""
     try:
         from moviepy import VideoFileClip
-        from PIL import Image
+        from PIL import Image  # noqa: F401  # checked here, used by _export_frames
     except ImportError as e:
         raise SystemExit(
             "pygamine-mp4-converter needs moviepy -- run it as: "
@@ -41,51 +42,68 @@ def export_files(video_path: str | Path, output_folder: str | Path) -> int:
     if not path.is_file():
         raise SystemExit(f"Video not found: {path}")
     out_dir = Path(output_folder)
-    frames_dir = out_dir / "frames"
-
-    # Clear frames from a previous run, so a shorter video leaves no stale frames behind
-    if frames_dir.exists():
-        shutil.rmtree(frames_dir)
-    frames_dir.mkdir(parents=True)
+    frames_dir = _prepare_frames_dir(out_dir)
 
     clip = VideoFileClip(str(path))
     try:
-        # 1. Extracting audio from the video
-        print("Exporting audio...")
-        try:
-            if clip.audio is not None:
-                audio_out = out_dir / f"{path.stem}_audio.ogg"
-                clip.audio.write_audiofile(
-                    str(audio_out), codec="libvorbis", bitrate="128k", logger=None
-                )
-                print(f"Audio extracted: {audio_out.name}")
-        except Exception as e:
-            print(f"Error producing sound: {e}")
-
-        # 2. Extracting frames from the video
-        print("Exporting frames...")
-        frame_count = 0
-        for frame_count, frame in enumerate(clip.iter_frames(dtype="uint8"), start=1):
-            # 0001.jpg, 0002.jpg
-            frame_name = frames_dir / f"{frame_count:04d}.jpg"
-            Image.fromarray(frame).convert("RGB").save(frame_name, quality=JPG_QUALITY)
-
-        print(
-            f"A total of {frame_count} frames have been successfully extracted at {clip.fps:g} fps."
-        )
-
-        # 3. Metadata for ImageSequenceMedia, which plays the frames at this fps
-        width, height = clip.size
-        (frames_dir / "meta.yaml").write_text(
-            f"fps: {clip.fps:g}\n"
-            f"frame_count: {frame_count}\n"
-            f"size: [{width}, {height}]\n",
-            encoding="utf-8",
-        )
-        print("Metadata written: frames/meta.yaml")
+        _export_audio(clip, out_dir / f"{path.stem}_audio.ogg")
+        frame_count = _export_frames(clip, frames_dir)
+        _write_meta(frames_dir, clip, frame_count)
     finally:
         clip.close()
     return frame_count
+
+
+def _prepare_frames_dir(out_dir: Path) -> Path:
+    """An empty `frames/` folder in `out_dir`. Frames from a previous run are
+    cleared, so a shorter video leaves no stale frames behind."""
+    frames_dir = out_dir / "frames"
+    if frames_dir.exists():
+        shutil.rmtree(frames_dir)
+    frames_dir.mkdir(parents=True)
+    return frames_dir
+
+
+def _export_audio(clip: Any, audio_out: Path) -> None:
+    """Writes the clip's audio track to `audio_out`. A failure is reported
+    and skipped -- the frames are still worth exporting."""
+    print("Exporting audio...")
+    try:
+        if clip.audio is not None:
+            clip.audio.write_audiofile(
+                str(audio_out), codec="libvorbis", bitrate="128k", logger=None
+            )
+            print(f"Audio extracted: {audio_out.name}")
+    except Exception as e:
+        print(f"Error producing sound: {e}")
+
+
+def _export_frames(clip: Any, frames_dir: Path) -> int:
+    """Writes the clip's frames as 0001.jpg, 0002.jpg, ... into `frames_dir`.
+    Returns the number of frames written."""
+    from PIL import Image
+
+    print("Exporting frames...")
+    frame_count = 0
+    for frame_count, frame in enumerate(clip.iter_frames(dtype="uint8"), start=1):
+        frame_name = frames_dir / f"{frame_count:04d}.jpg"
+        Image.fromarray(frame).convert("RGB").save(frame_name, quality=JPG_QUALITY)
+
+    print(
+        f"A total of {frame_count} frames have been successfully extracted at {clip.fps:g} fps."
+    )
+    return frame_count
+
+
+def _write_meta(frames_dir: Path, clip: Any, frame_count: int) -> None:
+    """Writes the meta.yaml ImageSequenceMedia reads, so the frames play at
+    the video's fps."""
+    width, height = clip.size
+    (frames_dir / "meta.yaml").write_text(
+        f"fps: {clip.fps:g}\nframe_count: {frame_count}\nsize: [{width}, {height}]\n",
+        encoding="utf-8",
+    )
+    print("Metadata written: frames/meta.yaml")
 
 
 def main(argv: list[str] | None = None) -> None:

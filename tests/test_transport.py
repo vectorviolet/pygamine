@@ -109,3 +109,47 @@ def test_broadcast_reaches_every_client(free_port):
         c1.disconnect()
         c2.disconnect()
         server.close()
+
+
+def test_listen_binds_and_marks_the_server_running(free_port):
+    statuses: list[str] = []
+    server = BaseServer(on_status=statuses.append)
+    try:
+        assert server._listen(("127.0.0.1", free_port)) is True
+        assert server.is_running is True
+        assert statuses == [f"[SERVER] listening on ('127.0.0.1', {free_port})"]
+    finally:
+        server.close()
+
+
+def test_listen_failure_is_reported_and_start_returns_instead_of_accepting(free_port):
+    statuses: list[str] = []
+    server = BaseServer(on_status=statuses.append)
+    # TEST-NET-1 (RFC 5737) is no local interface, so bind() raises OSError
+    # on every platform -- unlike a busy port, which SO_REUSEADDR can share.
+    address = ("203.0.113.1", free_port)
+    try:
+        assert server._listen(address) is False
+        server.start(address)  # must return, not block in the accept loop
+        assert server.is_running is False
+        assert len(statuses) == 2
+        assert all(m.startswith("[SERVER] bind/listen failed") for m in statuses)
+    finally:
+        server.close()
+
+
+def test_accept_loop_returns_once_the_server_is_closed(free_port):
+    server = BaseServer()
+    assert server._listen(("127.0.0.1", free_port))
+    done = threading.Event()
+
+    def run() -> None:
+        server._accept_loop()
+        done.set()
+
+    thread = threading.Thread(target=run, daemon=True)
+    thread.start()
+    server.close()  # closes the listening socket, so accept() raises
+
+    assert done.wait(timeout=2), "accept loop didn't stop on close()"
+    thread.join(timeout=2)

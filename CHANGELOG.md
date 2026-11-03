@@ -30,9 +30,22 @@ change. Anything before `e5c1fa6` (the commit that first introduced
   plus a module-level `pygamine.app.application.fit_rect(src_size, dst_size)` and
   `WINDOW_MARGIN`. `cycle_window_mode` and `restore_window_settings` share one
   mode-to-method mapping (#4).
+- **Added** `HoverableStateObject.clear_hover()`: drops the mouse-hover state and
+  redraws. `MenuController` uses it instead of writing the buttons' private
+  `_hovered` / `_renderer`, and now types `buttons` and `audio` with the small
+  `Focusable` and `SfxPlayer` protocols (`HoverableStateObject` and `GameAudio`
+  satisfy them) (#4).
 
 ### Changed
 
+- **Changed** internal refactor of splash, assets, devtools, net and camera: the
+  aspect-fit math of `ImageMedia` and `ImageSequenceMedia` is one `_fit_size`;
+  `ImageSequenceMedia` hands its loader thread, queue and stop handling to a
+  private `_FrameLoader`; `load_image` is split into `_cached_surface` and
+  `_resolve_size` (it no longer mutates a `size` list the caller passed in);
+  `Camera.update_with_mouse` uses `_edge_scroll_delta`; `run_briefly`,
+  `mp4_converter.export_files` and `BaseServer.start` are split into smaller
+  private helpers. No behavior change, public names and signatures unchanged (#4).
 - **Changed** internal refactor of `Application`: `_present` is split into
   `_present_letterboxed` and `_present_scaled`, the three window-mode setters share
   `_apply_display`, and the private `_fit_rect` method became the module-level

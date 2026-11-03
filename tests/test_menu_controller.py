@@ -2,9 +2,10 @@
 of button-like objects.
 
 Uses a minimal fake button (exposing exactly what MenuController actually
-touches: .rect, .focused, ._hovered, ._renderer, .is_mouse_over(),
-._active_surface) rather than a real HoverableStateObject, which would
-pull in asset loading unrelated to this controller's own logic.
+touches: .rect, .focused, .is_mouse_over(), .clear_hover()) rather than a
+real HoverableStateObject, which would pull in asset loading unrelated to
+this controller's own logic. HoverableStateObject.clear_hover() itself is
+tested in test_state_object.py.
 """
 
 from __future__ import annotations
@@ -18,13 +19,10 @@ class _FakeButton:
     def __init__(self, rect):
         self.rect = rect
         self.focused = False
-        self._hovered = False
-        self._active_surface = f"surface-for-{rect}"
-        self.set_image_calls = []
-        self._renderer = self  # so ._renderer.set_image(...) is trackable here
+        self.clear_hover_calls = 0
 
-    def set_image(self, image):
-        self.set_image_calls.append(image)
+    def clear_hover(self):
+        self.clear_hover_calls += 1
 
     def is_mouse_over(self, pos) -> bool:
         return self.rect.collidepoint(pos)
@@ -143,12 +141,11 @@ def test_unrelated_key_is_a_no_op():
 def test_keyboard_switch_clears_stale_hover_on_other_buttons():
     buttons = _buttons(3)
     controller = MenuController(buttons)
-    buttons[2]._hovered = True  # e.g. mouse is still resting over button 2
 
     controller._handle_key(pygame.event.Event(pygame.KEYUP, key=pygame.K_DOWN))
 
-    assert buttons[2]._hovered is False
-    assert buttons[2].set_image_calls == [buttons[2]._active_surface]
+    assert buttons[0].clear_hover_calls == 1  # just lost focus
+    assert buttons[2].clear_hover_calls == 1
 
 
 def test_keyboard_switch_does_not_touch_hover_on_the_newly_focused_button():
@@ -157,9 +154,8 @@ def test_keyboard_switch_does_not_touch_hover_on_the_newly_focused_button():
 
     controller._handle_key(pygame.event.Event(pygame.KEYUP, key=pygame.K_DOWN))
 
-    assert (
-        buttons[1].set_image_calls == []
-    )  # only stale hover on *other* buttons is cleared
+    # only stale hover on *other* buttons is cleared
+    assert buttons[1].clear_hover_calls == 0
 
 
 # ── mouse navigation ────────────────────────────────────────────────────
