@@ -25,8 +25,10 @@ not break them.
   overridable `on_canvas_resized` hook, in the same order as before.
 - Behavior subclasses could change stays on the subclass: `Application` passes its
   `WINDOW_MODES` and its (call-time looked-up) `set_fullscreen`,
-  `set_borderless_fullscreen` and `set_windowed` to `Display`, so overriding them
-  still affects `set_window_mode`, `cycle_window_mode` and F11.
+  `set_borderless_fullscreen`, `set_windowed` and `set_resolution` to `Display`, so
+  overriding them still affects `set_window_mode`, `cycle_window_mode`, F11,
+  `set_resolution`, `cycle_resolution`, `restore_window_settings` and
+  `reset_window_settings`.
 - `COMMON_RESOLUTIONS`, `WINDOW_MARGIN`, `WINDOW_MODES`, `WindowMode` and
   `fit_rect` moved to `display.py` and are re-exported from `application.py`.
 
@@ -41,7 +43,9 @@ not break them.
 
 ## Known limits
 
-Other display methods that call each other internally (`set_resolution` calling
-`set_windowed`, `reset_window_settings` calling `set_fullscreen`) call
-`Display`'s own methods, so an `Application` subclass overriding those would not
-see the nested calls. No game does that.
+`Display` calls its own `set_window_mode` from `cycle_window_mode` and
+`restore_window_settings`, so an `Application` subclass overriding
+`set_window_mode` itself is not called from those two. The setters it dispatches to
+(`set_fullscreen`, `set_borderless_fullscreen`, `set_windowed`) and
+`set_resolution` are routed through `Application`, so overriding any of those is
+honored from every nested path. No game overrides any of them.

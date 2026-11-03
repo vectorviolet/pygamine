@@ -43,7 +43,8 @@ change. Anything before `e5c1fa6` (the commit that first introduced
   every public method and attribute (including `display_surface`, `window`,
   `render_scale`, `window_mode`, `_window_mode` and the `on_canvas_resized` hook)
   still works and forwards to `Display`; subclass overrides of `WINDOW_MODES`, the
-  three `set_*` mode setters and `on_canvas_resized` are still honored. Private
+  three `set_*` mode setters, `set_resolution` and `on_canvas_resized` are still
+  honored, including from nested calls (F11, `cycle_resolution`, `reset_window_settings`). Private
   helpers that only the display stack used (`_rebuild_window_surface`,
   `_sync_mouse_scale`, `_windowed_physical_size`, `_query_screen_size`, ...) now
   live on `Display`. `COMMON_RESOLUTIONS`, `WINDOW_MARGIN`, `fit_rect` and

@@ -1326,3 +1326,46 @@ def test_subclass_setter_override_is_used_by_set_window_mode():
     app.cycle_window_mode()
     assert calls == ["borderless"]
     assert app.window_mode == "windowed"
+
+
+def test_subclass_set_windowed_override_runs_from_set_resolution():
+    calls = []
+
+    class _Custom(_TrackedApp):
+        def set_windowed(self):
+            calls.append("windowed")
+            super().set_windowed()
+
+    app = _Custom()
+    app.set_windowed()
+    calls.clear()
+    app.set_resolution((1024, 576))
+    assert calls == ["windowed"]
+
+
+def test_subclass_set_fullscreen_override_runs_from_reset_window_settings():
+    calls = []
+
+    class _Custom(_TrackedApp):
+        def set_fullscreen(self):
+            calls.append("fullscreen")
+            super().set_fullscreen()
+
+    app = _Custom()
+    calls.clear()
+    app.reset_window_settings()
+    assert calls == ["fullscreen"]
+
+
+def test_subclass_set_resolution_override_runs_from_cycle_and_restore():
+    picks = []
+
+    class _Custom(_TrackedApp):
+        def set_resolution(self, size):
+            picks.append(size)
+            super().set_resolution(size)
+
+    app = _Custom()
+    cycled = app.cycle_resolution()
+    app.restore_window_settings({"window_size": [800, 600]})
+    assert picks == [cycled, (800, 600)]

@@ -106,12 +106,13 @@ class Application:
             fixed_aspect,
             self.WINDOW_MODES,
             # Looked up at call time, so a subclass override of a setter is
-            # still what set_window_mode()/F11 run.
+            # still what set_window_mode()/F11/cycle_resolution() run.
             {
                 "fullscreen": lambda: self.set_fullscreen(),
                 "borderless": lambda: self.set_borderless_fullscreen(),
                 "windowed": lambda: self.set_windowed(),
             },
+            lambda size: self.set_resolution(size),
         )
         self.set_fullscreen()  # sets display_surface and rebuilds self.window to match it (scaled by render_scale)
         self.center_window()

@@ -84,6 +84,7 @@ class Display:
         fixed_aspect: bool = False,
         window_modes: tuple[WindowMode, ...] = WINDOW_MODES,
         mode_setters: Mapping[WindowMode, Callable[[], None]] | None = None,
+        resolution_setter: Callable[[tuple[int, int]], None] | None = None,
     ) -> None:
         """Query the screen size; creates no window yet. The owner must call
         set_fullscreen() (or another mode setter) once it is ready for
@@ -98,10 +99,15 @@ class Display:
         `mode_setters` maps each mode to the callable set_window_mode() runs
         for it; the owner passes its own set_* methods so that subclass
         overrides of them still take effect. Defaults to this Display's own.
+        `resolution_setter` is the same for set_resolution(), which
+        cycle_resolution() and restore_window_settings() call.
         """
         self._on_canvas_resized = on_canvas_resized
         # Which modes cycle_window_mode()/set_window_mode() accept, in order.
         self.window_modes = window_modes
+        self._resolution_setter: Callable[[tuple[int, int]], None] = (
+            resolution_setter if resolution_setter is not None else self.set_resolution
+        )
         self._mode_setters: Mapping[WindowMode, Callable[[], None]] = (
             mode_setters
             if mode_setters is not None
@@ -322,7 +328,7 @@ class Display:
         entered, via F11 or the window-mode setting."""
         self._resolution_override = size
         if self._window_mode == "windowed":
-            self.set_windowed()
+            self._mode_setters["windowed"]()
 
     def clear_resolution_override(self) -> None:
         """Drop any explicit pick, reverting resolution to the
@@ -339,7 +345,7 @@ class Display:
         current = self.resolution
         index = options.index(current) if current in options else 0
         new_size = options[(index + step) % len(options)]
-        self.set_resolution(new_size)
+        self._resolution_setter(new_size)
         return new_size
 
     # ── window settings persistence ─────────────────────────────────────
@@ -358,7 +364,7 @@ class Display:
         whichever mode is applied next, below. Harmless on platforms with
         no windowing concept (e.g. Android): it just re-affirms fullscreen."""
         if "window_size" in saved_settings:
-            self.set_resolution(tuple(saved_settings["window_size"]))
+            self._resolution_setter(tuple(saved_settings["window_size"]))
         mode = saved_settings.get("window_mode", "fullscreen")
         # An unknown saved mode falls back to the first WINDOW_MODES entry
         # (exclusive fullscreen) rather than raising.
@@ -380,7 +386,7 @@ class Display:
         fullscreen, no resolution override) -- pair with a project's own
         audio/gameplay reset logic for a full settings reset."""
         self.clear_resolution_override()
-        self.set_fullscreen()
+        self._mode_setters["fullscreen"]()
 
     # ── mouse and present ───────────────────────────────────────────────
 
