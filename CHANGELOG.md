@@ -39,14 +39,14 @@ change. Anything before `e5c1fa6` (the commit that first introduced
   placeholder that `set_fullscreen()` replaces with the real canvas), so
   games no longer need a `None` check before drawing on it. The internal
   `assert self.window is not None` checks are gone (#14).
-- **Changed** (breaking) `GameAudio.set_master_volume()`, `set_music_volume()`
+
+### Changed
+
+- **Changed** `GameAudio.set_master_volume()`, `set_music_volume()`
   and `set_sfx_volume()` are staticmethods now (were instance methods). They
   still write the one class-wide value on `GameAudio`, even when called
   through a subclass. Calls on an instance work as before; calls on the
   class work too (#4).
-
-### Changed
-
 - **Changed** ruff's `PLR6301` (no-self-use) is enabled for `pygamine/`.
   `TypedJSONCodec._to_dict` is a staticmethod, `MenuController`'s private
   `_focus`/`_unfocus` helpers are inlined, and the `JSONCodec`/`PickleCodec`
