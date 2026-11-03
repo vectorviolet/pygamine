@@ -17,6 +17,10 @@ change. Anything before `e5c1fa6` (the commit that first introduced
 
 ### Added
 
+- **Added** `pygamine.util.localization`: YAML string tables per language,
+  `tr(key, **params)` with English fallback, `set_language()` that re-renders live
+  `TextObject`s and fires callbacks, `text_key:` in panels YAML, and key-coverage
+  and glyph-coverage checks for game CI. ADR `docs/decisions/0001-localization.md` (#23).
 - **Added** `pygamine.assets.asset_resolver.AssetResolver`, a protocol for the
   `image_path` / `sound_path` / `font_path` lookups. The panel loaders, panel
   factories and `load_font` are annotated with it instead of `AssetManager`

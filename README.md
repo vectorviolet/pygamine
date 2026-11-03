@@ -156,6 +156,25 @@ SoundPath("jump")  # → assets/sounds/jump.ogg
 
 All `AssetPath` subclasses implement `__fspath__`, so they can be passed directly to `pygame.image.load` / `pygame.font.Font` / `pygame.mixer.Sound`.
 
+### Localization
+
+```python
+from pygamine.util.localization import localization, tr, set_language
+
+localization.load("config/lang")  # en.yaml (required), tr.yaml, ...
+localization.on_language_changed(
+    lambda code: volume_label.set_text(tr("settings.volume", percent=80))
+)  # text the game formats itself
+set_language("tr")  # re-renders every text_key label at once
+```
+
+`config/lang/en.yaml`: `_meta: {name: English}` plus nested keys
+(`settings: {title: Settings}`). In panels YAML use `text_key: settings.title`
+instead of `text:`. Missing keys fall back to English; a key missing in English
+raises `KeyError`. In your tests call `localization.check_key_coverage()` and
+`localization.check_glyph_coverage(font)` (both return `{}` when clean). See
+`docs/decisions/0001-localization.md`.
+
 ### Database
 
 ```python
