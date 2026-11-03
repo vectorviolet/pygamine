@@ -143,3 +143,9 @@ ignore_missing_imports = true
 # evaluate lazily, and it only worked locally by accident because that one
 # machine's Python defers annotation evaluation by default anyway.
 required-imports = ["from __future__ import annotations"]
+
+[tool.uv]
+# moviepy 2.2.1 (the latest) caps pillow<12, which pins the lock to Pillow
+# 11.3.0 and its security advisories (fixed only in 12.1.1 to 13.0.0).
+# Force Pillow 13 until moviepy allows it, then remove this override.
+override-dependencies = ["pillow>=13"]

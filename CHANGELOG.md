@@ -13,6 +13,15 @@ together rather than reconstructing a commit-by-commit rationale for every
 change. Anything before `e5c1fa6` (the commit that first introduced
 `pyproject.toml` itself) isn't versioned at all; see `git log` for that era.
 
+## [Unreleased]
+
+### Changed
+
+- **Changed** the lock now resolves Pillow 13.0.0 (was 11.3.0) through a uv
+  `override-dependencies` entry, which clears the open Pillow security alerts.
+  Pillow is only pulled in by moviepy (the `video` extra and the dev group),
+  whose 2.2.1 release caps it below 12 (#17).
+
 ## [0.28.0] — 2026-11-03
 
 ### Added
