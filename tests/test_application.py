@@ -95,12 +95,6 @@ def test_init_stores_fullscreen_and_windowed_size():
     assert app.fullscreen_size == (app.fullscreen_width, app.fullscreen_height)
 
 
-def test_query_screen_size_reads_display_info(monkeypatch):
-    info = type("Info", (), {"current_w": 2560, "current_h": 1440})()
-    monkeypatch.setattr(pygame.display, "Info", lambda: info)
-    assert Application._query_screen_size() == (2560, 1440)
-
-
 def test_center_window_sets_sdl_env_var():
     _TrackedApp()
     assert os.environ["SDL_VIDEO_CENTERED"] == "1"
@@ -142,7 +136,7 @@ def test_set_fullscreen_and_set_windowed_size_the_canvas_to_their_own_actual_siz
     app = _TrackedApp()
 
     app.set_windowed()
-    assert app.size == app._windowed_physical_size()
+    assert app.size == app.display.windowed_physical_size()
     assert app.window.get_size() == app.display_surface.get_size()
     assert app._is_fullscreen is False
 
@@ -177,7 +171,7 @@ def test_windowed_physical_size_shrinks_to_fit_with_margin_when_preferred_size_e
     app = _TrackedApp()
     _pin_dimensions(app, windowed=(2000, 1500), fullscreen=(1024, 768))
 
-    physical_size = app._windowed_physical_size()
+    physical_size = app.display.windowed_physical_size()
 
     assert physical_size[0] < app.fullscreen_width
     assert physical_size[1] < app.fullscreen_height
@@ -193,7 +187,7 @@ def test_windowed_physical_size_never_exceeds_the_preferred_size():
     app = _TrackedApp()
     _pin_dimensions(app, windowed=(320, 240), fullscreen=(1024, 768))
 
-    assert app._windowed_physical_size() == (320, 240)
+    assert app.display.windowed_physical_size() == (320, 240)
 
 
 def test_set_windowed_sets_display_surface_to_windowed_physical_size():
@@ -202,7 +196,7 @@ def test_set_windowed_sets_display_surface_to_windowed_physical_size():
 
     app.set_windowed()
 
-    assert app.display_surface.get_size() == app._windowed_physical_size()
+    assert app.display_surface.get_size() == app.display.windowed_physical_size()
     assert app.display_surface.get_size() != (2000, 1500)
 
 
@@ -256,7 +250,7 @@ def test_sync_mouse_scale_accounts_for_the_pillarbox_offset():
     app = _TrackedApp(fixed_aspect=True)
     _set_display_surface(app, (1600, 900))
 
-    app._sync_mouse_scale()
+    app.display._sync_mouse_scale()
 
     assert app.mouse.offset == (200, 0)
     assert app.mouse.scale == (320 / 1200, 240 / 900)
@@ -311,7 +305,7 @@ def test_resolution_reflects_auto_fit_before_any_explicit_pick():
     app = _TrackedApp()
     _pin_dimensions(app, windowed=(2000, 1500), fullscreen=(1024, 768))
 
-    assert app.resolution == app._windowed_physical_size() == (819, 614)
+    assert app.resolution == app.display.windowed_physical_size() == (819, 614)
 
 
 def test_resolution_reflects_an_explicit_pick_even_while_fullscreen():
@@ -396,7 +390,7 @@ def test_clear_resolution_override_reverts_to_auto_fit():
 
     app.clear_resolution_override()
 
-    assert app.resolution == app._auto_windowed_physical_size()
+    assert app.resolution == app.display.auto_windowed_physical_size()
 
 
 def test_clear_resolution_override_does_not_resize_the_current_window():
@@ -450,7 +444,7 @@ def test_cycle_resolution_wraps_around_in_both_directions():
     app = _TrackedApp()
     _pin_dimensions(app, windowed=(1920, 1080), fullscreen=(1920, 1080))
     options = app.available_resolutions()
-    starting = app._auto_windowed_physical_size()
+    starting = app.display.auto_windowed_physical_size()
 
     last = starting
     for _ in range(len(options)):
@@ -535,7 +529,7 @@ def test_reset_window_settings_returns_to_fullscreen_with_no_override():
     app.reset_window_settings()
 
     assert app._window_mode == "fullscreen"
-    assert app._resolution_override is None
+    assert app.display._resolution_override is None
 
 
 # ── fit_rect (pure geometry) ────────────────────────────────────────────
@@ -574,9 +568,9 @@ def test_window_margin_bounds_windowed_size_and_available_resolutions():
 
     # The preferred 320x240 fits inside the margin, so it is used unchanged;
     # an oversized preference is shrunk until it fits exactly.
-    assert app._windowed_physical_size() == (320, 240)
+    assert app.display.windowed_physical_size() == (320, 240)
     app.windowed_width, app.windowed_height = 2000, 1000
-    w, h = app._windowed_physical_size()
+    w, h = app.display.windowed_physical_size()
     assert w == max_w and h <= max_h
 
     resolutions = app.available_resolutions()
@@ -610,16 +604,16 @@ def test_window_mode_is_read_only():
         app.window_mode = "windowed"  # type: ignore[misc]
 
 
-def test_window_mode_is_current_inside_on_canvas_resized():
+def test_window_mode_is_current_inside_rebuild(monkeypatch):
     seen = []
+    app = _TrackedApp()
+    real = app.display._rebuild_window_surface
 
-    class _Hook(_TrackedApp):
-        def _rebuild_window_surface(self):
-            seen.append(self.window_mode)
-            super()._rebuild_window_surface()
+    def spy():
+        seen.append(app.window_mode)
+        real()
 
-    app = _Hook()
-    seen.clear()
+    monkeypatch.setattr(app.display, "_rebuild_window_surface", spy)
     app.set_window_mode("borderless")
     app.set_window_mode("windowed")
     assert seen == ["borderless", "windowed"]
@@ -639,13 +633,13 @@ def test_set_window_mode_validates_against_window_modes():
 def test_cycle_and_restore_go_through_set_window_mode(monkeypatch):
     app = _TrackedApp()
     calls = []
-    real = app.set_window_mode
+    real = app.display.set_window_mode
 
     def spy(mode):
         calls.append(mode)
         real(mode)
 
-    monkeypatch.setattr(app, "set_window_mode", spy)
+    monkeypatch.setattr(app.display, "set_window_mode", spy)
 
     app.cycle_window_mode()
     app.restore_window_settings({"window_mode": "windowed"})
@@ -1087,7 +1081,7 @@ def test_on_canvas_resized_fires_with_the_new_size_when_it_actually_changes():
 
     app.set_windowed()  # 1024x768 -> windowed size, a real change
 
-    assert calls == [app._windowed_physical_size()]
+    assert calls == [app.display.windowed_physical_size()]
 
 
 def test_on_canvas_resized_does_not_fire_when_the_size_is_unchanged():
@@ -1281,3 +1275,54 @@ def test_init_builds_the_real_canvas_once_and_fires_on_canvas_resized_once():
     assert app.window.get_size() == app.fullscreen_size
     assert app.window.get_size() != (0, 0)
     assert calls == [app.fullscreen_size]
+
+
+# ── Display delegation ───────────────────────────────────────────────────
+
+
+def test_display_attributes_forward_to_display_both_ways():
+    app = _TrackedApp()
+    assert app.display_surface is app.display.display_surface
+    assert app.window is app.display.window
+    assert app.mouse is app.display.mouse
+
+    app.render_scale = 0.5
+    assert app.display.render_scale == 0.5
+    app.fixed_aspect = True
+    assert app.display.fixed_aspect is True
+    app.windowed_size = (10, 20)
+    assert app.display.windowed_size == (10, 20)
+    replacement = Mouse()
+    app.mouse = replacement
+    assert app.display.mouse is replacement
+
+
+def test_canvas_resize_sets_size_before_calling_subclass_hook():
+    seen = []
+
+    class _Hook(_TrackedApp):
+        def on_canvas_resized(self, new_size):
+            seen.append((new_size, self.size, self.window.get_size()))
+
+    app = _Hook()
+    assert seen == [(app.size, app.size, app.size)]
+    seen.clear()
+    app.set_render_scale(0.5)
+    assert len(seen) == 1
+    new_size, size_in_hook, window_in_hook = seen[0]
+    assert new_size == size_in_hook == window_in_hook == app.size
+
+
+def test_subclass_setter_override_is_used_by_set_window_mode():
+    calls = []
+
+    class _Custom(_TrackedApp):
+        def set_borderless_fullscreen(self):
+            calls.append("borderless")
+            super().set_borderless_fullscreen()
+
+    app = _Custom()
+    app.set_window_mode("borderless")
+    app.cycle_window_mode()
+    assert calls == ["borderless"]
+    assert app.window_mode == "windowed"

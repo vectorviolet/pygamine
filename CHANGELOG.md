@@ -37,6 +37,17 @@ change. Anything before `e5c1fa6` (the commit that first introduced
   `_present_letterboxed` and `_present_scaled`, the three window-mode setters share
   `_apply_display`, and the private `_fit_rect` method became the module-level
   `fit_rect`. No behavior change (#4).
+- **Changed** display handling moved into the new `pygamine.app.display.Display`
+  (window modes, resolution, render scale, fixed-aspect fit, present, mouse
+  scaling), owned by `Application` as `app.display`. `Application` API unchanged:
+  every public method and attribute (including `display_surface`, `window`,
+  `render_scale`, `window_mode`, `_window_mode` and the `on_canvas_resized` hook)
+  still works and forwards to `Display`; subclass overrides of `WINDOW_MODES`, the
+  three `set_*` mode setters and `on_canvas_resized` are still honored. Private
+  helpers that only the display stack used (`_rebuild_window_surface`,
+  `_sync_mouse_scale`, `_windowed_physical_size`, `_query_screen_size`, ...) now
+  live on `Display`. `COMMON_RESOLUTIONS`, `WINDOW_MARGIN`, `fit_rect` and
+  `WindowMode` are still importable from `pygamine.app.application` (#4).
 - **Changed** internal refactor of the panel loaders: `PanelLoader.load()` now
   calls a no-op `_preprocess(data)` hook that `PanelLoaderExt` overrides instead
   of copying `load()`; `_expand_in`, `_scale_def`, `_add_object` and
