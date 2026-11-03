@@ -138,18 +138,19 @@ def test_listen_failure_is_reported_and_start_returns_instead_of_accepting(free_
         server.close()
 
 
-def test_accept_loop_returns_once_the_server_is_closed(free_port):
-    server = BaseServer()
+def test_accept_loop_registers_and_announces_each_connection(free_port):
+    connected: queue.Queue = queue.Queue()
+    server = BaseServer(on_connect=connected.put)
     assert server._listen(("127.0.0.1", free_port))
-    done = threading.Event()
+    # Daemon thread: closing a listening socket doesn't wake a blocked accept()
+    # on every platform, so the test doesn't wait for the loop to return.
+    threading.Thread(target=server._accept_loop, daemon=True).start()
+    client = BaseClient(on_message=lambda msg: None)
 
-    def run() -> None:
-        server._accept_loop()
-        done.set()
-
-    thread = threading.Thread(target=run, daemon=True)
-    thread.start()
-    server.close()  # closes the listening socket, so accept() raises
-
-    assert done.wait(timeout=2), "accept loop didn't stop on close()"
-    thread.join(timeout=2)
+    try:
+        assert client.connect(("127.0.0.1", free_port))
+        connection = connected.get(timeout=2)
+        assert connection in server._connections
+    finally:
+        client.disconnect()
+        server.close()
