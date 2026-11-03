@@ -1,0 +1,13 @@
+# Weekly dependency updates for uv.lock. All updates come as one grouped PR,
+# so a week's bumps are reviewed and merged together. pyproject.toml's
+# [tool.uv] override for Pillow (moviepy caps it below 12) still applies.
+version: 2
+updates:
+  - package-ecosystem: "uv"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    groups:
+      all-dependencies:
+        patterns: ["*"]
+    open-pull-requests-limit: 5
