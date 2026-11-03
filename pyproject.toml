@@ -92,6 +92,11 @@ quote-style = "double"
 # (e.g. it implements a protocol). It's a preview rule, so preview is on, but
 # explicit-preview-rules keeps every other preview rule off unless it's
 # selected by its exact code.
+#
+# C901 / PLR0912 / PLR0915: complexity ceilings from the #4 audit (max
+# complexity 8, max branches 8, max statements 25). Past them, split the
+# function rather than raising the limit. PLR0913 (too many arguments) stays
+# off: widget constructors mirror their YAML keys on purpose.
 select = [
     "F",
     "I002",
@@ -101,12 +106,22 @@ select = [
     "ANN205",
     "ANN206",
     "PLR6301",
+    "C901",
+    "PLR0912",
+    "PLR0915",
 ]
 # preview = true also turns on the preview *behaviour* of the selected stable
 # rules (F, ANN, I002), not only PLR6301, so bumping the ruff pin may surface
 # new hits from those rules.
 preview = true
 explicit-preview-rules = true
+
+[tool.ruff.lint.mccabe]
+max-complexity = 8
+
+[tool.ruff.lint.pylint]
+max-branches = 8
+max-statements = 25
 
 [tool.ruff.lint.per-file-ignores]
 # Test functions don't get `-> None`: pytest calls them and no type checker
