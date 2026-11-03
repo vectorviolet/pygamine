@@ -76,6 +76,9 @@ change. Anything before `e5c1fa6` (the commit that first introduced
   lower bound, so the extra stays installable with pip). The override covers
   only this lock: `uv run --with moviepy pygamine-mp4-converter` and pip
   installs of `pygamine[video]` still follow moviepy's cap (#17).
+- ruff now enforces complexity ceilings: `C901` max-complexity 8, `PLR0912`
+  max-branches 8, `PLR0915` max-statements 25 (`PLR0913` stays off). This closes
+  the #4 audit (#4).
 
 ## [0.28.0] — 2026-11-03
 
