@@ -15,6 +15,10 @@ change. Anything before `e5c1fa6` (the commit that first introduced
 
 ## [Unreleased]
 
+### Changed
+
+- **Changed** the README badges: CI, release (latest tag, as there are no GitHub releases), license, coverage and Python, each linked (vectorviolet/chokepoint#150).
+
 ## [0.30.0] — 2026-11-04
 
 ### Added

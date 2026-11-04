@@ -1,7 +1,10 @@
 # pygamine
 
-![tests](https://github.com/vectorviolet/pygamine/actions/workflows/tests.yml/badge.svg)
-![Coverage](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/vectorviolet/pygamine/badges/coverage.json)
+[![CI](https://github.com/vectorviolet/pygamine/actions/workflows/tests.yml/badge.svg?branch=main)](https://github.com/vectorviolet/pygamine/actions/workflows/tests.yml)
+[![Release](https://img.shields.io/github/v/tag/vectorviolet/pygamine)](https://github.com/vectorviolet/pygamine/tags)
+[![License: MIT](https://img.shields.io/github/license/vectorviolet/pygamine)](LICENSE)
+[![Coverage](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/vectorviolet/pygamine/badges/coverage.json)](https://github.com/vectorviolet/pygamine/actions/workflows/tests.yml)
+[![Python 3.12+ | pygame-ce](https://img.shields.io/badge/python-3.12%2B%20%7C%20pygame--ce-3776AB?logo=python&logoColor=white)](https://github.com/pygame-community/pygame-ce)
 
 Shared pygame-ce utilities used across personal game projects. Provides an `Application` base, a component-based game-object layer, a YAML-driven panel/UI system, asset loaders, and a handful of helpers (camera, sprite sheet, audio, database).
 
