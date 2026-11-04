@@ -9,6 +9,9 @@ comparing `event.key`. Bindings round-trip through plain dicts of key names
 Invariant: every key belongs to at most one action, and a primary key is never
 also an alternate or fixed key. Nothing here draws UI or touches a save file; a
 CONTROLS screen is the game's job.
+
+`pygame.init()` must have run before declaring keys or saving/loading: pygame only
+knows key names after that (an assertion says so).
 """
 
 from __future__ import annotations
@@ -16,6 +19,8 @@ from __future__ import annotations
 from typing import Callable, Iterable
 
 import pygame
+
+from pygamine.util.callbacks import run_callbacks
 
 
 class KeyBindingError(ValueError):
@@ -36,6 +41,7 @@ class _Action:
 
 
 def _key_name(key: int) -> str:
+    assert pygame.get_init(), "call pygame.init() before using InputMap key names"
     name = pygame.key.name(key)
     if not name:
         raise KeyBindingError(f"key code {key} has no name")
@@ -43,6 +49,7 @@ def _key_name(key: int) -> str:
 
 
 def _key_code(name: str) -> int:
+    assert pygame.get_init(), "call pygame.init() before using InputMap key names"
     try:
         return pygame.key.key_code(name)
     except (ValueError, TypeError) as error:
@@ -55,41 +62,58 @@ class InputMap:
     def __init__(self) -> None:
         self._actions: dict[str, _Action] = {}
         self._primary: dict[str, int] = {}
+        # Every key that currently triggers an action -> that action. One key,
+        # one action: this map is where the rule is enforced.
+        self._owner: dict[int, str] = {}
+        # Keys the actions get back on reset_defaults (no new action may use them).
+        self._default_keys: set[int] = set()
         self._callbacks: list[Callable[[], None]] = []
 
     # -- declaring --------------------------------------------------------
 
     def declare(self, name: str, default: int, alternates: Iterable[int] = ()) -> None:
         """Adds a rebindable action: primary key `default` plus fixed `alternates`
-        that keep working when the primary changes."""
+        that keep working when the primary changes. Raises `ValueError` if the
+        name or a key is already used (a default key counts as used even while
+        its action is rebound) or a key has no name."""
         action = _Action(name, default, tuple(alternates))
-        self._check_new(action, [default, *action.keys])
-        self._actions[name] = action
+        self._add(action, [default, *action.keys])
         self._primary[name] = default
+        self._owner[default] = name
+        self._default_keys.add(default)
 
     def declare_fixed(self, name: str, *keys: int) -> None:
         """Adds an action whose keys can't be rebound (Esc, F11). It is listed in
         `actions()` but not in `rebindable()` or `to_dict()`."""
         if not keys:
             raise ValueError(f"fixed action {name!r} needs at least one key")
-        action = _Action(name, None, keys)
-        self._check_new(action, list(keys))
-        self._actions[name] = action
+        self._add(_Action(name, None, keys), list(keys))
 
-    def _check_new(self, action: _Action, keys: list[int]) -> None:
+    def _add(self, action: _Action, keys: list[int]) -> None:
         if action.name in self._actions:
             raise ValueError(f"action {action.name!r} is already declared")
         if len(set(keys)) != len(keys):
             raise ValueError(f"action {action.name!r} lists a key twice")
-        taken = {k for a in self._actions.values() for k in self._all_keys(a)}
-        if taken & set(keys):
+        for key in keys:
+            try:
+                _key_name(key)
+            except KeyBindingError as error:
+                raise ValueError(f"action {action.name!r}: {error}") from error
+        if (self._default_keys | self._owner.keys()) & set(keys):
             raise ValueError(f"action {action.name!r} reuses a declared key")
-
-    def _all_keys(self, action: _Action) -> tuple[int, ...]:
-        return self.keys_for(action.name) if action.name in self._actions else ()
+        self._actions[action.name] = action
+        for key in action.keys:
+            self._owner[key] = action.name
 
     def _defaults(self) -> dict[str, int]:
         return {n: a.default for n, a in self._actions.items() if a.default is not None}
+
+    def _set_primaries(self, primary: dict[str, int]) -> None:
+        for old in self._primary.values():
+            del self._owner[old]
+        self._primary = primary
+        for name, key in primary.items():
+            self._owner[key] = name
 
     # -- queries ----------------------------------------------------------
 
@@ -119,20 +143,14 @@ class InputMap:
 
     def is_action(self, event: pygame.event.Event, name: str) -> bool:
         """True for a KEYDOWN of any key bound to `name`."""
-        return event.type == pygame.KEYDOWN and event.key in self.keys_for(name)
+        self._get(name)
+        return event.type == pygame.KEYDOWN and self._owner.get(event.key) == name
 
     def _get(self, name: str) -> _Action:
         try:
             return self._actions[name]
         except KeyError:
             raise KeyError(f"unknown action {name!r}") from None
-
-    def _reserved_by(self, key: int) -> str | None:
-        """The action that owns `key` as a fixed or alternate key, if any."""
-        for action in self._actions.values():
-            if key in action.keys:
-                return action.name
-        return None
 
     # -- changing ---------------------------------------------------------
 
@@ -142,23 +160,21 @@ class InputMap:
         Returns None when the key was applied (or already was `name`'s primary).
         If another action's primary key is `key`, nothing changes and that
         action's name is returned so the game can ask the player and call `swap`.
-        Raises `KeyBindingError` if `name` is fixed, or `key` is a fixed key or
-        an alternate of any action.
+        Raises `KeyBindingError` if `name` is fixed, `key` has no name, or `key`
+        is a fixed key or an alternate of any action.
         """
         if self._get(name).fixed:
             raise KeyBindingError(f"action {name!r} is fixed and can't be rebound")
-        if self._primary[name] == key:
+        key_name = _key_name(key)
+        owner = self._owner.get(key)
+        if owner is None:
+            self._set_primaries({**self._primary, name: key})
+            self._fire()
             return None
-        owner = self._reserved_by(key)
-        if owner is not None:
+        if key in self._actions[owner].keys:
             kind = "fixed" if self._actions[owner].fixed else "an alternate of"
-            raise KeyBindingError(f"{_key_name(key)} is {kind} action {owner!r}")
-        for other_name, other_key in self._primary.items():
-            if other_key == key:
-                return other_name
-        self._primary[name] = key
-        self._fire()
-        return None
+            raise KeyBindingError(f"{key_name} is {kind} action {owner!r}")
+        return None if owner == name else owner
 
     def swap(self, a: str, b: str) -> None:
         """Exchanges the primary keys of two rebindable actions."""
@@ -167,15 +183,16 @@ class InputMap:
                 raise KeyBindingError(f"action {name!r} is fixed and can't be rebound")
         if a == b:
             return
-        self._primary[a], self._primary[b] = self._primary[b], self._primary[a]
+        self._set_primaries({**self._primary, a: self._primary[b], b: self._primary[a]})
         self._fire()
 
     def reset_defaults(self) -> None:
-        """Restores every primary key to its declared default."""
+        """Restores every primary key to its declared default. Declared keys never
+        clash (see `declare`), so the result is always valid."""
         defaults = self._defaults()
         if defaults == self._primary:
             return
-        self._primary = defaults
+        self._set_primaries(defaults)
         self._fire()
 
     # -- saving -----------------------------------------------------------
@@ -184,16 +201,9 @@ class InputMap:
         """`{action: key name}` for the rebindable actions, for the game's settings."""
         return {n: _key_name(k) for n, k in self._primary.items()}
 
-    def from_dict(self, data: dict[str, str]) -> None:
-        """Loads bindings from `to_dict()` output. Actions missing from `data`
-        take their default; names that are no longer declared (or are now fixed)
-        are ignored. The whole dict is validated first: on `KeyBindingError`
-        nothing changes.
-        """
-        proposed = self._defaults()
-        for name, key_name in data.items():
-            if name in proposed:
-                proposed[name] = _key_code(key_name)
+    def _check_primaries(self, proposed: dict[str, int]) -> None:
+        """Raises `KeyBindingError` if `proposed` binds a key twice or uses a
+        fixed or alternate key."""
         used: dict[int, str] = {}
         for name, key in proposed.items():
             if key in used:
@@ -201,14 +211,34 @@ class InputMap:
                     f"{_key_name(key)} is bound to both {used[key]!r} and {name!r}"
                 )
             used[key] = name
-            owner = self._reserved_by(key)
-            if owner is not None:
+            owner = self._owner.get(key)
+            if owner is not None and key in self._actions[owner].keys:
                 raise KeyBindingError(
                     f"{_key_name(key)} for {name!r} is reserved by {owner!r}"
                 )
+
+    def from_dict(self, data: dict[str, str]) -> None:
+        """Loads bindings from `to_dict()` output. Actions missing from `data`
+        take their default; names that are no longer declared (or are now fixed)
+        are ignored. The whole dict is validated first: on `KeyBindingError`
+        nothing changes. Anything that is not a dict of strings (a corrupted
+        save) is a `KeyBindingError` too.
+        """
+        if not isinstance(data, dict):
+            raise KeyBindingError(f"bindings must be a dict, not {type(data).__name__}")
+        for name, key_name in data.items():
+            if not isinstance(name, str) or not isinstance(key_name, str):
+                raise KeyBindingError(
+                    f"bindings must map strings to strings, got {name!r}: {key_name!r}"
+                )
+        proposed = self._defaults()
+        for name, key_name in data.items():
+            if name in proposed:
+                proposed[name] = _key_code(key_name)
+        self._check_primaries(proposed)
         if proposed == self._primary:
             return
-        self._primary = proposed
+        self._set_primaries(proposed)
         self._fire()
 
     # -- change callbacks -------------------------------------------------
@@ -221,14 +251,7 @@ class InputMap:
         self._callbacks.remove(callback)
 
     def _fire(self) -> None:
-        errors: list[Exception] = []
-        for callback in list(self._callbacks):
-            try:
-                callback()
-            except Exception as error:
-                errors.append(error)
-        if errors:
-            raise ExceptionGroup("input-map callbacks failed", errors)
+        run_callbacks(self._callbacks, label="input-map callbacks failed")
 
 
 __all__ = ["InputMap", "KeyBindingError"]

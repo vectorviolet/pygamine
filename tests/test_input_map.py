@@ -8,6 +8,11 @@ import pytest
 from pygamine.util.input_map import InputMap, KeyBindingError
 
 
+@pytest.fixture(autouse=True)
+def _pygame_ready() -> None:
+    pygame.init()  # key names need an initialized pygame
+
+
 def make() -> InputMap:
     m = InputMap()
     m.declare("pause", pygame.K_SPACE)
@@ -186,3 +191,75 @@ def test_declare_validation() -> None:
     with pytest.raises(ValueError, match="at least one"):
         m.declare_fixed("other")
     assert "other" not in m.actions()
+
+
+def test_declare_after_rebind_cannot_break_reset() -> None:
+    m = InputMap()
+    m.declare("a", pygame.K_1)
+    m.rebind("a", pygame.K_q)
+    with pytest.raises(ValueError, match="reuses"):
+        m.declare("b", pygame.K_1)  # a's default
+    with pytest.raises(ValueError, match="reuses"):
+        m.declare("b", pygame.K_w, alternates=[pygame.K_1])
+    with pytest.raises(ValueError, match="reuses"):
+        m.declare("b", pygame.K_q)  # a's current key
+    m.declare("b", pygame.K_w)
+    m.reset_defaults()
+    assert m.keys_for("a") == (pygame.K_1,)
+    assert m.keys_for("b") == (pygame.K_w,)
+    m.from_dict({})
+    assert m.is_action(key_event(pygame.K_1), "a")
+    assert not m.is_action(key_event(pygame.K_1), "b")
+
+
+def test_rebind_onto_another_actions_default_still_resets_cleanly() -> None:
+    m = make()
+    m.rebind("tower1", pygame.K_q)
+    assert m.rebind("pause", pygame.K_1) is None  # tower1 left K_1
+    m.reset_defaults()
+    assert m.key_for("pause") == pygame.K_SPACE
+    assert m.key_for("tower1") == pygame.K_1
+
+
+def test_unnamed_keys_are_refused() -> None:
+    m = make()
+    with pytest.raises(KeyBindingError, match="no name"):
+        m.rebind("pause", 99999999)
+    with pytest.raises(KeyBindingError, match="no name"):
+        m.rebind("pause", pygame.K_UNKNOWN)
+    assert m.key_for("pause") == pygame.K_SPACE
+    m.to_dict()  # still saveable
+    with pytest.raises(ValueError, match="no name"):
+        m.declare("x", 99999999)
+    with pytest.raises(ValueError, match="no name"):
+        m.declare("x", pygame.K_p, alternates=[99999999])
+    assert "x" not in m.actions()
+
+
+def test_reserved_key_message_is_accurate() -> None:
+    m = make()
+    with pytest.raises(KeyBindingError, match="escape is fixed action 'menu'"):
+        m.rebind("pause", pygame.K_ESCAPE)
+
+
+@pytest.mark.parametrize("bad", [[], None, "pause=p", [("pause", "p")], 5])
+def test_from_dict_non_dict_is_binding_error(bad: object) -> None:
+    m = make()
+    with pytest.raises(KeyBindingError, match="must be a dict"):
+        m.from_dict(bad)  # type: ignore[arg-type]
+    assert m.to_dict() == make().to_dict()
+
+
+@pytest.mark.parametrize("bad", [{1: "p"}, {"pause": 5}, {"pause": None}])
+def test_from_dict_non_string_entries_are_binding_errors(
+    bad: dict[object, object],
+) -> None:
+    m = make()
+    with pytest.raises(KeyBindingError, match="strings"):
+        m.from_dict(bad)  # type: ignore[arg-type]
+    assert m.to_dict() == make().to_dict()
+
+
+def test_is_action_unknown_name_raises() -> None:
+    with pytest.raises(KeyError):
+        make().is_action(key_event(pygame.K_a), "nope")

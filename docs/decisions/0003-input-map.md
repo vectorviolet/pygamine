@@ -15,7 +15,9 @@ CONTROLS screens and tooltips are separate cards.
   `declare_fixed(name, *keys)` adds an action that is listed but cannot be rebound
   (Esc, F11). Keys only; mouse buttons are not rebindable.
 - **Invariant:** a key belongs to at most one action, and a primary key is never
-  also a fixed key or an alternate. `declare` enforces it for defaults.
+  also a fixed key or an alternate. `declare` checks new keys against every
+  action's current keys and declared defaults (so `reset_defaults` can never clash),
+  and refuses keys that have no name. A key-to-action map backs `is_action`.
 - **Queries:** `is_action(event, name)` is true for a KEYDOWN of any bound key.
   `key_for` gives the key to display, `keys_for` all keys (for `get_pressed()`).
 - **Rebinding:** `rebind(name, key)` returns `None` when applied. If another
@@ -28,9 +30,10 @@ CONTROLS screens and tooltips are separate cards.
   dict first and then applies it, so an invalid save changes nothing. Missing
   actions take defaults and unknown names are ignored, so a save survives an
   action being added or removed. Unknown key names, duplicates and reserved keys
-  raise `KeyBindingError`; the game decides whether to fall back to defaults.
+  (or a save that is not a dict of strings) raise `KeyBindingError`; the game decides whether to fall back to defaults.
 - **Callbacks:** `on_changed(cb)` / `remove_changed(cb)` (like localization), `cb()`
   runs after a real change; all run even if one raises, then an `ExceptionGroup`.
+- **pygame.init():** key names need it; `InputMap` asserts it.
 - **State:** a plain class the game instantiates; no process-wide instance.
 
 ## Rejected alternatives
