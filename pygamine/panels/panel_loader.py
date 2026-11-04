@@ -2,22 +2,36 @@ from __future__ import annotations
 
 from pygamine.assets.asset_resolver import AssetResolver
 from pathlib import Path
-from typing import Any, Callable
+from typing import TYPE_CHECKING, Any, Callable
 import yaml
 
 from pygamine.ecs.components.transform import Transform
 
+if TYPE_CHECKING:
+    from pygamine.ui_widgets.tooltip import TooltipManager
+
 # Factory signature: config dict + parent Transform → object
 ObjectFactory = Callable[[dict, Transform], Any]
+
+# Keys allowed in an object's `tooltip:` mapping.
+TOOLTIP_KEYS = frozenset({"text_key", "action", "text_params"})
 
 
 class PanelLoader:
     """Reads panel definitions from a YAML file and loads them into PanelManager."""
 
     def __init__(
-        self, panel_manager, window_transform: Transform, asset_manager: AssetResolver
+        self,
+        panel_manager,
+        window_transform: Transform,
+        asset_manager: AssetResolver,
+        tooltips: TooltipManager | None = None,
     ) -> None:
         self.panel_manager = panel_manager
+        # Needed by objects with a `tooltip:` entry; None means none are allowed.
+        self.tooltips = tooltips
+        # (object name, object, tooltip config) of the panel being loaded.
+        self._pending_tooltips: list[tuple[str, Any, dict]] = []
         self.window_transform = window_transform
         self.assets = asset_manager
         self._factories: dict[str, ObjectFactory] = {}
@@ -55,12 +69,54 @@ class PanelLoader:
         No-op here; subclasses override it (see PanelLoaderExt)."""
 
     def _load_panel(self, tab: str, panel_def: dict, groups: dict) -> None:
+        self._pending_tooltips = []
         for group_name in panel_def.get("extends", []) or []:
             for obj_name, obj_def in groups[group_name].items():
                 self._add_object(tab, obj_name, obj_def)
         for obj_name, obj_def in (panel_def.get("objects", {}) or {}).items():
             self._add_object(tab, obj_name, obj_def)
+        self._add_tooltips(tab)
         self._notify_panel_loaded(tab)
+
+    def _add_tooltips(self, tab: str) -> None:
+        """Adds a `Tooltip` for every object that declared one, named
+        `<object>.tooltip`. They go in after all other objects so they draw on
+        top of the panel."""
+        pending, self._pending_tooltips = self._pending_tooltips, []
+        if not pending:
+            return
+        from pygamine.ui_widgets.tooltip import Tooltip
+
+        assert self.tooltips is not None  # checked in _check_tooltip_def
+        for name, target, config in pending:
+            self.panel_manager.add_object(
+                tab,
+                f"{name}.tooltip",
+                Tooltip(
+                    self.tooltips,
+                    target,
+                    self.window_transform,
+                    config["text_key"],
+                    config.get("action"),
+                    config.get("text_params"),
+                ),
+            )
+
+    def _check_tooltip_def(self, tab: str, name: str, config: Any) -> dict:
+        where = f"Object '{name}' in panel '{tab}'"
+        if self.tooltips is None:
+            raise ValueError(f"{where} has a tooltip but the loader has no tooltips")
+        if not isinstance(config, dict):
+            raise ValueError(f"{where}: tooltip must be a mapping")
+        unknown = set(config) - TOOLTIP_KEYS
+        if unknown:
+            raise ValueError(
+                f"{where}: unknown tooltip keys {sorted(unknown)}; "
+                f"allowed: {sorted(TOOLTIP_KEYS)}"
+            )
+        if "text_key" not in config:
+            raise ValueError(f"{where}: tooltip needs a text_key")
+        return config
 
     def _notify_panel_loaded(self, tab: str) -> None:
         """Calls `on_panel_loaded(panel)` on every object of the just-loaded
@@ -84,6 +140,9 @@ class PanelLoader:
                 f"Object '{name}' in panel '{tab}' has text_key together with "
                 f"text or a default state; use one"
             )
+        tooltip_def = obj_def.pop("tooltip", None)
+        if tooltip_def is not None:
+            tooltip_def = self._check_tooltip_def(tab, name, tooltip_def)
         factory = self._factory_for(name, obj_def)
         parent_name = obj_def.pop("parent", None)
         parent = self._parent_for(tab, name, parent_name)
@@ -92,6 +151,8 @@ class PanelLoader:
 
         obj = factory(obj_def, parent)
         self.panel_manager.add_object(tab, name, obj)
+        if tooltip_def is not None:
+            self._pending_tooltips.append((name, obj, tooltip_def))
 
     def _factory_for(self, name: str, obj_def: dict) -> ObjectFactory:
         type_name = obj_def.get("type", self._default_type)
