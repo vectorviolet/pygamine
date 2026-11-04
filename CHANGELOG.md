@@ -15,6 +15,8 @@ change. Anything before `e5c1fa6` (the commit that first introduced
 
 ## [Unreleased]
 
+## [0.30.0] — 2026-11-04
+
 ### Added
 
 - **Added** `pygamine.ui_widgets.tooltip.Tooltip` and `TooltipManager`: a tooltip with
@@ -31,6 +33,14 @@ change. Anything before `e5c1fa6` (the commit that first introduced
   Opt-in; nothing changes for games that don't use it. `pygamine.util.callbacks.run_callbacks` is the shared
   "run all, then ExceptionGroup" helper (localization uses it too). ADR
   `docs/decisions/0003-input-map.md` (#34).
+
+### Changed
+
+- **Changed** `PanelManager.current_panel` is now a property. Its setter calls
+  `on_hidden()` on the old panel's objects that define it (tooltips use this to drop
+  a pending hover). Code that sets `_panels` directly or builds a `PanelManager`
+  without `__init__` must set `_current_panel` instead. Chokepoint and Highrise pass
+  their full suites and mypy against this release unchanged (#35).
 
 ## [0.29.0] — 2026-11-04
 
