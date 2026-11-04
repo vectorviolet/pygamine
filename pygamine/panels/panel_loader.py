@@ -114,9 +114,32 @@ class PanelLoader:
                 f"{where}: unknown tooltip keys {sorted(unknown)}; "
                 f"allowed: {sorted(TOOLTIP_KEYS)}"
             )
-        if "text_key" not in config:
-            raise ValueError(f"{where}: tooltip needs a text_key")
+        self._check_tooltip_content(where, config)
         return config
+
+    def _check_tooltip_content(self, where: str, config: dict) -> None:
+        """Checks types, that the action exists and that the text renders."""
+        assert self.tooltips is not None
+        text_key = config.get("text_key")
+        if not isinstance(text_key, str):
+            raise ValueError(f"{where}: tooltip needs a text_key string")
+        params = config.get("text_params", {})
+        if not isinstance(params, dict) or not all(isinstance(k, str) for k in params):
+            raise ValueError(f"{where}: tooltip text_params must map names to values")
+        action = config.get("action")
+        if action is not None:
+            if not isinstance(action, str):
+                raise ValueError(f"{where}: tooltip action must be a string")
+            try:
+                self.tooltips.input_map.key_for(action)
+            except KeyError:
+                raise ValueError(f"{where}: tooltip action {action!r} is unknown")
+        try:
+            self.tooltips.localization.tr(text_key, **params)
+        except (KeyError, IndexError, ValueError) as error:
+            raise ValueError(
+                f"{where}: tooltip text_key {text_key!r} can't be rendered: {error}"
+            ) from error
 
     def _notify_panel_loaded(self, tab: str) -> None:
         """Calls `on_panel_loaded(panel)` on every object of the just-loaded

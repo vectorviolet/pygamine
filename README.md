@@ -211,8 +211,8 @@ pause_button:
 
 Shows after 0.4 s (`delay_ms`), hides on leave and click, stays on screen, one at a time.
 `icons` maps `pygame.key.name` strings to image paths (or is a function doing so); keys
-without an icon show as `[F5]`. Rebinds and language changes update it. Call
-`tips.hide()` when switching panels. See `docs/decisions/0004-tooltips.md`.
+without an icon show as `[F5]`. Rebinds and language changes update it. Switching
+panels hides it (`PanelManager.current_panel`); pass `mouse=` your `Mouse` if the game scales its window. See `docs/decisions/0004-tooltips.md`.
 
 ### Database
 

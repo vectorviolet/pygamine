@@ -66,26 +66,40 @@ def make(manager, rect=(100, 100, 50, 20), action="pause") -> Tooltip:
     return Tooltip(manager, Button(rect), SCREEN, "tip.pause", action)
 
 
-def move(tip: Tooltip, pos: tuple[int, int]) -> None:
-    tip.handle_event(pygame.event.Event(pygame.MOUSEMOTION, pos=pos), pos)
+class Cursor:
+    """The fake mouse: where it is and whether the window has its focus."""
+
+    def __init__(self, monkeypatch) -> None:
+        self.pos: tuple[int, int] = (-1, -1)
+        self.focused = True
+        monkeypatch.setattr(pygame.mouse, "get_pos", lambda: self.pos)
+        monkeypatch.setattr(pygame.mouse, "get_focused", lambda: self.focused)
 
 
-def click(tip: Tooltip, pos: tuple[int, int]) -> None:
-    tip.handle_event(pygame.event.Event(pygame.MOUSEBUTTONDOWN, button=1, pos=pos), pos)
+@pytest.fixture
+def cursor(monkeypatch) -> Cursor:
+    return Cursor(monkeypatch)
 
 
-def show(tip: Tooltip, fake_ticks, pos=(110, 110)) -> None:
+def click(tip: Tooltip, button: int = 1) -> None:
+    tip.handle_event(
+        pygame.event.Event(pygame.MOUSEBUTTONDOWN, button=button, pos=(0, 0)), (0, 0)
+    )
+
+
+def show(tip: Tooltip, fake_ticks, cursor, pos=(110, 110)) -> None:
     """Hovers `pos` and lets the delay pass."""
-    start = fake_ticks["t"]
-    move(tip, pos)
-    fake_ticks["t"] = start + tip.manager.delay_ms
+    cursor.pos = pos
+    tip.update()
+    fake_ticks["t"] += tip.manager.delay_ms
     tip.update()
     assert tip.shown
 
 
-def test_shows_after_delay_with_fake_clock(manager, fake_ticks) -> None:
+def test_shows_after_delay_with_fake_clock(manager, fake_ticks, cursor) -> None:
     tip = make(manager)
-    move(tip, (110, 110))
+    cursor.pos = (110, 110)
+    tip.update()
     fake_ticks["t"] = 399
     tip.update()
     assert not tip.shown
@@ -95,67 +109,170 @@ def test_shows_after_delay_with_fake_clock(manager, fake_ticks) -> None:
     assert manager.current is tip
 
 
-def test_delay_is_measured_from_entering(manager, fake_ticks) -> None:
+def test_delay_is_measured_from_entering(manager, fake_ticks, cursor) -> None:
     tip = make(manager)
     fake_ticks["t"] = 1000
-    move(tip, (110, 110))
+    cursor.pos = (110, 110)
+    tip.update()
     fake_ticks["t"] = 1300
-    move(tip, (111, 110))  # still inside: the timer keeps running
+    cursor.pos = (111, 110)  # still inside: the timer keeps running
+    tip.update()
     fake_ticks["t"] = 1400
     tip.update()
     assert tip.shown
 
 
-def test_leave_hides_and_cancels(manager, fake_ticks) -> None:
+def test_leave_hides_and_cancels(manager, fake_ticks, cursor) -> None:
     tip = make(manager)
-    move(tip, (110, 110))
-    move(tip, (5, 5))
+    cursor.pos = (110, 110)
+    tip.update()
+    cursor.pos = (5, 5)
+    tip.update()
     fake_ticks["t"] = 1000
     tip.update()
     assert not tip.shown
-    show(tip, fake_ticks)
-    move(tip, (5, 5))
+    show(tip, fake_ticks, cursor)
+    cursor.pos = (5, 5)
+    tip.update()
     assert not tip.shown
     assert manager.current is None
 
 
-def test_click_hides_until_mouse_leaves(manager, fake_ticks) -> None:
+def test_click_hides_until_mouse_leaves(manager, fake_ticks, cursor) -> None:
     tip = make(manager)
-    show(tip, fake_ticks)
-    click(tip, (110, 110))
+    show(tip, fake_ticks, cursor)
+    click(tip)
     assert not tip.shown
-    move(tip, (112, 110))
-    fake_ticks["t"] = 2000
+    cursor.pos = (112, 110)
+    fake_ticks["t"] += 2000
     tip.update()
     assert not tip.shown
-    move(tip, (5, 5))
-    show(tip, fake_ticks)
+    cursor.pos = (5, 5)
+    tip.update()
+    show(tip, fake_ticks, cursor)
 
 
-def test_click_elsewhere_keeps_tooltip(manager, fake_ticks) -> None:
+@pytest.mark.parametrize("button", [1, 2, 3])
+def test_every_real_button_suppresses(manager, fake_ticks, cursor, button) -> None:
     tip = make(manager)
-    show(tip, fake_ticks)
-    click(tip, (5, 5))
+    show(tip, fake_ticks, cursor)
+    click(tip, button)
+    assert not tip.shown
+
+
+@pytest.mark.parametrize("button", [4, 5])
+def test_wheel_does_not_hide(manager, fake_ticks, cursor, button) -> None:
+    tip = make(manager)
+    show(tip, fake_ticks, cursor)
+    click(tip, button)
     assert tip.shown
 
 
-def test_only_one_visible(manager, fake_ticks) -> None:
+def test_only_one_visible(manager, fake_ticks, cursor) -> None:
     a = make(manager, (100, 100, 50, 20))
     b = make(manager, (120, 100, 50, 20), "save")
-    show(a, fake_ticks)
-    show(b, fake_ticks, (130, 110))
+    show(a, fake_ticks, cursor)
+    show(b, fake_ticks, cursor, (130, 110))
     assert not a.shown
     assert manager.current is b
-    a.update()  # a must not pop back up
+    a.update()  # a must not pop back up at once
     assert not a.shown
 
 
-def test_inactive_target_hides(manager, fake_ticks) -> None:
+def test_inactive_target_hides(manager, fake_ticks, cursor) -> None:
     tip = make(manager)
-    show(tip, fake_ticks)
+    show(tip, fake_ticks, cursor)
     tip.target.active = False
     tip.update()
     assert not tip.shown
+
+
+def test_cursor_leaving_window_hides(manager, fake_ticks, cursor) -> None:
+    tip = make(manager)
+    show(tip, fake_ticks, cursor)
+    cursor.focused = False  # pygame keeps the last position when the mouse leaves
+    tip.update()
+    assert not tip.shown
+
+
+def test_windowleave_event_hides(manager, fake_ticks, cursor) -> None:
+    tip = make(manager)
+    show(tip, fake_ticks, cursor)
+    tip.handle_event(pygame.event.Event(pygame.WINDOWLEAVE), (0, 0))
+    assert not tip.shown
+
+
+def test_target_moving_under_still_cursor(manager, fake_ticks, cursor) -> None:
+    tip = make(manager)
+    show(tip, fake_ticks, cursor)
+    tip.target.rect.x += 200  # e.g. a scrolling panel moves it away
+    tip.update()
+    assert not tip.shown
+    tip.target.rect.x -= 200  # and back under the cursor: a fresh hover
+    tip.update()
+    assert not tip.shown
+    fake_ticks["t"] += manager.delay_ms
+    tip.update()
+    assert tip.shown
+
+
+def test_target_arriving_under_still_cursor_shows(manager, fake_ticks, cursor) -> None:
+    tip = make(manager)
+    cursor.pos = (310, 110)
+    tip.update()
+    tip.target.rect.x = 300
+    tip.update()
+    fake_ticks["t"] += manager.delay_ms
+    tip.update()
+    assert tip.shown
+
+
+def test_shown_tooltip_follows_moving_target(manager, fake_ticks, cursor) -> None:
+    tip = make(manager)
+    show(tip, fake_ticks, cursor)
+    before = tip.rect.x
+    tip.target.rect.x += 5
+    tip.update()
+    assert tip.rect.x == before + 5
+
+
+def test_panel_switch_mid_hover_does_not_show_on_return(
+    manager, fake_ticks, cursor
+) -> None:
+    pm = PanelManager(starting_tab="one")
+    tip = make(manager)
+    pm.add_object("one", "tip", tip)
+    pm.add_panel("two")
+    cursor.pos = (110, 110)
+    pm.update()  # hover starts at t=0
+    fake_ticks["t"] = 200
+    pm.open_panel("two")
+    fake_ticks["t"] = 1000
+    pm.open_panel("one")
+    pm.update()  # the cursor is still on the button, but hovering restarts
+    assert not tip.shown
+    fake_ticks["t"] = 1400
+    pm.update()
+    assert tip.shown
+
+
+def test_panel_switch_hides_visible_tooltip(manager, fake_ticks, cursor) -> None:
+    pm = PanelManager(starting_tab="one")
+    tip = make(manager)
+    pm.add_object("one", "tip", tip)
+    pm.add_panel("two")
+    show(tip, fake_ticks, cursor)
+    pm.open_panel("two")
+    assert not tip.shown and manager.current is None
+
+
+def test_manager_mouse_is_used_when_given(keys, loc) -> None:
+    class FakeMouse:
+        position = (110.0, 110.0)
+
+    m = TooltipManager(keys, pygame.font.Font(None, 20), localization=loc)
+    m._mouse = FakeMouse()  # type: ignore[assignment]
+    assert m.mouse_position() == (110.0, 110.0)
 
 
 def test_icon_used_when_available(manager) -> None:
@@ -188,9 +305,9 @@ def test_no_action_means_text_only(manager) -> None:
     assert tip.key_name is None and tip.key_icon is None and tip.key_label is None
 
 
-def test_rebind_updates_shown_tooltip(manager, keys, fake_ticks) -> None:
+def test_rebind_updates_shown_tooltip(manager, keys, fake_ticks, cursor) -> None:
     tip = make(manager)
-    show(tip, fake_ticks)
+    show(tip, fake_ticks, cursor)
     before = tip.rect.width
     keys.rebind("pause", pygame.K_F6)
     assert tip.key_label == "[F6]"
@@ -198,27 +315,27 @@ def test_rebind_updates_shown_tooltip(manager, keys, fake_ticks) -> None:
     assert tip.rect.width != before  # re-rendered: bracketed text, not the icon
 
 
-def test_language_change_updates_text(manager, loc, fake_ticks) -> None:
+def test_language_change_updates_text(manager, loc, fake_ticks, cursor) -> None:
     tip = make(manager)
-    show(tip, fake_ticks)
+    show(tip, fake_ticks, cursor)
     surface_before = tip._surface
     loc.set_language("tr")
     assert tip.text == "Duraklat"
     assert tip._surface is not surface_before
 
 
-def test_clamped_to_screen_and_flips_above(manager, fake_ticks) -> None:
+def test_clamped_to_screen_and_flips_above(manager, fake_ticks, cursor) -> None:
     tip = make(manager, (SCREEN.right - 20, SCREEN.bottom - 20, 20, 20))
-    show(tip, fake_ticks, (SCREEN.right - 5, SCREEN.bottom - 5))
+    show(tip, fake_ticks, cursor, (SCREEN.right - 5, SCREEN.bottom - 5))
     assert SCREEN.contains(tip.rect)
     assert tip.rect.bottom <= tip.target.rect.top
     corner = make(manager, (0, 0, 10, 10))
-    show(corner, fake_ticks, (1, 1))
+    show(corner, fake_ticks, cursor, (1, 1))
     assert SCREEN.contains(corner.rect)
     assert corner.rect.top >= corner.target.rect.bottom
 
 
-def test_draw_blits_only_when_shown(manager, fake_ticks) -> None:
+def test_draw_blits_only_when_shown(manager, fake_ticks, cursor) -> None:
     tip = make(manager)
     surface = pygame.Surface(SCREEN.size)
     surface.fill((0, 0, 0))
@@ -226,7 +343,7 @@ def test_draw_blits_only_when_shown(manager, fake_ticks) -> None:
     assert pygame.mask.from_threshold(surface, (0, 0, 0), (1, 1, 1)).count() == (
         SCREEN.width * SCREEN.height
     )
-    show(tip, fake_ticks)
+    show(tip, fake_ticks, cursor)
     tip.draw(surface)
     # The border color is drawn at the box's top-left corner.
     assert surface.get_at(tip.rect.topleft)[:3] == manager.border_color[:3]
@@ -242,9 +359,9 @@ def test_on_removed_unregisters_callbacks(manager, keys, loc) -> None:
     tip.on_removed()  # idempotent
 
 
-def test_on_removed_hides(manager, fake_ticks) -> None:
+def test_on_removed_hides(manager, fake_ticks, cursor) -> None:
     tip = make(manager)
-    show(tip, fake_ticks)
+    show(tip, fake_ticks, cursor)
     tip.on_removed()
     assert manager.current is None
 
@@ -323,3 +440,28 @@ def test_loader_without_manager_rejects_tooltip(tmp_path) -> None:
                 "        position: [0, 0]\n        tooltip: {text_key: tip.pause}\n",
             )
         )
+
+
+@pytest.mark.parametrize(
+    "tooltip, message",
+    [
+        ("{text_key: tip.pause, action: puase}", "puase"),
+        ("{text_key: tip.nope}", "tip.nope"),
+        ("{text_key: tip.pause, text_params: 5}", "text_params"),
+        ("{text_key: tip.pause, action: 7}", "action must be a string"),
+        ("{text_key: 3}", "text_key"),
+    ],
+)
+def test_loader_validation_names_panel_and_object(
+    loader, tmp_path, tooltip, message
+) -> None:
+    with pytest.raises(ValueError, match=message) as info:
+        loader.load(
+            write(
+                tmp_path,
+                "panels:\n  hud:\n    objects:\n      b:\n        type: button\n"
+                f"        position: [0, 0]\n        tooltip: {tooltip}\n",
+            )
+        )
+    assert "'b' in panel 'hud'" in str(info.value)
+    assert "hud" not in loader.panel_manager  # nothing half-loaded

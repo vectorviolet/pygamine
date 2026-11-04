@@ -11,6 +11,8 @@ the screen, and only one is visible at a time. Its text follows language changes
 and its key follows `InputMap` rebinds. The engine ships no icon images: keys the
 game's icon lookup doesn't know are drawn as their bracketed name, e.g. [F5].
 
+`PanelManager` hides a panel's tooltips when it stops being current.
+
 See docs/decisions/0004-tooltips.md.
 """
 
@@ -20,6 +22,7 @@ from typing import Any, Callable, Mapping
 
 import pygame
 
+from pygamine.app.mouse import Mouse
 from pygamine.assets.image import load_image
 from pygamine.ecs.game_object import GameObject
 from pygamine.util.input_map import InputMap
@@ -32,6 +35,8 @@ from pygamine.util.localization import (
 IconLookup = Mapping[str, Any] | Callable[[str], Any]
 
 DEFAULT_DELAY_MS = 400
+# Mouse buttons that count as a click (left, middle, right; not the wheel).
+CLICK_BUTTONS = (1, 2, 3)
 
 
 class TooltipManager:
@@ -51,6 +56,7 @@ class TooltipManager:
         border_color: tuple[int, ...] = (190, 190, 205),
         padding: int = 6,
         gap: int = 6,
+        mouse: Mouse | None = None,
     ) -> None:
         self.input_map = input_map
         self.font = font
@@ -61,6 +67,9 @@ class TooltipManager:
         self.border_color = border_color
         self.padding = padding
         self.gap = gap
+        # The game's `Mouse` gives the cursor in logical coordinates; without
+        # one the raw pygame position is used.
+        self._mouse = mouse
         self._icons = icons
         self._icon_cache: dict[str, pygame.Surface | None] = {}
         self._current: Tooltip | None = None
@@ -70,8 +79,17 @@ class TooltipManager:
         """The visible tooltip, if any."""
         return self._current
 
+    def mouse_position(self) -> tuple[float, float]:
+        if self._mouse is not None:
+            return self._mouse.position
+        return pygame.mouse.get_pos()
+
+    @staticmethod
+    def mouse_focused() -> bool:
+        return pygame.mouse.get_focused()
+
     def hide(self) -> None:
-        """Hides the visible tooltip (e.g. when the game switches panels)."""
+        """Hides the visible tooltip. Switching panels does this by itself."""
         if self._current is not None:
             self._current.hide()
 
@@ -134,7 +152,6 @@ class Tooltip(GameObject):
         self._hover_since: int | None = None
         self._suppressed = False  # clicked: stay hidden until the mouse leaves
         self._shown = False
-        self._built_for: tuple[str, str | None] | None = None
         self._surface: pygame.Surface | None = None
         self._registered = False
 
@@ -183,9 +200,9 @@ class Tooltip(GameObject):
 
     def refresh(self) -> None:
         """Re-reads the text and key (called on rebinds and language changes);
-        redraws now if visible, else on the next show."""
+        re-renders now if visible, else on the next show."""
         if self._shown:
-            self._ensure_built()
+            self._build()
 
     def _on_language_changed(self, code: str) -> None:
         self.refresh()
@@ -208,70 +225,71 @@ class Tooltip(GameObject):
 
     # -- input / update / draw -------------------------------------------
 
-    def _over_target(self, mouse_position: Any) -> bool:
-        return (
-            mouse_position is not None
-            and self.target.active
-            and self.target.rect.collidepoint(mouse_position)
-        )
+    def _over_target(self) -> bool:
+        """Whether the real mouse is on the (active) target right now. Read each
+        frame, so it also holds when the cursor leaves the window or the target
+        moves under a still cursor."""
+        if not (self.target.active and self.manager.mouse_focused()):
+            return False
+        return bool(self.target.rect.collidepoint(self.manager.mouse_position()))
+
+    def on_hidden(self) -> None:
+        """Called by `PanelManager` when its panel stops being the current one:
+        drops a visible or pending tooltip so it can't pop up on return."""
+        self.hide()
+        self._suppressed = False
 
     def handle_event(self, event: pygame.event.Event, mouse_position: Any) -> None:
         if not self.active:
             return
-        if event.type == pygame.MOUSEMOTION:
-            if not self._over_target(mouse_position):
-                self.hide()
-                self._suppressed = False
-            elif not self._shown and not self._suppressed:
-                if self._hover_since is None:
-                    self._hover_since = pygame.time.get_ticks()
-        elif event.type == pygame.MOUSEBUTTONDOWN:
-            if self._over_target(mouse_position):
+        if event.type == pygame.WINDOWLEAVE:
+            self.on_hidden()
+        elif event.type == pygame.MOUSEBUTTONDOWN and event.button in CLICK_BUTTONS:
+            if self._over_target():
                 self.hide()
                 self._suppressed = True
 
     def update(self) -> None:
         if not self.active:
             return
-        if (self._shown or self._hover_since is not None) and not self.target.active:
-            self.hide()
+        if not self._over_target():
+            self.on_hidden()
             return
-        if self._hover_since is None or self._shown:
+        if self._suppressed:
             return
-        if pygame.time.get_ticks() - self._hover_since >= self.manager.delay_ms:
+        if self._shown:
+            self._place()  # the target may have moved
+            return
+        now = pygame.time.get_ticks()
+        if self._hover_since is None:
+            self._hover_since = now
+        if now - self._hover_since >= self.manager.delay_ms:
             self._shown = True
             self.manager._show(self)
-            self._ensure_built()
+            self._build()
 
     def draw(self, surface: pygame.Surface) -> None:
         if not self.active or not self._shown:
             return
-        self._ensure_built()
         assert self._surface is not None
         surface.blit(self._surface, self.rect.topleft)
 
     # -- rendering --------------------------------------------------------
 
-    def _ensure_built(self) -> None:
-        """Renders the box for the current text and key, then places it. Reuses
-        the last surface when neither changed."""
-        signature = (self.text, self.key_name)
-        if signature != self._built_for or self._surface is None:
-            self._surface = self._render(*signature)
-            self._built_for = signature
+    def _build(self) -> None:
+        """Renders the box for the current text and key, then places it."""
+        self._surface = self._render()
         self.rect.size = self._surface.get_size()
         self._place()
 
-    def _render(self, text: str, key_name: str | None) -> pygame.Surface:
+    def _render(self) -> pygame.Surface:
         m = self.manager
-        parts = [m.font.render(text, True, m.text_color)]
-        if key_name is not None:
-            icon = m.icon_for(key_name)
-            parts.append(
-                icon
-                if icon is not None
-                else m.font.render(f"[{key_name.upper()}]", True, m.text_color)
-            )
+        parts = [m.font.render(self.text, True, m.text_color)]
+        icon, label = self.key_icon, self.key_label
+        if icon is not None:
+            parts.append(icon)
+        elif label is not None:
+            parts.append(m.font.render(label, True, m.text_color))
         width = sum(p.get_width() for p in parts) + m.gap * (len(parts) - 1)
         height = max(p.get_height() for p in parts)
         box = pygame.Surface(

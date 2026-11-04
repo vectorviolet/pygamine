@@ -10,7 +10,23 @@ class PanelManager:
     def __init__(self, background_colors=None, starting_tab="") -> None:
         self._panels: dict[str, GameObjectDict] = {}
         self.background_colors = background_colors
-        self.current_panel = starting_tab
+        self._current_panel = starting_tab
+
+    @property
+    def current_panel(self) -> str:
+        return self._current_panel
+
+    @current_panel.setter
+    def current_panel(self, name: str) -> None:
+        """Switches panel; objects of the old one with an `on_hidden()` hook
+        (tooltips) are told, so they drop pending state."""
+        old = self._current_panel
+        self._current_panel = name
+        if old != name and old in self._panels:
+            for obj in list(self._panels[old].values()):
+                hook = getattr(obj, "on_hidden", None)
+                if hook is not None:
+                    hook()
 
     def __getitem__(self, name: str) -> GameObjectDict:
         return self._panels[name]
