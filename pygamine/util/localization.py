@@ -19,6 +19,8 @@ from weakref import WeakSet
 
 import yaml
 
+from pygamine.util.callbacks import run_callbacks
+
 if TYPE_CHECKING:
     from pygamine.ui_widgets.text_object import TextObject
 
@@ -205,14 +207,7 @@ class Localization:
             obj.apply_localized_text(text)
 
     def _fire(self, code: str) -> None:
-        errors: list[Exception] = []
-        for callback in list(self._callbacks):
-            try:
-                callback(code)
-            except Exception as error:
-                errors.append(error)
-        if errors:
-            raise ExceptionGroup("language-changed callbacks failed", errors)
+        run_callbacks(self._callbacks, code, label="language-changed callbacks failed")
 
     # -- CI checks --------------------------------------------------------
 

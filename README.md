@@ -177,6 +177,22 @@ clean). Before reloading a panel call `panel_manager.remove_panel(name)` so its
 labels stop following language changes. See
 `docs/decisions/0001-localization.md`.
 
+### Input map
+
+```python
+from pygamine.util.input_map import InputMap
+
+keys = InputMap()
+keys.declare("tower1", pygame.K_1, alternates=[pygame.K_KP1])
+keys.declare_fixed("menu", pygame.K_ESCAPE)
+if keys.is_action(event, "tower1"):
+    ...  # KEYDOWN of 1 or keypad 1
+clash = keys.rebind("tower1", pygame.K_q)  # None, or the action to swap with
+settings["keys"] = keys.to_dict()  # {"tower1": "q"}; keys.from_dict(...) loads
+```
+
+See `docs/decisions/0003-input-map.md`.
+
 ### Database
 
 ```python

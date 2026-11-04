@@ -15,6 +15,16 @@ change. Anything before `e5c1fa6` (the commit that first introduced
 
 ## [Unreleased]
 
+### Added
+
+- **Added** `pygamine.util.input_map.InputMap`: named keyboard actions with a
+  rebindable primary key, fixed alternates and fixed actions, `is_action`,
+  `rebind` (reports the conflicting action), `swap`, `reset_defaults`,
+  `to_dict()` / `from_dict()` with key names, and `on_changed` callbacks.
+  Opt-in; nothing changes for games that don't use it. `pygamine.util.callbacks.run_callbacks` is the shared
+  "run all, then ExceptionGroup" helper (localization uses it too). ADR
+  `docs/decisions/0003-input-map.md` (#34).
+
 ## [0.29.0] — 2026-11-04
 
 ### Added
