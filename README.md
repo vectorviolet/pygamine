@@ -112,6 +112,7 @@ matching dependency entry.
 | `ui_widgets.text_object` | `TextObject` — single- or multi-state label |
 | `ui_widgets.menu_controller` | `MenuController` — keyboard-navigable button list |
 | `ui_widgets.input_box` | `InputBox` |
+| `ui_widgets.tooltip` | `Tooltip`, `TooltipManager` — hover tooltip with key prompt |
 
 ### Utilities
 | Module | Exports |
@@ -192,6 +193,26 @@ settings["keys"] = keys.to_dict()  # {"tower1": "q"}; keys.from_dict(...) loads
 ```
 
 See `docs/decisions/0003-input-map.md`.
+
+### Tooltips
+
+```python
+from pygamine.ui_widgets.tooltip import TooltipManager
+
+tips = TooltipManager(keys, font, icons={"f5": "assets/keys/f5.png"})  # icons optional
+loader = PanelLoader(panel_manager, window, assets, tooltips=tips)
+```
+
+```yaml
+pause_button:
+  type: button
+  tooltip: {text_key: hud.pause, action: pause}   # action optional
+```
+
+Shows after 0.4 s (`delay_ms`), hides on leave and click, stays on screen, one at a time.
+`icons` maps `pygame.key.name` strings to image paths (or is a function doing so); keys
+without an icon show as `[F5]`. Rebinds and language changes update it. Switching
+panels hides it (`PanelManager.current_panel`); pass `mouse=` your `Mouse` if the game scales its window. See `docs/decisions/0004-tooltips.md`.
 
 ### Database
 

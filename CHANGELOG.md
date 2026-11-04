@@ -17,6 +17,13 @@ change. Anything before `e5c1fa6` (the commit that first introduced
 
 ### Added
 
+- **Added** `pygamine.ui_widgets.tooltip.Tooltip` and `TooltipManager`: a tooltip with
+  the object's localized name and its input-map key, shown after a 0.4 s hover, hidden on
+  leave or click, kept on screen, one at a time. The game maps key names to icon images;
+  keys without one show as `[F5]`. Declared in panels YAML with
+  `tooltip: {text_key: ..., action: ...}`; `PanelLoader` takes an optional `tooltips`
+  manager. Updates on rebinds and language changes. ADR
+  `docs/decisions/0004-tooltips.md` (#35).
 - **Added** `pygamine.util.input_map.InputMap`: named keyboard actions with a
   rebindable primary key, fixed alternates and fixed actions, `is_action`,
   `rebind` (reports the conflicting action), `swap`, `reset_defaults`,
