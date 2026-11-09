@@ -18,6 +18,7 @@ change. Anything before `e5c1fa6` (the commit that first introduced
 ### Changed
 
 - **Changed** the README badges: CI, release (latest tag, as there are no GitHub releases), license, coverage and Python, each linked (vectorviolet/chokepoint#150).
+- **Changed** the Tiled loader module moved from `pygamine.assets.tilemap` to `pygamine.assets.tiledmap` (#41). `from pygamine import TiledMap` is unchanged; the old module path is removed, with no compatibility shim.
 
 ## [0.30.0] — 2026-11-04
 
