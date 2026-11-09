@@ -17,7 +17,7 @@ import pygame
 import pytest
 
 from pygamine.app.camera import Camera
-from pygamine.assets.tilemap import TiledMap
+from pygamine.assets.tiledmap import TiledMap
 
 RED = (255, 0, 0, 255)
 GREEN = (0, 255, 0, 255)

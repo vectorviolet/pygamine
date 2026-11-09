@@ -82,7 +82,7 @@ matching dependency entry.
 | `assets.sprite_sheet` | `SpriteSheet` (`from_path`, `strip`, `grid`, `frame`) |
 | `assets.database` | `Database`, `DatabaseError` — thin SQLite wrapper, stores `.db` under `databases/` |
 | `assets.save_store` | `SaveStore` — JSON-backed key-value persistence for settings/saves under `saves/`, atomic writes |
-| `assets.tilemap` | `TiledMap` — Tiled `.tmx` loader (pytmx-backed): tile dims, object-group iteration, offscreen pre-render, camera-aware draw |
+| `assets.tiledmap` | `TiledMap` — Tiled `.tmx` loader (pytmx-backed): tile dims, object-group iteration, offscreen pre-render, camera-aware draw |
 | `assets.paths` | `resource_root`, `resource_path` — cwd anchor that works from source and inside a frozen PyInstaller bundle; a host's entry point `chdir()`s into `resource_root()` at startup |
 
 ### Panel / UI system

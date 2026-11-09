@@ -134,7 +134,7 @@ if TYPE_CHECKING:
         DatabaseError as DatabaseError,
     )
     from pygamine.util.spatial_grid import SpatialGrid as SpatialGrid
-    from pygamine.assets.tilemap import TiledMap as TiledMap
+    from pygamine.assets.tiledmap import TiledMap as TiledMap
     from pygamine.assets.paths import (
         resource_root as resource_root,
         resource_path as resource_path,
@@ -233,7 +233,7 @@ _EXPORTS: dict[str, str] = {
     "Database": "pygamine.assets.database",
     "DatabaseError": "pygamine.assets.database",
     "SpatialGrid": "pygamine.util.spatial_grid",
-    "TiledMap": "pygamine.assets.tilemap",
+    "TiledMap": "pygamine.assets.tiledmap",
     "resource_root": "pygamine.assets.paths",
     "resource_path": "pygamine.assets.paths",
     # Networking
