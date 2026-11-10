@@ -481,3 +481,40 @@ def test_require_component_with_default_name_does_not_quote_a_placeholder():
 
     with pytest.raises(LookupError, match=r"^GameObject has no Rigidbody2D component$"):
         GameObject().require_component(Rigidbody2D)
+
+
+def test_set_parent_under_inactive_parent_fires_on_disable():
+    events = []
+
+    class Child(GameObject):
+        def on_enable(self):
+            events.append("enable")
+
+        def on_disable(self):
+            events.append("disable")
+
+    parent, child = GameObject(), Child()
+    parent.active = False
+    child.set_parent(parent)
+    assert not child.active
+    assert events == ["disable"]
+
+    child.set_parent(None)
+    assert child.active
+    assert events == ["disable", "enable"]
+
+
+def test_set_parent_between_parents_with_same_effective_state_fires_nothing():
+    events = []
+
+    class Child(GameObject):
+        def on_enable(self):
+            events.append("enable")
+
+        def on_disable(self):
+            events.append("disable")
+
+    first, second, child = GameObject(), GameObject(), Child()
+    child.set_parent(first)
+    child.set_parent(second)
+    assert events == []

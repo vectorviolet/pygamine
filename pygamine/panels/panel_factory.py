@@ -12,6 +12,7 @@ from typing import Any, Callable
 
 import pygame
 
+from pygamine.assets.asset_path import AssetPath
 from pygamine.assets.asset_resolver import AssetResolver
 from pygamine.assets.font import load_font
 from pygamine.assets.sprite_sheet import SpriteSheet
@@ -21,11 +22,27 @@ from pygamine.ui_widgets.scrolling_panel import ScrollingPanel
 from pygamine.ecs.animated_sprite import AnimatedSprite
 from pygamine.ecs.components.transform import Transform
 from pygamine.ecs.state_object import StateObject, HoverableStateObject
+from pygamine.panels.panel_loader import require_mapping
 
 
-def _state_asset(assets: AssetResolver, value: Any) -> Any:
-    """Resolves a manifest key (str) to an image path; passes anything else through."""
-    return assets.image_path(value) if isinstance(value, str) else value
+def _state_asset(
+    assets: AssetResolver, state_key: str, state_cfg: dict, key: str, required: bool
+) -> Any:
+    """Resolves a state's `asset`/`hover` manifest key to an image path. An
+    already-resolved AssetPath passes through. An absent optional key is None;
+    any other present value must be a string (same rule as the top-level keys)."""
+    if key not in state_cfg:
+        if required:
+            raise ValueError(f"State '{state_key}' needs an '{key}'")
+        return None
+    value = state_cfg[key]
+    if isinstance(value, AssetPath):
+        return value
+    if not isinstance(value, str):
+        raise ValueError(
+            f"State '{state_key}': '{key}' must be an asset key string, got {value!r}"
+        )
+    return assets.image_path(value)
 
 
 def _build_color_object(cfg: dict, parent: Transform, size: Any) -> StateObject:
@@ -56,10 +73,11 @@ def _build_hoverable_object(
         anchor=cfg.get("anchor", "top-left"),
     )
     for state_key, state_cfg in cfg.get("states", {}).items():
+        require_mapping(f"State '{state_key}'", state_cfg)
         obj.add_state(
             state_key,
-            _state_asset(assets, state_cfg["asset"]),
-            _state_asset(assets, state_cfg.get("hover")),
+            _state_asset(assets, state_key, state_cfg, "asset", required=True),
+            _state_asset(assets, state_key, state_cfg, "hover", required=False),
         )
     return obj
 

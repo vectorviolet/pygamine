@@ -11,12 +11,14 @@ import pytest
 
 from pygamine.assets.asset_manager import AssetManager
 from pygamine.ecs.components.transform import Transform
+from pygamine.ecs.game_object import GameObject
 from pygamine.panels.panel_loader_ext import PanelLoaderExt
 from pygamine.panels.panel_manager import PanelManager
 
 
-class _Built:
+class _Built(GameObject):
     def __init__(self, obj_def, parent):
+        super().__init__()
         self.obj_def = obj_def
         self.parent = parent
         size = obj_def.get("size")
@@ -382,7 +384,7 @@ def test_empty_object_entry_raises_when_templates_are_used(loader, tmp_path):
         "    objects:\n"
         "      play:\n",
     )
-    with pytest.raises(ValueError, match="Object 'play'"):
+    with pytest.raises(ValueError, match="Object 'play' in panel 'menu'"):
         loader.load(path)
 
 
@@ -398,5 +400,28 @@ def test_empty_object_entry_in_a_group_raises_when_templates_are_used(loader, tm
         "  menu:\n"
         "    extends: [shared]\n",
     )
-    with pytest.raises(ValueError, match="Object 'back'"):
+    with pytest.raises(ValueError, match="Object 'back' in group 'shared'"):
+        loader.load(path)
+
+
+def test_empty_object_template_raises_naming_the_template(loader, tmp_path):
+    path = _write(
+        tmp_path,
+        "object_templates:\n"
+        "  menu_btn:\n"
+        "panels:\n"
+        "  menu:\n"
+        "    objects:\n"
+        "      play: {extends: menu_btn}\n",
+    )
+    with pytest.raises(ValueError, match="Template 'menu_btn'"):
+        loader.load(path)
+
+
+def test_empty_panel_raises_naming_the_panel_before_layouts_run(loader, tmp_path):
+    path = _write(
+        tmp_path,
+        "object_templates:\n  menu_btn: {size: [10, 10]}\npanels:\n  menu:\n",
+    )
+    with pytest.raises(ValueError, match="Panel 'menu'"):
         loader.load(path)
