@@ -196,18 +196,34 @@ class PanelLoader:
         self._resolve_asset_keys(where, obj_def)
         self._scale_def(obj_def, window_parented=parent_obj is None)
 
-        obj = factory(obj_def, parent)
-        if parent_obj is not None and not isinstance(obj, GameObject):
-            raise TypeError(
-                f"{where} has a parent but its factory built a "
-                f"{type(obj).__name__}, not a GameObject"
-            )
+        obj = self._build(where, factory, obj_def, parent, parent_obj is not None)
         self._detach_replaced(tab, name, obj)
         if parent_obj is not None:
             obj.set_parent(parent_obj)
         self.panel_manager.add_object(tab, name, obj)
         if tooltip_def is not None:
             self._pending_tooltips.append((name, obj, tooltip_def))
+
+    @staticmethod
+    def _build(
+        where: str,
+        factory: ObjectFactory,
+        obj_def: dict,
+        parent: Transform,
+        has_parent_object: bool,
+    ) -> Any:
+        """Runs the factory. Its ValueErrors gain `where`; an object with a
+        `parent:` must come out as a GameObject so it can be linked."""
+        try:
+            obj = factory(obj_def, parent)
+        except ValueError as error:
+            raise ValueError(f"{where}: {error}") from error
+        if has_parent_object and not isinstance(obj, GameObject):
+            raise TypeError(
+                f"{where} has a parent but its factory built a "
+                f"{type(obj).__name__}, not a GameObject"
+            )
+        return obj
 
     def _factory_for(self, name: str, obj_def: dict) -> ObjectFactory:
         type_name = obj_def.get("type", self._default_type)

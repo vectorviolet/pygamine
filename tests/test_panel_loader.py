@@ -540,3 +540,22 @@ def test_null_asset_key_raises_naming_panel_object_and_key(loader, tmp_path, key
     )
     with pytest.raises(ValueError, match=f"Object 'play' in panel 'menu'.*'{key}'"):
         loader.load(path)
+
+
+def test_factory_value_error_names_panel_object_and_state(
+    window_transform, assets, tmp_path
+):
+    from pygamine.panels.panel_factory import make_factory
+
+    ld = PanelLoader(PanelManager(), window_transform, assets)
+    ld.register("object", make_factory(assets), default=True)
+    path = _write(
+        tmp_path,
+        "panels:\n  menu:\n    objects:\n      play:\n"
+        "        position: [0, 0]\n        size: [10, 10]\n"
+        "        states: {bought: }\n",
+    )
+    with pytest.raises(
+        ValueError, match="Object 'play' in panel 'menu': State 'bought'"
+    ):
+        ld.load(path)
