@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING, Any, Callable
 import yaml
 
 from pygamine.ecs.components.transform import Transform
+from pygamine.ecs.game_object import GameObject
 
 if TYPE_CHECKING:
     from pygamine.ui_widgets.tooltip import TooltipManager
@@ -15,6 +16,14 @@ ObjectFactory = Callable[[dict, Transform], Any]
 
 # Keys allowed in an object's `tooltip:` mapping.
 TOOLTIP_KEYS = frozenset({"text_key", "action", "text_params"})
+
+
+def require_mapping(where: str, value: Any) -> dict:
+    """Returns `value` if it is a mapping; otherwise raises a ValueError naming
+    `where`. An empty YAML entry (`name:`) reads as None and lands here."""
+    if not isinstance(value, dict):
+        raise ValueError(f"{where} must be a mapping, got {value!r}")
+    return value
 
 
 class PanelLoader:
@@ -58,9 +67,12 @@ class PanelLoader:
         with open(path, encoding="utf-8") as f:
             data = yaml.safe_load(f) or {}
 
+        groups = data.get("groups", {}) or {}
+        for group_name, group_def in groups.items():
+            require_mapping(f"Group '{group_name}'", group_def)
+
         self._preprocess(data)
 
-        groups = data.get("groups", {}) or {}
         for tab, panel_def in (data.get("panels", {}) or {}).items():
             self._load_panel(tab, panel_def, groups)
 
@@ -155,7 +167,10 @@ class PanelLoader:
                 hook(panel)
 
     def _add_object(self, tab: str, name: str, obj_def: dict) -> None:
-        obj_def = dict(obj_def)
+        where = f"Object '{name}' in panel '{tab}'"
+        obj_def = dict(require_mapping(where, obj_def))
+        if "states" in obj_def and obj_def["states"] is None:
+            raise ValueError(f"{where}: 'states' has no value; give a mapping")
         if "text_key" in obj_def and (
             "text" in obj_def or "default" in (obj_def.get("states") or {})
         ):
@@ -169,10 +184,12 @@ class PanelLoader:
         factory = self._factory_for(name, obj_def)
         parent_name = obj_def.pop("parent", None)
         parent = self._parent_for(tab, name, parent_name)
-        self._resolve_asset_keys(obj_def)
+        self._resolve_asset_keys(where, obj_def)
         self._scale_def(obj_def, window_parented=parent_name is None)
 
         obj = factory(obj_def, parent)
+        if parent_name is not None:
+            self._link_parent(obj, self.panel_manager[tab][parent_name])
         self.panel_manager.add_object(tab, name, obj)
         if tooltip_def is not None:
             self._pending_tooltips.append((name, obj, tooltip_def))
@@ -197,11 +214,25 @@ class PanelLoader:
             )
         return self.panel_manager[tab][parent_name].rect
 
-    def _resolve_asset_keys(self, obj_def: dict) -> None:
-        """Replaces the `asset` and `hover` manifest keys with image paths, in place."""
+    @staticmethod
+    def _link_parent(obj: Any, parent_obj: Any) -> None:
+        """Makes `parent_obj` the GameObject parent of `obj`, so `active` follows
+        the YAML hierarchy like the Transform parent already does. Factories may
+        return any object, so non-GameObjects (and their parents) are left alone."""
+        if isinstance(obj, GameObject) and isinstance(parent_obj, GameObject):
+            obj.set_parent(parent_obj)
+
+    def _resolve_asset_keys(self, where: str, obj_def: dict) -> None:
+        """Replaces the `asset` and `hover` manifest keys with image paths, in place.
+        Raises ValueError for a key whose value isn't a manifest key string."""
         for key in ("asset", "hover"):
             if key in obj_def:
-                obj_def[key] = self.assets.image_path(obj_def[key])
+                value = obj_def[key]
+                if not isinstance(value, str):
+                    raise ValueError(
+                        f"{where}: '{key}' must be an asset key string, got {value!r}"
+                    )
+                obj_def[key] = self.assets.image_path(value)
 
     def _scale_def(self, obj_def: dict, window_parented: bool) -> None:
         """Apply the global UI scale (self.scale) to one object's geometry, in place.

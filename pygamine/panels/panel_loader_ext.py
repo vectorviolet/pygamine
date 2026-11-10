@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any, NamedTuple, override
 
-from pygamine.panels.panel_loader import PanelLoader
+from pygamine.panels.panel_loader import PanelLoader, require_mapping
 
 
 def _resolve_extends(data: dict, templates: dict) -> None:
@@ -110,6 +110,7 @@ def _expand_in(objects: dict) -> None:
 
 def _apply_templates(objects: dict, templates: dict) -> None:
     for name, obj_def in objects.items():
+        require_mapping(f"Object '{name}'", obj_def)
         base_name = obj_def.get("extends")
         if base_name is None:
             continue

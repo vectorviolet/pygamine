@@ -352,3 +352,51 @@ def test_place_children_rejects_duplicate_names():
 
     with pytest.raises(KeyError, match="duplicate"):
         _place_children("g", {"objects": {"a": {}}}, _Layout(True, 0, 0, 1), {"a": {}})
+
+
+# ── empty / null YAML entries ──────────────────────────────────────────────
+
+
+def test_empty_group_body_raises_when_templates_are_used(loader, tmp_path):
+    path = _write(
+        tmp_path,
+        "object_templates:\n"
+        "  menu_btn: {size: [10, 10]}\n"
+        "groups:\n"
+        "  shared:\n"
+        "panels:\n"
+        "  menu:\n"
+        "    extends: [shared]\n",
+    )
+    with pytest.raises(ValueError, match="Group 'shared'"):
+        loader.load(path)
+
+
+def test_empty_object_entry_raises_when_templates_are_used(loader, tmp_path):
+    path = _write(
+        tmp_path,
+        "object_templates:\n"
+        "  menu_btn: {size: [10, 10]}\n"
+        "panels:\n"
+        "  menu:\n"
+        "    objects:\n"
+        "      play:\n",
+    )
+    with pytest.raises(ValueError, match="Object 'play'"):
+        loader.load(path)
+
+
+def test_empty_object_entry_in_a_group_raises_when_templates_are_used(loader, tmp_path):
+    path = _write(
+        tmp_path,
+        "object_templates:\n"
+        "  menu_btn: {size: [10, 10]}\n"
+        "groups:\n"
+        "  shared:\n"
+        "    back:\n"
+        "panels:\n"
+        "  menu:\n"
+        "    extends: [shared]\n",
+    )
+    with pytest.raises(ValueError, match="Object 'back'"):
+        loader.load(path)

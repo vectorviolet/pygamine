@@ -15,7 +15,9 @@ import pygame
 import pytest
 
 from pygamine.assets.asset_manager import AssetManager
+from pygamine.ecs._dispatch import dispatch_draw
 from pygamine.ecs.components.transform import Transform
+from pygamine.ecs.game_object import GameObject
 from pygamine.panels.panel_loader import PanelLoader
 from pygamine.panels.panel_manager import PanelManager
 
@@ -370,3 +372,92 @@ def test_scale_position_scales_directly_when_not_window_parented(loader):
     obj_def = {"position": [10, "CENTER"]}
     loader._scale_position(obj_def, 2.0, False, (100, 100))
     assert obj_def["position"] == [20, "CENTER"]
+
+
+# ── GameObject parent link ─────────────────────────────────────────────────
+
+
+class _Drawn(GameObject):
+    """A real GameObject that counts how often it is drawn."""
+
+    def __init__(self, obj_def, parent):
+        super().__init__()
+        self.rect.set_parent(parent)
+        self.draws = 0
+
+    def draw(self, surface) -> None:
+        if self.active:
+            self.draws += 1
+
+
+_PARENT_YAML = (
+    "panels:\n  menu:\n    objects:\n      panel: {}\n      play: {parent: panel}\n"
+)
+
+
+@pytest.fixture
+def game_object_loader(window_transform, assets) -> PanelLoader:
+    ld = PanelLoader(PanelManager(), window_transform, assets)
+    ld.register("object", _Drawn, default=True)
+    return ld
+
+
+def test_parent_links_the_game_object_parent(game_object_loader, tmp_path):
+    game_object_loader.load(_write(tmp_path, _PARENT_YAML))
+    menu = game_object_loader.panel_manager["menu"]
+    assert menu["play"]._parent is menu["panel"]
+    assert menu["play"] in menu["panel"]._children
+    assert menu["panel"]._parent is None
+
+
+def test_child_of_inactive_yaml_parent_is_inactive_and_not_drawn(
+    game_object_loader, tmp_path
+):
+    game_object_loader.load(_write(tmp_path, _PARENT_YAML))
+    menu = game_object_loader.panel_manager["menu"]
+    menu["panel"].active = False
+
+    assert not menu["play"].active
+    dispatch_draw(menu.values(), pygame.Surface((1, 1)))
+    assert menu["play"].draws == 0 == menu["panel"].draws
+
+    menu["panel"].active = True
+    dispatch_draw(menu.values(), pygame.Surface((1, 1)))
+    assert menu["play"].draws == 1
+
+
+# ── empty / null YAML entries ──────────────────────────────────────────────
+
+
+def test_empty_object_entry_raises_naming_panel_and_object(loader, tmp_path):
+    path = _write(tmp_path, "panels:\n  menu:\n    objects:\n      play:\n")
+    with pytest.raises(ValueError, match="Object 'play' in panel 'menu'"):
+        loader.load(path)
+
+
+def test_empty_group_raises_naming_the_group(loader, tmp_path):
+    path = _write(
+        tmp_path,
+        "groups:\n  shared:\npanels:\n  menu:\n    extends: [shared]\n",
+    )
+    with pytest.raises(ValueError, match="Group 'shared'"):
+        loader.load(path)
+
+
+def test_empty_states_raises_naming_panel_and_object(loader, tmp_path):
+    path = _write(
+        tmp_path,
+        "panels:\n  menu:\n    objects:\n      play:\n        states:\n",
+    )
+    with pytest.raises(ValueError, match="Object 'play' in panel 'menu'.*states"):
+        loader.load(path)
+
+
+@pytest.mark.parametrize("key", ["asset", "hover"])
+def test_null_asset_key_raises_naming_panel_object_and_key(loader, tmp_path, key):
+    path = _write(
+        tmp_path,
+        f"panels:\n  menu:\n    objects:\n      play: {{{key}: null}}\n",
+    )
+    with pytest.raises(ValueError, match=f"Object 'play' in panel 'menu'.*'{key}'"):
+        loader.load(path)

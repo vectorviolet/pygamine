@@ -19,6 +19,11 @@ change. Anything before `e5c1fa6` (the commit that first introduced
 
 - **Changed** the README badges: CI, release (latest tag, as there are no GitHub releases), license, coverage and Python, each linked (vectorviolet/chokepoint#150).
 - **Changed** the Tiled loader module moved from `pygamine.assets.tilemap` to `pygamine.assets.tiledmap` (#41). `from pygamine import TiledMap` is unchanged; the old module path is removed, with no compatibility shim.
+- **Changed** the panel loaders reject empty or null YAML entries with a `ValueError` naming the panel/object and key, instead of an `AttributeError` or `KeyError` on `None`: an empty group or object entry, `states:` with no value, and a non-string `asset` or `hover` (#22).
+
+### Fixed
+
+- **Fixed** the panel loader's `parent:` now also links the GameObject parent, so `active` (update, draw, events) follows the YAML hierarchy and a child of an inactive parent is inactive (#28). Games that deactivate a parent now hide its children.
 
 ## [0.30.0] — 2026-11-04
 
