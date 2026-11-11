@@ -8,7 +8,7 @@
 
 Shared pygame-ce utilities used across personal game projects. Provides an `Application` base, a component-based game-object layer, a YAML-driven panel/UI system, asset loaders, and a handful of helpers (camera, sprite sheet, audio, database).
 
-See [CHANGELOG.md](CHANGELOG.md) for what changed between versions — useful before bumping a consumer project's submodule pointer past a MINOR version, since 0.y.z means breaking changes can land in a MINOR bump.
+See [CHANGELOG.md](CHANGELOG.md) for what changed between versions — useful before bumping a consumer project's submodule pointer. Since 1.0.0, breaking changes only land in a MAJOR version.
 
 ## Installation
 

@@ -2,9 +2,9 @@
 
 All notable changes to this project are documented here. Format loosely
 follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/); versioning
-follows [SemVer](https://semver.org/) with the 0.y.z caveat it defines
-itself — this is major version zero, so a MINOR bump can and does include
-breaking changes, since the public API isn't considered stable yet.
+follows [SemVer](https://semver.org/). Since 1.0.0 the public API is stable:
+breaking changes bump the MAJOR version. Before 1.0.0 (major version zero), a
+MINOR bump could include breaking changes.
 
 No tags existed before this file was added (2026-07-28) despite `pyproject.toml`
 carrying a `version` field since `e5c1fa6` — the four releases below were cut
@@ -14,6 +14,11 @@ change. Anything before `e5c1fa6` (the commit that first introduced
 `pyproject.toml` itself) isn't versioned at all; see `git log` for that era.
 
 ## [Unreleased]
+
+## [1.0.0] — 2026-11-11
+
+The first stable release. From here on, breaking changes bump the major version.
+Chokepoint and Highrise pass their full suites and mypy against this release.
 
 ### Changed
 
