@@ -391,3 +391,38 @@ def test_text_factory_passes_through_states(assets, parent):
     label = factory(cfg, parent)
 
     assert label.states == {"default": "D", "hover": "H"}
+
+
+def test_empty_state_body_raises(assets, parent):
+    cfg = {
+        "position": (0, 0),
+        "size": [20, 20],
+        "asset": assets.image_path("btn"),
+        "states": {"on": None},
+    }
+    with pytest.raises(ValueError, match="State 'on'"):
+        make_factory(assets)(cfg, parent)
+
+
+@pytest.mark.parametrize("key", ["asset", "hover"])
+def test_non_string_state_asset_or_hover_raises(assets, parent, key):
+    state = {"asset": "btn_state_a", key: None}
+    cfg = {
+        "position": (0, 0),
+        "size": [20, 20],
+        "asset": assets.image_path("btn"),
+        "states": {"on": state},
+    }
+    with pytest.raises(ValueError, match=f"State 'on': '{key}'"):
+        make_factory(assets)(cfg, parent)
+
+
+def test_state_without_asset_raises(assets, parent):
+    cfg = {
+        "position": (0, 0),
+        "size": [20, 20],
+        "asset": assets.image_path("btn"),
+        "states": {"on": {"hover": "btn_hover"}},
+    }
+    with pytest.raises(ValueError, match="State 'on' needs an 'asset'"):
+        make_factory(assets)(cfg, parent)

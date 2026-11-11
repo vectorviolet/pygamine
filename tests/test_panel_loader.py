@@ -15,17 +15,20 @@ import pygame
 import pytest
 
 from pygamine.assets.asset_manager import AssetManager
+from pygamine.ecs._dispatch import dispatch_draw
 from pygamine.ecs.components.transform import Transform
+from pygamine.ecs.game_object import GameObject
 from pygamine.panels.panel_loader import PanelLoader
 from pygamine.panels.panel_manager import PanelManager
 
 
-class _Built:
+class _Built(GameObject):
     """Minimal stand-in for whatever a real factory (GuiObject, TextObject,
     ...) would build: records what it was called with, and exposes a `.rect`
     so it can serve as another object's parent."""
 
     def __init__(self, obj_def, parent):
+        super().__init__()
         self.obj_def = obj_def
         self.parent = parent
         size = obj_def.get("size")
@@ -370,3 +373,189 @@ def test_scale_position_scales_directly_when_not_window_parented(loader):
     obj_def = {"position": [10, "CENTER"]}
     loader._scale_position(obj_def, 2.0, False, (100, 100))
     assert obj_def["position"] == [20, "CENTER"]
+
+
+# ── GameObject parent link ─────────────────────────────────────────────────
+
+
+class _Drawn(GameObject):
+    """A real GameObject that counts how often it is drawn."""
+
+    def __init__(self, obj_def, parent):
+        super().__init__()
+        self.rect.set_parent(parent)
+        self.draws = 0
+
+    def draw(self, surface) -> None:
+        if self.active:
+            self.draws += 1
+
+
+_PARENT_YAML = (
+    "panels:\n  menu:\n    objects:\n      panel: {}\n      play: {parent: panel}\n"
+)
+
+
+@pytest.fixture
+def game_object_loader(window_transform, assets) -> PanelLoader:
+    ld = PanelLoader(PanelManager(), window_transform, assets)
+    ld.register("object", _Drawn, default=True)
+    return ld
+
+
+def test_parent_links_the_game_object_parent(game_object_loader, tmp_path):
+    game_object_loader.load(_write(tmp_path, _PARENT_YAML))
+    menu = game_object_loader.panel_manager["menu"]
+    assert menu["play"]._parent is menu["panel"]
+    assert menu["play"] in menu["panel"]._children
+    assert menu["panel"]._parent is None
+
+
+def test_child_of_inactive_yaml_parent_is_inactive_and_not_drawn(
+    game_object_loader, tmp_path
+):
+    game_object_loader.load(_write(tmp_path, _PARENT_YAML))
+    menu = game_object_loader.panel_manager["menu"]
+    menu["panel"].active = False
+
+    assert not menu["play"].active
+    dispatch_draw(menu.values(), pygame.Surface((1, 1)))
+    assert menu["play"].draws == 0 == menu["panel"].draws
+
+    menu["panel"].active = True
+    dispatch_draw(menu.values(), pygame.Surface((1, 1)))
+    assert menu["play"].draws == 1
+
+
+# ── empty / null YAML entries ──────────────────────────────────────────────
+
+
+def test_empty_object_entry_raises_naming_panel_and_object(loader, tmp_path):
+    path = _write(tmp_path, "panels:\n  menu:\n    objects:\n      play:\n")
+    with pytest.raises(ValueError, match="Object 'play' in panel 'menu'"):
+        loader.load(path)
+
+
+def test_empty_group_raises_naming_the_group(loader, tmp_path):
+    path = _write(
+        tmp_path,
+        "groups:\n  shared:\npanels:\n  menu:\n    extends: [shared]\n",
+    )
+    with pytest.raises(ValueError, match="Group 'shared'"):
+        loader.load(path)
+
+
+def test_empty_states_raises_naming_panel_and_object(loader, tmp_path):
+    path = _write(
+        tmp_path,
+        "panels:\n  menu:\n    objects:\n      play:\n        states:\n",
+    )
+    with pytest.raises(ValueError, match="Object 'play' in panel 'menu': 'states'"):
+        loader.load(path)
+
+
+@pytest.mark.parametrize("value", ["[]", "on"])
+def test_non_mapping_states_raises(loader, tmp_path, value):
+    path = _write(
+        tmp_path,
+        f"panels:\n  menu:\n    objects:\n      play: {{states: {value}}}\n",
+    )
+    with pytest.raises(ValueError, match="Object 'play' in panel 'menu': 'states'"):
+        loader.load(path)
+
+
+def test_empty_panel_raises_naming_the_panel(loader, tmp_path):
+    path = _write(tmp_path, "panels:\n  menu:\n")
+    with pytest.raises(ValueError, match="Panel 'menu'"):
+        loader.load(path)
+
+
+def test_empty_panel_objects_is_still_fine(loader, tmp_path):
+    loader.load(_write(tmp_path, "panels:\n  menu:\n    objects:\n"))
+
+
+def test_preprocess_that_rebinds_groups_is_honored(window_transform, assets, tmp_path):
+    class Rebinding(PanelLoader):
+        def _preprocess(self, data: dict) -> None:
+            data["groups"] = {"shared": {"back": {}}}
+
+    ld = Rebinding(PanelManager(), window_transform, assets)
+    ld.register("object", _factory, default=True)
+    ld.load(_write(tmp_path, "panels:\n  menu:\n    extends: [shared]\n"))
+    assert "back" in ld.panel_manager["menu"]
+
+
+def test_parent_that_is_not_a_game_object_raises(window_transform, assets, tmp_path):
+    class Plain:
+        rect = Transform()
+
+    def plain_factory(obj_def, parent):
+        return Plain()
+
+    ld = PanelLoader(PanelManager(), window_transform, assets)
+    ld.register("object", plain_factory, default=True)
+    path = _write(
+        tmp_path,
+        "panels:\n  menu:\n    objects:\n      panel: {}\n      play: {parent: panel}\n",
+    )
+    with pytest.raises(TypeError, match="parent 'panel'"):
+        ld.load(path)
+
+
+def test_child_that_is_not_a_game_object_raises(window_transform, assets, tmp_path):
+    def factory(obj_def, parent):
+        if "marker" in obj_def:
+            return object()
+        return _Built(obj_def, parent)
+
+    ld = PanelLoader(PanelManager(), window_transform, assets)
+    ld.register("object", factory, default=True)
+    path = _write(
+        tmp_path,
+        "panels:\n  menu:\n    objects:\n      panel: {}\n"
+        "      play: {parent: panel, marker: 1}\n",
+    )
+    with pytest.raises(TypeError, match="Object 'play' in panel 'menu'"):
+        ld.load(path)
+    assert "play" not in ld.panel_manager["menu"]
+
+
+def test_replaced_object_is_unlinked_from_its_parent(game_object_loader, tmp_path):
+    # `play` comes from the group first, then the panel object replaces it.
+    yaml_text = (
+        "groups:\n  shared:\n    panel: {}\n    play: {parent: panel}\n"
+        "panels:\n  menu:\n    extends: [shared]\n    objects:\n"
+        "      play: {parent: panel}\n"
+    )
+    game_object_loader.load(_write(tmp_path, yaml_text))
+    menu = game_object_loader.panel_manager["menu"]
+    assert menu["panel"]._children == [menu["play"]]
+
+
+@pytest.mark.parametrize("key", ["asset", "hover"])
+def test_null_asset_key_raises_naming_panel_object_and_key(loader, tmp_path, key):
+    path = _write(
+        tmp_path,
+        f"panels:\n  menu:\n    objects:\n      play: {{{key}: null}}\n",
+    )
+    with pytest.raises(ValueError, match=f"Object 'play' in panel 'menu'.*'{key}'"):
+        loader.load(path)
+
+
+def test_factory_value_error_names_panel_object_and_state(
+    window_transform, assets, tmp_path
+):
+    from pygamine.panels.panel_factory import make_factory
+
+    ld = PanelLoader(PanelManager(), window_transform, assets)
+    ld.register("object", make_factory(assets), default=True)
+    path = _write(
+        tmp_path,
+        "panels:\n  menu:\n    objects:\n      play:\n"
+        "        position: [0, 0]\n        size: [10, 10]\n"
+        "        states: {bought: }\n",
+    )
+    with pytest.raises(
+        ValueError, match="Object 'play' in panel 'menu': State 'bought'"
+    ):
+        ld.load(path)

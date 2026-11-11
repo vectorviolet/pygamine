@@ -2,15 +2,15 @@ from __future__ import annotations
 
 from typing import Any, NamedTuple, override
 
-from pygamine.panels.panel_loader import PanelLoader
+from pygamine.panels.panel_loader import PanelLoader, require_mapping
 
 
 def _resolve_extends(data: dict, templates: dict) -> None:
-    for group_def in (data.get("groups", {}) or {}).values():
-        _apply_templates(group_def, templates)
+    for group_name, group_def in (data.get("groups", {}) or {}).items():
+        _apply_templates(f"group '{group_name}'", group_def, templates)
 
-    for panel_def in (data.get("panels", {}) or {}).values():
-        _apply_templates((panel_def.get("objects") or {}), templates)
+    for tab, panel_def in (data.get("panels", {}) or {}).items():
+        _apply_templates(f"panel '{tab}'", panel_def.get("objects") or {}, templates)
 
 
 def _expand_layouts(data: dict) -> None:
@@ -108,8 +108,10 @@ def _expand_in(objects: dict) -> None:
     objects.update(new_entries)
 
 
-def _apply_templates(objects: dict, templates: dict) -> None:
+def _apply_templates(owner: str, objects: dict, templates: dict) -> None:
+    """`owner` names the group or panel for error messages."""
     for name, obj_def in objects.items():
+        require_mapping(f"Object '{name}' in {owner}", obj_def)
         base_name = obj_def.get("extends")
         if base_name is None:
             continue
@@ -150,6 +152,8 @@ class PanelLoaderExt(PanelLoader):
     @override
     def _preprocess(self, data: dict) -> None:
         templates = data.pop("object_templates", {}) or {}
+        for template_name, template in templates.items():
+            require_mapping(f"Template '{template_name}'", template)
         _expand_layouts(data)
         if templates:
             _resolve_extends(data, templates)

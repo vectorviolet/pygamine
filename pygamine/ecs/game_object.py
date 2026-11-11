@@ -52,11 +52,18 @@ class GameObject:
             self._on_active_changed(new_effective)
 
     def set_parent(self, parent: GameObject | None) -> None:
+        """Re-parents this object. If that changes whether it is effectively
+        active (linked under an inactive parent, or out of one), its
+        `on_enable`/`on_disable` and its children's fire, as for `active`."""
+        old_effective = self.active
         if self._parent is not None:
             self._parent._children.remove(self)
         self._parent = parent
         if parent is not None:
             parent._children.append(self)
+        new_effective = self.active
+        if old_effective != new_effective:
+            self._on_active_changed(new_effective)
 
     def on_enable(self) -> None: ...
     def on_disable(self) -> None: ...

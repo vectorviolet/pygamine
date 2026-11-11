@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING, Any, Callable
 import yaml
 
 from pygamine.ecs.components.transform import Transform
+from pygamine.ecs.game_object import GameObject
 
 if TYPE_CHECKING:
     from pygamine.ui_widgets.tooltip import TooltipManager
@@ -15,6 +16,19 @@ ObjectFactory = Callable[[dict, Transform], Any]
 
 # Keys allowed in an object's `tooltip:` mapping.
 TOOLTIP_KEYS = frozenset({"text_key", "action", "text_params"})
+
+
+def require_mapping(where: str, value: Any) -> dict:
+    """Returns `value` if it is a mapping; otherwise raises a ValueError naming
+    `where`. An empty YAML entry (`name:`) reads as None and lands here."""
+    if not isinstance(value, dict):
+        raise ValueError(f"{where} must be a mapping, got {value!r}")
+    return value
+
+
+def _where(tab: str, name: str) -> str:
+    """How error messages refer to one object of one panel."""
+    return f"Object '{name}' in panel '{tab}'"
 
 
 class PanelLoader:
@@ -57,6 +71,12 @@ class PanelLoader:
             raise FileNotFoundError(f"Panel definition not found: {path}")
         with open(path, encoding="utf-8") as f:
             data = yaml.safe_load(f) or {}
+
+        # Checked before _preprocess, which reads panels and groups as mappings.
+        for group_name, group_def in (data.get("groups", {}) or {}).items():
+            require_mapping(f"Group '{group_name}'", group_def)
+        for tab, panel_def in (data.get("panels", {}) or {}).items():
+            require_mapping(f"Panel '{tab}'", panel_def)
 
         self._preprocess(data)
 
@@ -103,7 +123,7 @@ class PanelLoader:
             )
 
     def _check_tooltip_def(self, tab: str, name: str, config: Any) -> dict:
-        where = f"Object '{name}' in panel '{tab}'"
+        where = _where(tab, name)
         if self.tooltips is None:
             raise ValueError(f"{where} has a tooltip but the loader has no tooltips")
         if not isinstance(config, dict):
@@ -155,7 +175,10 @@ class PanelLoader:
                 hook(panel)
 
     def _add_object(self, tab: str, name: str, obj_def: dict) -> None:
-        obj_def = dict(obj_def)
+        where = _where(tab, name)
+        obj_def = dict(require_mapping(where, obj_def))
+        if "states" in obj_def:
+            require_mapping(f"{where}: 'states'", obj_def["states"])
         if "text_key" in obj_def and (
             "text" in obj_def or "default" in (obj_def.get("states") or {})
         ):
@@ -168,14 +191,39 @@ class PanelLoader:
             tooltip_def = self._check_tooltip_def(tab, name, tooltip_def)
         factory = self._factory_for(name, obj_def)
         parent_name = obj_def.pop("parent", None)
-        parent = self._parent_for(tab, name, parent_name)
-        self._resolve_asset_keys(obj_def)
-        self._scale_def(obj_def, window_parented=parent_name is None)
+        parent_obj = self._parent_for(tab, name, parent_name)
+        parent = self.window_transform if parent_obj is None else parent_obj.rect
+        self._resolve_asset_keys(where, obj_def)
+        self._scale_def(obj_def, window_parented=parent_obj is None)
 
-        obj = factory(obj_def, parent)
+        obj = self._build(where, factory, obj_def, parent, parent_obj is not None)
+        self._detach_replaced(tab, name, obj)
+        if parent_obj is not None:
+            obj.set_parent(parent_obj)
         self.panel_manager.add_object(tab, name, obj)
         if tooltip_def is not None:
             self._pending_tooltips.append((name, obj, tooltip_def))
+
+    @staticmethod
+    def _build(
+        where: str,
+        factory: ObjectFactory,
+        obj_def: dict,
+        parent: Transform,
+        has_parent_object: bool,
+    ) -> Any:
+        """Runs the factory. Its ValueErrors gain `where`; an object with a
+        `parent:` must come out as a GameObject so it can be linked."""
+        try:
+            obj = factory(obj_def, parent)
+        except ValueError as error:
+            raise ValueError(f"{where}: {error}") from error
+        if has_parent_object and not isinstance(obj, GameObject):
+            raise TypeError(
+                f"{where} has a parent but its factory built a "
+                f"{type(obj).__name__}, not a GameObject"
+            )
+        return obj
 
     def _factory_for(self, name: str, obj_def: dict) -> ObjectFactory:
         type_name = obj_def.get("type", self._default_type)
@@ -187,21 +235,48 @@ class PanelLoader:
             )
         return self._factories[type_name]
 
-    def _parent_for(self, tab: str, name: str, parent_name: str | None) -> Transform:
+    def _parent_for(
+        self, tab: str, name: str, parent_name: str | None
+    ) -> GameObject | None:
+        """The GameObject named by `parent:`, or None for the window."""
         if parent_name is None:
-            return self.window_transform
+            return None
         if tab not in self.panel_manager or parent_name not in self.panel_manager[tab]:
             raise KeyError(
                 f"Object '{name}' references unknown parent '{parent_name}' in panel '{tab}'. "
                 f"Parent objects must be declared before their children."
             )
-        return self.panel_manager[tab][parent_name].rect
+        parent_obj = self.panel_manager[tab][parent_name]
+        if not isinstance(parent_obj, GameObject):
+            raise TypeError(
+                f"{_where(tab, name)}: parent '{parent_name}' is a "
+                f"{type(parent_obj).__name__}, not a GameObject"
+            )
+        return parent_obj
 
-    def _resolve_asset_keys(self, obj_def: dict) -> None:
-        """Replaces the `asset` and `hover` manifest keys with image paths, in place."""
+    def _detach_replaced(self, tab: str, name: str, new_obj: Any) -> None:
+        """Unlinks an object that `new_obj` is about to replace under the same
+        name, so it leaves its parent's children."""
+        if tab not in self.panel_manager:
+            return
+        panel = self.panel_manager[tab]
+        if name not in panel:
+            return
+        old = panel[name]
+        if isinstance(old, GameObject) and old is not new_obj:
+            old.set_parent(None)
+
+    def _resolve_asset_keys(self, where: str, obj_def: dict) -> None:
+        """Replaces the `asset` and `hover` manifest keys with image paths, in place.
+        Raises ValueError for a key whose value isn't a manifest key string."""
         for key in ("asset", "hover"):
             if key in obj_def:
-                obj_def[key] = self.assets.image_path(obj_def[key])
+                value = obj_def[key]
+                if not isinstance(value, str):
+                    raise ValueError(
+                        f"{where}: '{key}' must be an asset key string, got {value!r}"
+                    )
+                obj_def[key] = self.assets.image_path(value)
 
     def _scale_def(self, obj_def: dict, window_parented: bool) -> None:
         """Apply the global UI scale (self.scale) to one object's geometry, in place.
