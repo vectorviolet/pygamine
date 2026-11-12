@@ -282,9 +282,13 @@ class Application:
         if self.splash is not None:
             self.splash.run(self.display_surface, self.clock, self._fps)
 
-    def run(self) -> None:
+    def _start(self) -> None:
+        """Setup shared by `run()` and `run_async()`."""
         self.show_splash()
         self._is_running = True
+
+    def run(self) -> None:
+        self._start()
 
         while self._is_running:
             self._frame()
@@ -293,8 +297,7 @@ class Application:
         """Same loop as `run()`, but yields to the asyncio event loop after
         every frame. The browser (pygbag) build needs this: its single
         thread only gets to draw and handle input between awaits."""
-        self.show_splash()
-        self._is_running = True
+        self._start()
 
         while self._is_running:
             self._frame()

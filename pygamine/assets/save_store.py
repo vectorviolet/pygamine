@@ -15,10 +15,13 @@ the same `saves/` folder.
 from __future__ import annotations
 
 import json
+import logging
 import os
 import sys
 from pathlib import Path
 from typing import Any, Protocol
+
+logger = logging.getLogger(__name__)
 
 
 class WebStorage(Protocol):
@@ -35,12 +38,21 @@ def _browser_storage() -> WebStorage | None:
     pygbag 0.9.3 mounts no persistent file system (files are lost on page
     reload), so saves live in localStorage there: synchronous, persistent
     and plenty for these small JSON blobs. This is the one place that
-    touches the browser, so tests can replace it with a fake."""
+    gets hold of the browser, so tests can replace it with a fake. If the
+    browser refuses access (blocked storage in a private or sandboxed
+    frame), it warns and returns None, so saves use the in-memory file
+    system for the session instead of crashing."""
     if sys.platform != "emscripten":
         return None
-    import platform  # pygbag's platform module exposes the JS `window`
+    try:
+        import platform  # pygbag's platform module exposes the JS `window`
 
-    return platform.window.localStorage
+        return platform.window.localStorage
+    except Exception:  # JS errors surface as arbitrary exception types
+        logger.warning(
+            "localStorage is unavailable; saves won't persist", exc_info=True
+        )
+        return None
 
 
 class SaveStore:
@@ -58,7 +70,7 @@ class SaveStore:
         fallback = dict(default) if default else {}
         try:
             if self._web is not None:
-                text = self._web.getItem(self._web_key)
+                text = self._read_web()
                 if text is None:
                     return fallback
                 data = json.loads(text)
@@ -72,10 +84,21 @@ class SaveStore:
         return data if isinstance(data, dict) else fallback
 
     def save(self, data: dict[str, Any]) -> None:
-        """Atomically overwrite the store with `data` (a full replace,
-        not a merge -- see `update()` for merging)."""
+        """Overwrite the store with `data` (a full replace, not a merge --
+        see `update()` for merging). On disk the write is atomic; in the
+        browser it is a single localStorage `setItem`, and if the browser
+        refuses it (quota exceeded, blocked storage) a warning is logged
+        and the previous data stays."""
         if self._web is not None:
-            self._web.setItem(self._web_key, json.dumps(data, indent=2))
+            try:
+                # Compact JSON: localStorage has a small quota.
+                self._web.setItem(
+                    self._web_key, json.dumps(data, separators=(",", ":"))
+                )
+            except Exception:  # JS errors surface as arbitrary exception types
+                logger.warning(
+                    "Could not write %s to localStorage", self._web_key, exc_info=True
+                )
             return
         self.directory.mkdir(parents=True, exist_ok=True)
         tmp_path = self.path.with_suffix(".tmp")
@@ -95,7 +118,7 @@ class SaveStore:
 
     def exists(self) -> bool:
         if self._web is not None:
-            return self._web.getItem(self._web_key) is not None
+            return self._read_web() is not None
         return self.path.exists()
 
     def delete(self) -> None:
@@ -103,6 +126,27 @@ class SaveStore:
         "Continue" doesn't offer to resume a run that's already lost).
         A no-op if there's nothing to delete."""
         if self._web is not None:
-            self._web.removeItem(self._web_key)
+            try:
+                self._web.removeItem(self._web_key)
+            except Exception:  # JS errors surface as arbitrary exception types
+                logger.warning(
+                    "Could not delete %s from localStorage",
+                    self._web_key,
+                    exc_info=True,
+                )
             return
         self.path.unlink(missing_ok=True)
+
+    def _read_web(self) -> str | None:
+        """The raw stored text, or None if there is none or the browser
+        refuses the read. Anything that isn't a `str` (a JS `null` proxy)
+        counts as missing."""
+        assert self._web is not None
+        try:
+            text = self._web.getItem(self._web_key)
+        except Exception:  # JS errors surface as arbitrary exception types
+            logger.warning(
+                "Could not read %s from localStorage", self._web_key, exc_info=True
+            )
+            return None
+        return text if isinstance(text, str) else None

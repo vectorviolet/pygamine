@@ -77,3 +77,36 @@ def test_camera_blends_a_translucent_image_with_either_flag(flag):
     assert any(
         _is_half_blended(surface.get_at((x, y))) for x in range(50) for y in range(50)
     )
+
+
+class _SpySurface:
+    """pygame.Surface.blit can't be monkeypatched, so draw into a fake."""
+
+    def __init__(self) -> None:
+        self.blits: list[dict] = []
+
+    def blit(self, source, dest, **kwargs):
+        self.blits.append(kwargs)
+
+
+def test_sprite_renderer_passes_alpha_blit_as_special_flags():
+    go = GameObject()
+    renderer = go.add_component(SpriteRenderer2D)
+    renderer.set_image(_half_red())
+    surface = _SpySurface()
+
+    renderer.draw(surface)  # type: ignore[arg-type]
+
+    assert surface.blits == [{"special_flags": ALPHA_BLIT}]
+
+
+def test_camera_passes_alpha_blit_as_special_flags():
+    class Sprite:
+        image = _half_red()
+        rect = pygame.Rect(0, 0, 4, 4)
+
+    surface = _SpySurface()
+
+    Camera(pygame.Rect(0, 0, 50, 50)).draw(surface, Sprite())  # type: ignore[arg-type]
+
+    assert surface.blits == [{"special_flags": ALPHA_BLIT}]

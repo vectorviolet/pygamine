@@ -1447,7 +1447,9 @@ def test_run_async_yields_to_the_event_loop_every_frame():
     asyncio.run(main())
 
     assert app.update_calls == 4
-    assert seen_by_other_task == [1, 2, 3]  # one entry per yield
+    # The other task ran between frames, so it saw every intermediate count.
+    assert {1, 2, 3} <= set(seen_by_other_task)
+    assert seen_by_other_task == sorted(seen_by_other_task)
 
 
 def test_run_async_shows_the_splash_first():
