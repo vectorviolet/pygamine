@@ -134,6 +134,7 @@ if TYPE_CHECKING:
         DatabaseError as DatabaseError,
     )
     from pygamine.util.spatial_grid import SpatialGrid as SpatialGrid
+    from pygamine.util.blend import ALPHA_BLIT as ALPHA_BLIT
     from pygamine.assets.tiledmap import TiledMap as TiledMap
     from pygamine.assets.paths import (
         resource_root as resource_root,
@@ -221,6 +222,7 @@ _EXPORTS: dict[str, str] = {
     "InputBox": "pygamine.ui_widgets.input_box",
     "MenuController": "pygamine.ui_widgets.menu_controller",
     # Utils
+    "ALPHA_BLIT": "pygamine.util.blend",
     "Anchorable": "pygamine.util.utils",
     "MouseInteractive": "pygamine.util.utils",
     "resolve_size": "pygamine.util.utils",

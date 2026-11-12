@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 from typing import Generic, TypeVar, overload
 import sys
 import pygame
@@ -281,20 +282,38 @@ class Application:
         if self.splash is not None:
             self.splash.run(self.display_surface, self.clock, self._fps)
 
-    def run(self) -> None:
+    def _start(self) -> None:
+        """Setup shared by `run()` and `run_async()`."""
         self.show_splash()
         self._is_running = True
 
+    def run(self) -> None:
+        self._start()
+
         while self._is_running:
-            self.clock.tick(self._fps)
-            self._listen_inputs()
-            self._handle_events()
-            self.update()
-            self.draw()
-            self.draw_mouse()
-            if self._is_in_debug_mode:
-                self.draw_debug()
-            self._present()
+            self._frame()
+
+    async def run_async(self) -> None:
+        """Same loop as `run()`, but yields to the asyncio event loop after
+        every frame. The browser (pygbag) build needs this: its single
+        thread only gets to draw and handle input between awaits."""
+        self._start()
+
+        while self._is_running:
+            self._frame()
+            await asyncio.sleep(0)
+
+    def _frame(self) -> None:
+        """One iteration of the main loop, shared by `run()` and `run_async()`."""
+        self.clock.tick(self._fps)
+        self._listen_inputs()
+        self._handle_events()
+        self.update()
+        self.draw()
+        self.draw_mouse()
+        if self._is_in_debug_mode:
+            self.draw_debug()
+        self._present()
 
     def _present(self) -> None:
         self.display.present()

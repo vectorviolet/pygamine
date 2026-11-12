@@ -1383,3 +1383,83 @@ def test_subclass_set_window_mode_override_runs_from_cycle_and_restore():
     app.cycle_window_mode()
     app.restore_window_settings({"window_mode": "windowed"})
     assert modes == ["borderless", "windowed"]
+
+
+# ── run / run_async ────────────────────────────────────────────────────────
+
+
+class _StoppingApp(_TrackedApp):
+    """Records the order of the per-frame hooks and stops after `frames`."""
+
+    def __init__(self, frames: int):
+        super().__init__()
+        self.frames = frames
+        self.calls: list[str] = []
+
+    def _listen_inputs(self):
+        self.calls.append("inputs")
+
+    def _handle_events(self):
+        self.calls.append("events")
+
+    def update(self):
+        self.calls.append("update")
+        if self.update_calls + 1 >= self.frames:
+            self._is_running = False
+        super().update()
+
+    def draw(self):
+        self.calls.append("draw")
+
+    def _present(self):
+        self.calls.append("present")
+
+
+def test_run_async_runs_the_same_frames_as_run():
+    import asyncio
+
+    sync_app = _StoppingApp(frames=3)
+    async_app = _StoppingApp(frames=3)
+
+    sync_app.run()
+    asyncio.run(async_app.run_async())
+
+    assert async_app.calls == sync_app.calls
+    assert async_app.update_calls == sync_app.update_calls == 3
+    assert sync_app.calls[:5] == ["inputs", "events", "update", "draw", "present"]
+
+
+def test_run_async_yields_to_the_event_loop_every_frame():
+    import asyncio
+
+    app = _StoppingApp(frames=4)
+    seen_by_other_task: list[int] = []
+
+    async def other() -> None:
+        # Only gets to run if run_async awaits between frames.
+        while app._is_running:
+            seen_by_other_task.append(app.update_calls)
+            await asyncio.sleep(0)
+
+    async def main() -> None:
+        await asyncio.gather(app.run_async(), other())
+
+    asyncio.run(main())
+
+    assert app.update_calls == 4
+    # The other task ran between frames, so it saw every intermediate count.
+    assert {1, 2, 3} <= set(seen_by_other_task)
+    assert seen_by_other_task == sorted(seen_by_other_task)
+
+
+def test_run_async_shows_the_splash_first():
+    import asyncio
+
+    app = _StoppingApp(frames=1)
+    order: list[str] = []
+    app.show_splash = lambda: order.append("splash")  # type: ignore[method-assign]
+
+    asyncio.run(app.run_async())
+
+    assert order == ["splash"]
+    assert app.calls[-1] == "present"

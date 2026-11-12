@@ -6,6 +6,7 @@ import pygame
 from pygame.math import Vector2
 
 from pygamine.assets.image import scale_by
+from pygamine.util.blend import ALPHA_BLIT
 
 EDGE_SCROLL_ZONE = 30
 CAMERA_SPEED = 10
@@ -82,7 +83,7 @@ class Camera:
         scaled = self.scale_image(entity.image)
         center = self.world_to_screen(entity.rect.center)
         rect = scaled.get_rect(center=(int(center.x), int(center.y)))
-        surface.blit(scaled, rect)
+        surface.blit(scaled, rect, special_flags=ALPHA_BLIT)
 
     # ── input ─────────────────────────────────────────────────────────────────
 

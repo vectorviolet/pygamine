@@ -185,3 +185,221 @@ def test_delete_does_not_affect_a_different_store():
 
     assert settings.exists() is True
     assert settings.load() == {"a": 1}
+
+
+# ── browser (emscripten) storage ─────────────────────────────────────
+
+
+class _FakeLocalStorage:
+    """Stands in for the browser's localStorage, which hands back None for
+    a missing key just like the JS null it maps to."""
+
+    def __init__(self) -> None:
+        self.items: dict[str, str] = {}
+
+    def getItem(self, key):  # noqa: N802
+        return self.items.get(key)
+
+    def setItem(self, key, value):  # noqa: N802
+        self.items[key] = value
+
+    def removeItem(self, key):  # noqa: N802
+        self.items.pop(key, None)
+
+
+@pytest.fixture
+def web(monkeypatch, tmp_path) -> _FakeLocalStorage:
+    fake = _FakeLocalStorage()
+    monkeypatch.setattr("pygamine.assets.save_store._browser_storage", lambda: fake)
+    return fake
+
+
+def test_web_save_and_load_round_trip(web, tmp_path):
+    store = SaveStore("save")
+    store.save({"wave": 7, "name": "x"})
+
+    assert store.load() == {"wave": 7, "name": "x"}
+    assert not (tmp_path / "saves").exists()  # nothing written to disk
+
+
+def test_web_data_survives_a_new_store_object(web):
+    SaveStore("save").save({"wave": 7})
+
+    assert SaveStore("save").load() == {"wave": 7}
+
+
+def test_web_load_of_a_missing_key_returns_empty_or_default(web):
+    store = SaveStore("save")
+    assert store.load() == {}
+    assert store.load(default={"a": 1}) == {"a": 1}
+
+
+def test_web_load_of_corrupt_or_non_dict_data_returns_the_default(web):
+    store = SaveStore("save")
+    web.items[store._web_key] = "{not json"
+    assert store.load(default={"a": 1}) == {"a": 1}
+    web.items[store._web_key] = "[1, 2]"
+    assert store.load() == {}
+
+
+def test_web_exists_and_delete(web):
+    store = SaveStore("save")
+    assert store.exists() is False
+
+    store.save({"a": 1})
+    assert store.exists() is True
+
+    store.delete()
+    assert store.exists() is False
+    assert web.items == {}
+    store.delete()  # no-op when already gone
+
+
+def test_web_stores_with_different_names_do_not_collide(web):
+    SaveStore("save").save({"a": 1})
+    SaveStore("settings").save({"b": 2})
+
+    assert SaveStore("save").load() == {"a": 1}
+    assert SaveStore("settings").load() == {"b": 2}
+
+
+def test_web_update_and_get_merge_through_local_storage(web):
+    store = SaveStore("settings")
+    store.update(a=1)
+    store.update(b=2)
+
+    assert store.get("a") == 1
+    assert store.load() == {"a": 1, "b": 2}
+
+
+def test_desktop_uses_files_not_local_storage(tmp_path):
+    from pygamine.assets.save_store import _browser_storage
+
+    assert _browser_storage() is None
+    store = SaveStore("save", directory=str(tmp_path / "saves"))
+    store.save({"a": 1})
+    assert (tmp_path / "saves" / "save.json").exists()
+
+
+def test_web_save_is_compact_json(web):
+    store = SaveStore("save")
+    store.save({"a": 1, "b": [1, 2]})
+
+    assert web.items[store._web_key] == '{"a":1,"b":[1,2]}'
+
+
+class _NullProxy:
+    """Like a JS null that reached Python as an object instead of None."""
+
+
+def test_web_non_string_value_counts_as_missing(web):
+    store = SaveStore("save")
+    web.items[store._web_key] = _NullProxy()  # type: ignore[assignment]
+
+    assert store.exists() is False
+    assert store.load(default={"a": 1}) == {"a": 1}
+
+
+class _JsError(Exception):
+    """Stands in for the JS exceptions pygbag raises (not OSError)."""
+
+
+class _BrokenStorage:
+    def __init__(self, *, fail: set[str]) -> None:
+        self.fail = fail
+        self.items: dict[str, str] = {}
+
+    def getItem(self, key):  # noqa: N802
+        if "get" in self.fail:
+            raise _JsError("blocked")
+        return self.items.get(key)
+
+    def setItem(self, key, value):  # noqa: N802
+        if "set" in self.fail:
+            raise _JsError("quota exceeded")
+        self.items[key] = value
+
+    def removeItem(self, key):  # noqa: N802
+        if "remove" in self.fail:
+            raise _JsError("blocked")
+        self.items.pop(key, None)
+
+
+def _use(monkeypatch, storage) -> None:
+    monkeypatch.setattr("pygamine.assets.save_store._browser_storage", lambda: storage)
+
+
+def test_web_load_survives_a_storage_exception(monkeypatch, caplog):
+    _use(monkeypatch, _BrokenStorage(fail={"get"}))
+
+    assert SaveStore("save").load(default={"a": 1}) == {"a": 1}
+    assert "Could not read" in caplog.text
+
+
+def test_web_exists_survives_a_storage_exception(monkeypatch):
+    _use(monkeypatch, _BrokenStorage(fail={"get"}))
+
+    assert SaveStore("save").exists() is False
+
+
+def test_web_save_survives_a_quota_exception_and_keeps_old_data(monkeypatch, caplog):
+    storage = _BrokenStorage(fail=set())
+    _use(monkeypatch, storage)
+    store = SaveStore("save")
+    store.save({"a": 1})
+
+    storage.fail = {"set"}
+    store.save({"a": 2})  # must not raise
+
+    storage.fail = set()
+    assert store.load() == {"a": 1}
+    assert "Could not write" in caplog.text
+
+
+def test_web_delete_survives_a_storage_exception(monkeypatch, caplog):
+    _use(monkeypatch, _BrokenStorage(fail={"remove"}))
+
+    SaveStore("save").delete()  # must not raise
+
+    assert "Could not delete" in caplog.text
+
+
+# ── _browser_storage ─────────────────────────────────────────────────
+
+
+def test_browser_storage_returns_window_local_storage_on_emscripten(monkeypatch):
+    import sys
+    import types
+
+    from pygamine.assets.save_store import _browser_storage
+
+    local_storage = _FakeLocalStorage()
+    fake_platform = types.SimpleNamespace(
+        window=types.SimpleNamespace(localStorage=local_storage)
+    )
+    monkeypatch.setattr(sys, "platform", "emscripten")
+    monkeypatch.setitem(sys.modules, "platform", fake_platform)
+
+    assert _browser_storage() is local_storage
+
+
+def test_browser_storage_returns_none_and_warns_when_the_browser_refuses(
+    monkeypatch, caplog
+):
+    import sys
+    import types
+
+    from pygamine.assets.save_store import _browser_storage
+
+    class _Window:
+        @property
+        def localStorage(self):  # noqa: N802
+            raise _JsError("SecurityError")
+
+    monkeypatch.setattr(sys, "platform", "emscripten")
+    monkeypatch.setitem(
+        sys.modules, "platform", types.SimpleNamespace(window=_Window())
+    )
+
+    assert _browser_storage() is None
+    assert "unavailable" in caplog.text
