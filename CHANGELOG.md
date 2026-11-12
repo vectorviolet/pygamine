@@ -15,6 +15,10 @@ change. Anything before `e5c1fa6` (the commit that first introduced
 
 ## [Unreleased]
 
+### Added
+
+- Web (pygbag) build support: `Application.run_async()` (the same frame as `run()`, yielding to asyncio after each one), `ALPHA_BLIT` (SDL2 alpha blend on emscripten, where the default blit is about 6x slower; used by `SpriteRenderer2D` and `Camera.draw`), and `SaveStore` keeping its data in the browser's `localStorage` on emscripten. Desktop behavior is unchanged.
+
 ## [1.0.0] — 2026-11-11
 
 The first stable release. From here on, breaking changes bump the major version.
