@@ -7,8 +7,10 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
+import pytest
+
 import pygamine.assets.paths as paths_module
-from pygamine.assets.paths import resource_path, resource_root
+from pygamine.assets.paths import resource_path, resource_root, user_data_dir
 
 
 def test_resource_root_uses_meipass_when_frozen(monkeypatch, tmp_path):
@@ -53,3 +55,106 @@ def test_resource_path_joins_onto_resource_root(monkeypatch, tmp_path):
 def test_resource_path_with_no_parts_equals_resource_root(monkeypatch, tmp_path):
     monkeypatch.setattr(sys, "_MEIPASS", str(tmp_path), raising=False)
     assert resource_path() == Path(tmp_path)
+
+
+def _fake_home(monkeypatch, tmp_path):
+    monkeypatch.setattr(Path, "home", staticmethod(lambda: tmp_path))
+
+
+def test_user_data_dir_windows_uses_appdata(monkeypatch, tmp_path):
+    monkeypatch.setattr(sys, "platform", "win32")
+    monkeypatch.setenv("APPDATA", str(tmp_path / "roaming"))
+    expected = tmp_path / "roaming" / "VectorViolet" / "chokepoint"
+    assert user_data_dir("chokepoint") == expected
+
+
+def test_user_data_dir_windows_falls_back_without_appdata(monkeypatch, tmp_path):
+    monkeypatch.setattr(sys, "platform", "win32")
+    monkeypatch.delenv("APPDATA", raising=False)
+    _fake_home(monkeypatch, tmp_path)
+    expected = tmp_path / "AppData" / "Roaming" / "VectorViolet" / "g"
+    assert user_data_dir("g") == expected
+
+
+def test_user_data_dir_macos(monkeypatch, tmp_path):
+    monkeypatch.setattr(sys, "platform", "darwin")
+    _fake_home(monkeypatch, tmp_path)
+    expected = tmp_path / "Library" / "Application Support" / "VectorViolet" / "g"
+    assert user_data_dir("g") == expected
+
+
+def test_user_data_dir_linux_uses_xdg_data_home(monkeypatch, tmp_path):
+    monkeypatch.setattr(sys, "platform", "linux")
+    monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "xdg"))
+    assert user_data_dir("g") == tmp_path / "xdg" / "VectorViolet" / "g"
+
+
+@pytest.mark.parametrize("xdg", [None, ""])
+def test_user_data_dir_linux_falls_back_without_xdg(monkeypatch, tmp_path, xdg):
+    monkeypatch.setattr(sys, "platform", "linux")
+    _fake_home(monkeypatch, tmp_path)
+    if xdg is None:
+        monkeypatch.delenv("XDG_DATA_HOME", raising=False)
+    else:
+        monkeypatch.setenv("XDG_DATA_HOME", xdg)
+    expected = tmp_path / ".local" / "share" / "VectorViolet" / "g"
+    assert user_data_dir("g") == expected
+
+
+def test_user_data_dir_emscripten_is_cwd_and_never_asks_for_home(monkeypatch):
+    monkeypatch.setattr(sys, "platform", "emscripten")
+
+    def no_home():
+        raise AssertionError("home must not be queried on the web")
+
+    monkeypatch.setattr(Path, "home", staticmethod(no_home))
+    assert user_data_dir("g") == Path(".")
+    assert (user_data_dir("g") / "saves").as_posix() == "saves"
+
+
+def test_user_data_dir_linux_ignores_relative_xdg_data_home(monkeypatch, tmp_path):
+    monkeypatch.setattr(sys, "platform", "linux")
+    monkeypatch.setenv("XDG_DATA_HOME", "relative/dir")
+    _fake_home(monkeypatch, tmp_path)
+    expected = tmp_path / ".local" / "share" / "VectorViolet" / "g"
+    assert user_data_dir("g") == expected
+
+
+def test_user_data_dir_vendor_replaces_the_company_folder(monkeypatch, tmp_path):
+    monkeypatch.setattr(sys, "platform", "linux")
+    monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path))
+    assert user_data_dir("g", vendor="Acme") == tmp_path / "Acme" / "g"
+
+
+@pytest.mark.parametrize(
+    "name", ["", ".", "..", "a/b", "a\\b", "/abs", "../up", "C:\\x", "C:x"]
+)
+def test_user_data_dir_rejects_bad_names(name):
+    with pytest.raises(ValueError):
+        user_data_dir(name)
+    with pytest.raises(ValueError):
+        user_data_dir("g", vendor=name)
+
+
+@pytest.mark.parametrize("platform", ["win32", "darwin", "linux"])
+def test_user_data_dir_warns_and_falls_back_when_home_is_unknown(
+    monkeypatch, caplog, platform
+):
+    monkeypatch.setattr(sys, "platform", platform)
+    monkeypatch.delenv("APPDATA", raising=False)
+    monkeypatch.delenv("XDG_DATA_HOME", raising=False)
+
+    def no_home():
+        raise RuntimeError("Could not determine home directory.")
+
+    monkeypatch.setattr(Path, "home", staticmethod(no_home))
+    with caplog.at_level("WARNING", logger="pygamine.assets.paths"):
+        assert user_data_dir("g") == Path("userdata") / "g"
+    assert "home folder" in caplog.text
+
+
+def test_user_data_dir_creates_nothing(monkeypatch, tmp_path):
+    monkeypatch.setattr(sys, "platform", "linux")
+    monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "xdg"))
+    user_data_dir("g")
+    assert not (tmp_path / "xdg").exists()

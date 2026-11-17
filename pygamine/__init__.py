@@ -139,6 +139,7 @@ if TYPE_CHECKING:
     from pygamine.assets.paths import (
         resource_root as resource_root,
         resource_path as resource_path,
+        user_data_dir as user_data_dir,
     )
 
     # Networking
@@ -238,6 +239,7 @@ _EXPORTS: dict[str, str] = {
     "TiledMap": "pygamine.assets.tiledmap",
     "resource_root": "pygamine.assets.paths",
     "resource_path": "pygamine.assets.paths",
+    "user_data_dir": "pygamine.assets.paths",
     # Networking
     "Protocol": "pygamine.net.protocol",
     "ProtocolError": "pygamine.net.protocol",

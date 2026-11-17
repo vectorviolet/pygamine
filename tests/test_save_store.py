@@ -1,14 +1,16 @@
 """Unit tests for SaveStore: a thin JSON persistence wrapper for
-saves/<name>.json (relative to cwd, auto-creating the folder), used for
+saves/<name>.json (auto-creating the folder), used for
 both settings and game-save data.
 """
 
 from __future__ import annotations
 
 import json
+import sys
 
 import pytest
 
+from pygamine.assets.paths import user_data_dir
 from pygamine.assets.save_store import SaveStore
 
 
@@ -403,3 +405,45 @@ def test_browser_storage_returns_none_and_warns_when_the_browser_refuses(
 
     assert _browser_storage() is None
     assert "unavailable" in caplog.text
+
+
+# ── explicit directory ───────────────────────────────────────────────
+
+
+def test_default_directory_is_cwd_relative_saves():
+    assert SaveStore("save").directory.as_posix() == "saves"
+
+
+def test_explicit_path_directory_is_honored(tmp_path):
+    folder = tmp_path / "elsewhere" / "saves"
+    store = SaveStore("save", directory=folder)
+    store.save({"a": 1})
+
+    assert (folder / "save.json").exists()
+    assert not (tmp_path / "saves").exists()
+    assert store.load() == {"a": 1}
+
+
+def test_user_data_dir_works_as_the_directory(monkeypatch, tmp_path):
+    monkeypatch.setattr(sys, "platform", "linux")
+    monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "xdg"))
+    store = SaveStore("save", directory=user_data_dir("g") / "saves")
+    store.save({"a": 1})
+
+    assert (tmp_path / "xdg" / "VectorViolet" / "g" / "saves" / "save.json").exists()
+
+
+def test_web_store_with_user_data_dir_keeps_the_old_local_storage_key(
+    web, monkeypatch, tmp_path
+):
+    monkeypatch.setattr(sys, "platform", "emscripten")
+    old = SaveStore("save")  # the old default, a str directory
+    new = SaveStore("save", directory=user_data_dir("g") / "saves")
+    assert old._web_key == "pygamine:saves/save.json"
+    assert new._web_key == old._web_key
+
+    new.save({"wave": 3})
+
+    assert old.load() == {"wave": 3}
+    assert web.items == {"pygamine:saves/save.json": '{"wave":3}'}
+    assert not (tmp_path / "saves").exists()
