@@ -433,13 +433,17 @@ def test_user_data_dir_works_as_the_directory(monkeypatch, tmp_path):
     assert (tmp_path / "xdg" / "VectorViolet" / "g" / "saves" / "save.json").exists()
 
 
-def test_web_store_with_user_data_dir_keeps_using_local_storage(
+def test_web_store_with_user_data_dir_keeps_the_old_local_storage_key(
     web, monkeypatch, tmp_path
 ):
     monkeypatch.setattr(sys, "platform", "emscripten")
-    store = SaveStore("save", directory=user_data_dir("g") / "saves")
-    store.save({"wave": 3})
+    old = SaveStore("save")  # the old default, a str directory
+    new = SaveStore("save", directory=user_data_dir("g") / "saves")
+    assert old._web_key == "pygamine:saves/save.json"
+    assert new._web_key == old._web_key
 
-    assert store.load() == {"wave": 3}
-    assert web.items == {"pygamine:userdata/g/saves/save.json": '{"wave":3}'}
-    assert not (tmp_path / "userdata").exists()
+    new.save({"wave": 3})
+
+    assert old.load() == {"wave": 3}
+    assert web.items == {"pygamine:saves/save.json": '{"wave":3}'}
+    assert not (tmp_path / "saves").exists()

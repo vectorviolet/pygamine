@@ -9,10 +9,10 @@ working directory. An install in Program Files is read-only for normal users, so
 
 ## Decision
 
-- **Helper:** `user_data_dir(game) -> Path` in `pygamine.assets.paths`, stdlib only.
-  Windows `%APPDATA%\VectorViolet\<game>` (fallback `~/AppData/Roaming`), macOS
-  `~/Library/Application Support/VectorViolet/<game>`, Linux `$XDG_DATA_HOME` or
-  `~/.local/share` plus `VectorViolet/<game>`. It creates nothing; the stores already
+- **Helper:** `user_data_dir(game, *, vendor="VectorViolet") -> Path` in `pygamine.assets.paths`, stdlib only.
+  Windows `%APPDATA%\<vendor>\<game>` (fallback `~/AppData/Roaming`), macOS
+  `~/Library/Application Support/<vendor>/<game>`, Linux `$XDG_DATA_HOME` or
+  `~/.local/share` (a relative `XDG_DATA_HOME` is ignored) plus `<vendor>/<game>`. `game` and `vendor` must be single folder names (`ValueError` otherwise). If the home folder can't be found it logs a warning and uses `./userdata/<game>`. It creates nothing; the stores already
   create their folder on first write.
 - **No implicit default:** the engine has no notion of the game's name. The window title
   is localized and mutable, and `Application` has no name setting. Deriving the folder
@@ -20,8 +20,7 @@ working directory. An install in Program Files is read-only for normal users, so
   test. So the stores keep their `directory` parameter and their cwd-relative defaults, and
   games pass `directory=user_data_dir("<game>") / "saves"`. This is not a breaking change
   and keeps tests free to pass `tmp_path`.
-- **Web:** on emscripten `user_data_dir` returns the relative `userdata/<game>` (the browser
-  has no per-user folder). `SaveStore` keeps using `localStorage`, keyed by the path.
+- **Web:** on emscripten `user_data_dir` returns `Path(".")`, so `user_data_dir(game) / "saves"` equals the old default `saves` and the `localStorage` key (`pygamine:saves/<name>.json`) is unchanged. Only `SaveStore` persists on the web; `Database` uses pygbag's in-memory file system and is lost on reload.
 - **No migration** of saves from the old cwd-relative folders (owner decision).
 
 ## Rejected

@@ -21,9 +21,12 @@ vendoring pygamine somewhere else needs its own variant instead.
 
 from __future__ import annotations
 
+import logging
 import os
 import sys
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 
 def resource_root() -> Path:
@@ -43,29 +46,64 @@ def resource_path(*parts: str) -> Path:
     return resource_root().joinpath(*parts)
 
 
-def user_data_dir(game: str) -> Path:
+def _check_name(label: str, name: str) -> None:
+    """Reject anything that isn't one plain folder name."""
+    if (
+        not name
+        or name in (".", "..")
+        or "/" in name
+        or "\\" in name
+        or Path(name).is_absolute()
+        or ":" in name
+    ):
+        raise ValueError(f"{label} must be a single folder name, got {name!r}")
+
+
+def user_data_dir(game: str, *, vendor: str = "VectorViolet") -> Path:
     """The per-user folder where ``game`` keeps its saves and databases.
 
-    - Windows: ``%APPDATA%\\VectorViolet\\<game>`` (``~/AppData/Roaming`` if
+    - Windows: ``%APPDATA%\\<vendor>\\<game>`` (``~/AppData/Roaming`` if
       ``APPDATA`` is unset)
-    - macOS: ``~/Library/Application Support/VectorViolet/<game>``
-    - Linux and others: ``$XDG_DATA_HOME/VectorViolet/<game>``, or
-      ``~/.local/share/VectorViolet/<game>`` if ``XDG_DATA_HOME`` is unset or empty
-    - Web (emscripten): the relative ``userdata/<game>``, since the browser has
-      no per-user folder; :class:`~pygamine.assets.save_store.SaveStore` keeps
-      its data in ``localStorage`` there anyway.
+    - macOS: ``~/Library/Application Support/<vendor>/<game>``
+    - Linux and others: ``$XDG_DATA_HOME/<vendor>/<game>``, or
+      ``~/.local/share/<vendor>/<game>`` if ``XDG_DATA_HOME`` is unset, empty
+      or relative (the XDG spec says to ignore a relative value)
+    - Web (emscripten): ``Path(".")``, so ``user_data_dir(game) / "saves"``
+      is exactly the cwd-relative ``saves`` that ``SaveStore`` defaults to,
+      and web saves keep their existing ``localStorage`` key. Only
+      :class:`~pygamine.assets.save_store.SaveStore` persists there (in
+      ``localStorage``); a ``Database`` lives in pygbag's in-memory file
+      system and is lost on reload.
 
-    Only builds the path; it creates nothing (``SaveStore`` and ``Database``
-    create their own folder on first write).
+    If the home folder can't be determined, it logs a warning and falls back
+    to the cwd-relative ``userdata/<game>``.
+
+    ``vendor`` is the company folder that groups a studio's games.
+    ``game`` and ``vendor`` must each be a single folder name, else
+    ``ValueError``. Only builds the path; it creates nothing (``SaveStore``
+    and ``Database`` create their own folder on first write).
     """
+    _check_name("game", game)
+    _check_name("vendor", vendor)
     if sys.platform == "emscripten":
+        return Path(".")
+    try:
+        if sys.platform == "win32":
+            appdata = os.environ.get("APPDATA")
+            base = Path(appdata) if appdata else Path.home() / "AppData" / "Roaming"
+        elif sys.platform == "darwin":
+            base = Path.home() / "Library" / "Application Support"
+        else:
+            xdg = os.environ.get("XDG_DATA_HOME")
+            if xdg and Path(xdg).is_absolute():
+                base = Path(xdg)
+            else:
+                base = Path.home() / ".local" / "share"
+    except RuntimeError:  # Path.home() can't work out the home folder
+        logger.warning(
+            "Could not determine the home folder; using ./userdata/%s",
+            game,
+            exc_info=True,
+        )
         return Path("userdata") / game
-    if sys.platform == "win32":
-        appdata = os.environ.get("APPDATA")
-        base = Path(appdata) if appdata else Path.home() / "AppData" / "Roaming"
-    elif sys.platform == "darwin":
-        base = Path.home() / "Library" / "Application Support"
-    else:
-        xdg = os.environ.get("XDG_DATA_HOME")
-        base = Path(xdg) if xdg else Path.home() / ".local" / "share"
-    return base / "VectorViolet" / game
+    return base / vendor / game

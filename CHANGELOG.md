@@ -18,7 +18,7 @@ change. Anything before `e5c1fa6` (the commit that first introduced
 ### Added
 
 - Web (pygbag) build support: `Application.run_async()` (the same frame as `run()`, yielding to asyncio after each one), `ALPHA_BLIT` (SDL2 alpha blend on emscripten, where the default blit is about 6x slower; used by `SpriteRenderer2D` and `Camera.draw`), and `SaveStore` keeping its data in the browser's `localStorage` on emscripten. Desktop behavior is unchanged.
-- `user_data_dir(game)` returns the per-user data folder (`%APPDATA%\VectorViolet\<game>` on Windows, `~/Library/Application Support/VectorViolet/<game>` on macOS, `$XDG_DATA_HOME` or `~/.local/share` on Linux), so saves and databases survive installs in read-only places. `SaveStore` and `Database` now also accept a `Path` as `directory`; their cwd-relative defaults are unchanged (the engine doesn't know the game's name), so games pass `user_data_dir(...)` explicitly (#44). Web builds keep `localStorage`, and old saves are not migrated.
+- `user_data_dir(game)` returns the per-user data folder (`%APPDATA%\VectorViolet\<game>` on Windows, `~/Library/Application Support/VectorViolet/<game>` on macOS, `$XDG_DATA_HOME` or `~/.local/share`, plus `/VectorViolet/<game>`, on Linux; `vendor=` changes the `VectorViolet` part), so saves and databases survive installs in read-only places. `SaveStore` and `Database` now also accept a `Path` as `directory`; their cwd-relative defaults are unchanged (the engine doesn't know the game's name), so games pass `user_data_dir(...)` explicitly (#44). On the web `user_data_dir` returns `Path(".")`, so `SaveStore` keeps its existing `localStorage` keys; `Database` has no persistence there. Old saves are not migrated.
 
 ## [1.0.0] — 2026-11-11
 

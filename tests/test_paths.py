@@ -101,14 +101,56 @@ def test_user_data_dir_linux_falls_back_without_xdg(monkeypatch, tmp_path, xdg):
     assert user_data_dir("g") == expected
 
 
-def test_user_data_dir_emscripten_is_relative_and_never_asks_for_home(monkeypatch):
+def test_user_data_dir_emscripten_is_cwd_and_never_asks_for_home(monkeypatch):
     monkeypatch.setattr(sys, "platform", "emscripten")
 
     def no_home():
         raise AssertionError("home must not be queried on the web")
 
     monkeypatch.setattr(Path, "home", staticmethod(no_home))
-    assert user_data_dir("g") == Path("userdata") / "g"
+    assert user_data_dir("g") == Path(".")
+    assert (user_data_dir("g") / "saves").as_posix() == "saves"
+
+
+def test_user_data_dir_linux_ignores_relative_xdg_data_home(monkeypatch, tmp_path):
+    monkeypatch.setattr(sys, "platform", "linux")
+    monkeypatch.setenv("XDG_DATA_HOME", "relative/dir")
+    _fake_home(monkeypatch, tmp_path)
+    expected = tmp_path / ".local" / "share" / "VectorViolet" / "g"
+    assert user_data_dir("g") == expected
+
+
+def test_user_data_dir_vendor_replaces_the_company_folder(monkeypatch, tmp_path):
+    monkeypatch.setattr(sys, "platform", "linux")
+    monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path))
+    assert user_data_dir("g", vendor="Acme") == tmp_path / "Acme" / "g"
+
+
+@pytest.mark.parametrize(
+    "name", ["", ".", "..", "a/b", "a\\b", "/abs", "../up", "C:\\x", "C:x"]
+)
+def test_user_data_dir_rejects_bad_names(name):
+    with pytest.raises(ValueError):
+        user_data_dir(name)
+    with pytest.raises(ValueError):
+        user_data_dir("g", vendor=name)
+
+
+@pytest.mark.parametrize("platform", ["win32", "darwin", "linux"])
+def test_user_data_dir_warns_and_falls_back_when_home_is_unknown(
+    monkeypatch, caplog, platform
+):
+    monkeypatch.setattr(sys, "platform", platform)
+    monkeypatch.delenv("APPDATA", raising=False)
+    monkeypatch.delenv("XDG_DATA_HOME", raising=False)
+
+    def no_home():
+        raise RuntimeError("Could not determine home directory.")
+
+    monkeypatch.setattr(Path, "home", staticmethod(no_home))
+    with caplog.at_level("WARNING", logger="pygamine.assets.paths"):
+        assert user_data_dir("g") == Path("userdata") / "g"
+    assert "home folder" in caplog.text
 
 
 def test_user_data_dir_creates_nothing(monkeypatch, tmp_path):
