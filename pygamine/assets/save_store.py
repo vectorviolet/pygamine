@@ -1,7 +1,7 @@
 """JSON-backed key-value persistence for settings and game saves.
 
-Mirrors Database's `databases/<name>.db` (cwd-relative, auto-creating
-folder) convention but for simple, human-readable JSON blobs instead of
+Mirrors Database's `databases/<name>.db` (auto-creating folder)
+convention but for simple, human-readable JSON blobs instead of
 SQL -- settings and save-game data are small, don't need relational
 queries, and benefit from being easy to inspect/hand-edit for support.
 Writes are atomic (temp file + os.replace) so a crash or power loss
@@ -9,7 +9,14 @@ mid-write can't corrupt the store.
 
 One class serves both use cases -- a project typically keeps two named
 stores, e.g. `SaveStore("settings")` and `SaveStore("save")`, both under
-the same `saves/` folder.
+the same folder.
+
+The default folder, `saves/`, is relative to the current working directory,
+which breaks in read-only installs (Program Files). Games pass an explicit
+per-user folder instead:
+`SaveStore("save", directory=user_data_dir("mygame") / "saves")`. The engine
+has no notion of the game's name, so it doesn't pick the folder itself (see
+docs/decisions/0005-user-data-dir.md).
 """
 
 from __future__ import annotations
@@ -56,7 +63,7 @@ def _browser_storage() -> WebStorage | None:
 
 
 class SaveStore:
-    def __init__(self, name: str, directory: str = "saves") -> None:
+    def __init__(self, name: str, directory: str | os.PathLike[str] = "saves") -> None:
         self.name = name
         self.directory = Path(directory)
         self.path = self.directory / f"{name}.json"

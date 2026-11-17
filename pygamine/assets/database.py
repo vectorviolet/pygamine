@@ -1,14 +1,19 @@
 """Thin sqlite3 wrapper that stores `<name>.db` under a `databases/`
-folder (cwd-relative, auto-creating), mirroring `save_store.py`'s
+folder (auto-creating), mirroring `save_store.py`'s
 `SaveStore` convention but for relational data instead of JSON blobs.
 
 Failures raise `DatabaseError` rather than printing and killing the
 process -- a shared library has no business deciding a game process
 should exit; that choice belongs to the caller.
+
+The default folder is relative to the current working directory, which
+breaks in read-only installs. Games pass an explicit per-user folder:
+`Database("game", directory=user_data_dir("mygame") / "databases")`.
 """
 
 from __future__ import annotations
 
+import os
 import sqlite3
 from pathlib import Path
 
@@ -18,7 +23,9 @@ class DatabaseError(Exception):
 
 
 class Database:
-    def __init__(self, name: str, directory: str = "databases") -> None:
+    def __init__(
+        self, name: str, directory: str | os.PathLike[str] = "databases"
+    ) -> None:
         self.name = name
         self.directory = Path(directory)
         self.path = self.directory / f"{name}.db"

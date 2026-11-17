@@ -170,3 +170,17 @@ def test_disconnect_actually_closes_the_connection():
     db.disconnect()
     with pytest.raises(sqlite3.ProgrammingError):
         db.connection.execute("SELECT 1")  # closed connections reject new queries
+
+
+def test_default_directory_is_cwd_relative_databases():
+    assert Database("test").directory.as_posix() == "databases"
+
+
+def test_explicit_path_directory_is_honored(tmp_path):
+    folder = tmp_path / "elsewhere" / "db"
+    db = Database("test", directory=folder)
+    db.connect()
+    db.disconnect()
+
+    assert (folder / "test.db").exists()
+    assert not (tmp_path / "databases").exists()
