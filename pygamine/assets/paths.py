@@ -30,15 +30,23 @@ from pathlib import Path
 logger = logging.getLogger(__name__)
 
 
+def _is_packaged() -> bool:
+    """Whether this process runs from a PyInstaller bundle (``sys._MEIPASS`` is set).
+
+    The one packaged test: :func:`resource_root` and :func:`packaged_data_dir`
+    both use it, so assets and saves can't disagree.
+    """
+    return getattr(sys, "_MEIPASS", None) is not None
+
+
 def resource_root() -> Path:
     """Directory that contains the bundled ``assets/`` (and similar) trees.
 
     Frozen: the PyInstaller extraction dir. From source: the project root,
     walked up from ``src/pygamine/pygamine/assets/paths.py``.
     """
-    bundle = getattr(sys, "_MEIPASS", None)
-    if bundle is not None:
-        return Path(bundle)
+    if _is_packaged():
+        return Path(getattr(sys, "_MEIPASS"))
     return Path(__file__).resolve().parents[4]
 
 
@@ -60,11 +68,46 @@ def _check_name(label: str, name: str) -> None:
         raise ValueError(f"{label} must be a single folder name, got {name!r}")
 
 
+def _packaged_fallback_root() -> Path:
+    """Folder next to the packaged executable, for when there's no home folder.
+
+    On macOS, inside ``X.app/Contents/MacOS``, it's the folder that contains the
+    ``.app``, never the bundle itself. Raises ``RuntimeError`` if
+    ``sys.executable`` is empty: resolving it would land in the cwd, which is
+    usually inside the bundle.
+    """
+    if not sys.executable:
+        raise RuntimeError(
+            "No home folder and sys.executable is empty; can't pick a writable data folder"
+        )
+    exe_dir = Path(sys.executable).resolve().parent
+    if sys.platform == "darwin":
+        for parent in (exe_dir, *exe_dir.parents):
+            if parent.suffix == ".app":
+                return parent.parent
+    return exe_dir
+
+
+def _data_home() -> Path:
+    """The platform's per-user data folder; ``RuntimeError`` if there's no home folder."""
+    if sys.platform == "win32":
+        appdata = os.environ.get("APPDATA")
+        if appdata and Path(appdata).is_absolute():
+            return Path(appdata)
+        return Path.home() / "AppData" / "Roaming"
+    if sys.platform == "darwin":
+        return Path.home() / "Library" / "Application Support"
+    xdg = os.environ.get("XDG_DATA_HOME")
+    if xdg and Path(xdg).is_absolute():
+        return Path(xdg)
+    return Path.home() / ".local" / "share"
+
+
 def user_data_dir(game: str, *, vendor: str = "VectorViolet") -> Path:
     """The per-user folder where ``game`` keeps its saves and databases.
 
     - Windows: ``%APPDATA%\\<vendor>\\<game>`` (``~/AppData/Roaming`` if
-      ``APPDATA`` is unset)
+      ``APPDATA`` is unset, empty or relative)
     - macOS: ``~/Library/Application Support/<vendor>/<game>``
     - Linux and others: ``$XDG_DATA_HOME/<vendor>/<game>``, or
       ``~/.local/share/<vendor>/<game>`` if ``XDG_DATA_HOME`` is unset, empty
@@ -76,8 +119,15 @@ def user_data_dir(game: str, *, vendor: str = "VectorViolet") -> Path:
       ``localStorage``); a ``Database`` lives in pygbag's in-memory file
       system and is lost on reload.
 
-    If the home folder can't be determined, it logs a warning and falls back
-    to the cwd-relative ``userdata/<game>``.
+    If the home folder can't be determined, it logs a warning naming the
+    folder it uses instead:
+
+    - From source: the cwd-relative ``userdata/<game>``.
+    - Packaged: ``userdata/<game>`` next to the executable (on macOS, next to
+      the ``.app``), never inside the bundle: that is read-only under Program
+      Files and wiped by an installer update. A read-only install then fails
+      loudly on the first save instead of losing data silently on update.
+      Raises ``RuntimeError`` if ``sys.executable`` is empty.
 
     ``vendor`` is the company folder that groups a studio's games.
     ``game`` and ``vendor`` must each be a single folder name, else
@@ -89,24 +139,17 @@ def user_data_dir(game: str, *, vendor: str = "VectorViolet") -> Path:
     if sys.platform == "emscripten":
         return Path(".")
     try:
-        if sys.platform == "win32":
-            appdata = os.environ.get("APPDATA")
-            base = Path(appdata) if appdata else Path.home() / "AppData" / "Roaming"
-        elif sys.platform == "darwin":
-            base = Path.home() / "Library" / "Application Support"
-        else:
-            xdg = os.environ.get("XDG_DATA_HOME")
-            if xdg and Path(xdg).is_absolute():
-                base = Path(xdg)
-            else:
-                base = Path.home() / ".local" / "share"
+        base = _data_home()
     except RuntimeError:  # Path.home() can't work out the home folder
+        fallback = Path("userdata") / game
+        if _is_packaged():
+            fallback = _packaged_fallback_root() / fallback
         logger.warning(
-            "Could not determine the home folder; using ./userdata/%s",
-            game,
+            "Could not determine the home folder; using %s",
+            fallback,
             exc_info=True,
         )
-        return Path("userdata") / game
+        return fallback
     return base / vendor / game
 
 
@@ -115,23 +158,20 @@ def packaged_data_dir(
 ) -> Path | None:
     """Where ``game`` keeps the folder ``sub`` (e.g. ``"saves"``) in a packaged build.
 
-    Meant to be passed as the ``directory`` of ``SaveStore`` or ``Database``:
-    ``SaveStore(directory=packaged_data_dir("mygame", "saves"))``. Both treat
-    ``None`` as "use my cwd-relative default".
-
     - Packaged (PyInstaller, ``sys._MEIPASS`` set -- the same test as
       :func:`resource_root`, so assets and saves can't disagree):
-      ``user_data_dir(game, vendor=vendor) / sub``.
+      ``user_data_dir(game, vendor=vendor) / sub``, which is never inside the
+      bundle (see ``user_data_dir`` for the no-home-folder case).
     - Source runs and the web build: ``None``. A source run keeps each
       checkout's own cwd-relative folder, so worktrees stay isolated, and the
       web build keeps its ``localStorage`` keys.
 
-    If the packaged build has no home folder (``user_data_dir`` could only
-    give its cwd-relative fallback), the folder would end up inside the
-    bundle: read-only under Program Files and wiped by an installer update.
-    So it logs a warning and uses ``<folder of the executable>/userdata/<game>/<sub>``
-    instead; a read-only install then fails on the first save, loudly, instead
-    of losing data silently on update.
+    ``SaveStore`` and ``Database`` don't accept ``directory=None`` (their
+    ``directory`` default is what tests patch to a temp folder). Pass
+    ``directory=`` only when this returns a path::
+
+        d = packaged_data_dir("mygame", "saves")
+        store = SaveStore("save") if d is None else SaveStore("save", directory=d)
 
     ``game``, ``sub`` and ``vendor`` must each be a single folder name, else
     ``ValueError`` (checked in every mode). Creates nothing.
@@ -139,12 +179,6 @@ def packaged_data_dir(
     _check_name("game", game)
     _check_name("sub", sub)
     _check_name("vendor", vendor)
-    if sys.platform == "emscripten" or getattr(sys, "_MEIPASS", None) is None:
+    if sys.platform == "emscripten" or not _is_packaged():
         return None
-    base = user_data_dir(game, vendor=vendor)
-    if not base.is_absolute():
-        base = Path(sys.executable).resolve().parent / "userdata" / game
-        logger.warning(
-            "No per-user data folder in the packaged build; using %s", base / sub
-        )
-    return base / sub
+    return user_data_dir(game, vendor=vendor) / sub
