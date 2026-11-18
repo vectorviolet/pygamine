@@ -13,6 +13,7 @@ relying on the cwd uses :func:`resource_path` instead.
 
 :func:`user_data_dir` is the per-user, writable folder for a game's saves and
 databases, so installs in read-only places (Program Files) still work.
+:func:`packaged_data_dir` is the same folder, but only in a packaged build.
 
 Assumes the standard submodule layout, ``<project_root>/src/pygamine/`` --
 :func:`resource_root` walks up from this file's location, so a host project
@@ -107,3 +108,43 @@ def user_data_dir(game: str, *, vendor: str = "VectorViolet") -> Path:
         )
         return Path("userdata") / game
     return base / vendor / game
+
+
+def packaged_data_dir(
+    game: str, sub: str, *, vendor: str = "VectorViolet"
+) -> Path | None:
+    """Where ``game`` keeps the folder ``sub`` (e.g. ``"saves"``) in a packaged build.
+
+    Meant to be passed as the ``directory`` of ``SaveStore`` or ``Database``:
+    ``SaveStore(directory=packaged_data_dir("mygame", "saves"))``. Both treat
+    ``None`` as "use my cwd-relative default".
+
+    - Packaged (PyInstaller, ``sys._MEIPASS`` set -- the same test as
+      :func:`resource_root`, so assets and saves can't disagree):
+      ``user_data_dir(game, vendor=vendor) / sub``.
+    - Source runs and the web build: ``None``. A source run keeps each
+      checkout's own cwd-relative folder, so worktrees stay isolated, and the
+      web build keeps its ``localStorage`` keys.
+
+    If the packaged build has no home folder (``user_data_dir`` could only
+    give its cwd-relative fallback), the folder would end up inside the
+    bundle: read-only under Program Files and wiped by an installer update.
+    So it logs a warning and uses ``<folder of the executable>/userdata/<game>/<sub>``
+    instead; a read-only install then fails on the first save, loudly, instead
+    of losing data silently on update.
+
+    ``game``, ``sub`` and ``vendor`` must each be a single folder name, else
+    ``ValueError`` (checked in every mode). Creates nothing.
+    """
+    _check_name("game", game)
+    _check_name("sub", sub)
+    _check_name("vendor", vendor)
+    if sys.platform == "emscripten" or getattr(sys, "_MEIPASS", None) is None:
+        return None
+    base = user_data_dir(game, vendor=vendor)
+    if not base.is_absolute():
+        base = Path(sys.executable).resolve().parent / "userdata" / game
+        logger.warning(
+            "No per-user data folder in the packaged build; using %s", base / sub
+        )
+    return base / sub

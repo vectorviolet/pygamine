@@ -140,6 +140,7 @@ if TYPE_CHECKING:
         resource_root as resource_root,
         resource_path as resource_path,
         user_data_dir as user_data_dir,
+        packaged_data_dir as packaged_data_dir,
     )
 
     # Networking
@@ -240,6 +241,7 @@ _EXPORTS: dict[str, str] = {
     "resource_root": "pygamine.assets.paths",
     "resource_path": "pygamine.assets.paths",
     "user_data_dir": "pygamine.assets.paths",
+    "packaged_data_dir": "pygamine.assets.paths",
     # Networking
     "Protocol": "pygamine.net.protocol",
     "ProtocolError": "pygamine.net.protocol",

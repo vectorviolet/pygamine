@@ -10,7 +10,12 @@ from pathlib import Path
 import pytest
 
 import pygamine.assets.paths as paths_module
-from pygamine.assets.paths import resource_path, resource_root, user_data_dir
+from pygamine.assets.paths import (
+    packaged_data_dir,
+    resource_path,
+    resource_root,
+    user_data_dir,
+)
 
 
 def test_resource_root_uses_meipass_when_frozen(monkeypatch, tmp_path):
@@ -158,3 +163,70 @@ def test_user_data_dir_creates_nothing(monkeypatch, tmp_path):
     monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "xdg"))
     user_data_dir("g")
     assert not (tmp_path / "xdg").exists()
+
+
+def _packaged(monkeypatch):
+    monkeypatch.setattr(sys, "_MEIPASS", "/bundle", raising=False)
+
+
+def _source(monkeypatch):
+    monkeypatch.delattr(sys, "_MEIPASS", raising=False)
+
+
+def test_packaged_data_dir_is_user_data_dir_plus_sub_when_packaged(
+    monkeypatch, tmp_path
+):
+    _packaged(monkeypatch)
+    monkeypatch.setattr(sys, "platform", "linux")
+    monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path))
+    assert packaged_data_dir("g", "saves") == tmp_path / "VectorViolet" / "g" / "saves"
+    assert (
+        packaged_data_dir("g", "databases", vendor="Acme")
+        == tmp_path / "Acme" / "g" / "databases"
+    )
+
+
+def test_packaged_data_dir_is_none_from_source(monkeypatch):
+    _source(monkeypatch)
+    assert packaged_data_dir("g", "saves") is None
+
+
+def test_packaged_data_dir_is_none_on_the_web(monkeypatch):
+    _packaged(monkeypatch)
+    monkeypatch.setattr(sys, "platform", "emscripten")
+    assert packaged_data_dir("g", "saves") is None
+
+
+@pytest.mark.parametrize(
+    "name", ["", ".", "..", "a/b", "a\\b", "/abs", "../up", "C:\\x", "C:x"]
+)
+@pytest.mark.parametrize("packaged", [True, False])
+def test_packaged_data_dir_rejects_bad_names(monkeypatch, packaged, name):
+    (_packaged if packaged else _source)(monkeypatch)
+    with pytest.raises(ValueError, match="sub"):
+        packaged_data_dir("g", name)
+    with pytest.raises(ValueError, match="game"):
+        packaged_data_dir(name, "saves")
+    with pytest.raises(ValueError, match="vendor"):
+        packaged_data_dir("g", "saves", vendor=name)
+
+
+def test_packaged_data_dir_without_home_uses_a_folder_next_to_the_executable(
+    monkeypatch, caplog, tmp_path
+):
+    _packaged(monkeypatch)
+    monkeypatch.setattr(sys, "platform", "linux")
+    monkeypatch.delenv("XDG_DATA_HOME", raising=False)
+
+    def no_home():
+        raise RuntimeError("Could not determine home directory.")
+
+    monkeypatch.setattr(Path, "home", staticmethod(no_home))
+    exe = tmp_path / "app" / "game.exe"
+    monkeypatch.setattr(sys, "executable", str(exe))
+    with caplog.at_level("WARNING", logger="pygamine.assets.paths"):
+        result = packaged_data_dir("g", "saves")
+    assert result == tmp_path.resolve() / "app" / "userdata" / "g" / "saves"
+    assert result.is_absolute()
+    assert "No per-user data folder" in caplog.text
+    assert "/bundle" not in str(result)
