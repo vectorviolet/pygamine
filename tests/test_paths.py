@@ -10,7 +10,12 @@ from pathlib import Path
 import pytest
 
 import pygamine.assets.paths as paths_module
-from pygamine.assets.paths import resource_path, resource_root, user_data_dir
+from pygamine.assets.paths import (
+    packaged_data_dir,
+    resource_path,
+    resource_root,
+    user_data_dir,
+)
 
 
 def test_resource_root_uses_meipass_when_frozen(monkeypatch, tmp_path):
@@ -158,3 +163,130 @@ def test_user_data_dir_creates_nothing(monkeypatch, tmp_path):
     monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "xdg"))
     user_data_dir("g")
     assert not (tmp_path / "xdg").exists()
+
+
+def _packaged(monkeypatch):
+    monkeypatch.setattr(sys, "_MEIPASS", "/bundle", raising=False)
+
+
+def _source(monkeypatch):
+    monkeypatch.delattr(sys, "_MEIPASS", raising=False)
+
+
+def test_packaged_data_dir_is_user_data_dir_plus_sub_when_packaged(
+    monkeypatch, tmp_path
+):
+    _packaged(monkeypatch)
+    monkeypatch.setattr(sys, "platform", "linux")
+    monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path))
+    assert packaged_data_dir("g", "saves") == tmp_path / "VectorViolet" / "g" / "saves"
+    assert (
+        packaged_data_dir("g", "databases", vendor="Acme")
+        == tmp_path / "Acme" / "g" / "databases"
+    )
+
+
+def test_packaged_data_dir_is_none_from_source(monkeypatch):
+    _source(monkeypatch)
+    assert packaged_data_dir("g", "saves") is None
+
+
+def test_packaged_data_dir_is_none_on_the_web(monkeypatch):
+    _packaged(monkeypatch)
+    monkeypatch.setattr(sys, "platform", "emscripten")
+    assert packaged_data_dir("g", "saves") is None
+
+
+@pytest.mark.parametrize(
+    "name", ["", ".", "..", "a/b", "a\\b", "/abs", "../up", "C:\\x", "C:x"]
+)
+@pytest.mark.parametrize("packaged", [True, False])
+def test_packaged_data_dir_rejects_bad_names(monkeypatch, packaged, name):
+    (_packaged if packaged else _source)(monkeypatch)
+    with pytest.raises(ValueError, match="sub"):
+        packaged_data_dir("g", name)
+    with pytest.raises(ValueError, match="game"):
+        packaged_data_dir(name, "saves")
+    with pytest.raises(ValueError, match="vendor"):
+        packaged_data_dir("g", "saves", vendor=name)
+
+
+def _no_home(monkeypatch):
+    def no_home():
+        raise RuntimeError("Could not determine home directory.")
+
+    monkeypatch.setattr(Path, "home", staticmethod(no_home))
+    monkeypatch.delenv("APPDATA", raising=False)
+    monkeypatch.delenv("XDG_DATA_HOME", raising=False)
+
+
+def _bundle(monkeypatch, tmp_path, exe_parts, platform):
+    """A packaged build whose _MEIPASS and executable are real folders in tmp_path."""
+    root = tmp_path.resolve()
+    meipass = root / "bundle"
+    meipass.mkdir()
+    exe = root.joinpath(*exe_parts)
+    exe.parent.mkdir(parents=True, exist_ok=True)
+    exe.touch()
+    monkeypatch.setattr(sys, "_MEIPASS", str(meipass), raising=False)
+    monkeypatch.setattr(sys, "executable", str(exe))
+    monkeypatch.setattr(sys, "platform", platform)
+    _no_home(monkeypatch)
+    return root, meipass
+
+
+@pytest.mark.parametrize("platform", ["win32", "linux"])
+def test_packaged_without_home_uses_a_folder_next_to_the_executable(
+    monkeypatch, caplog, tmp_path, platform
+):
+    root, meipass = _bundle(monkeypatch, tmp_path, ["app", "game.exe"], platform)
+    expected = root / "app" / "userdata" / "g"
+    with caplog.at_level("WARNING", logger="pygamine.assets.paths"):
+        assert user_data_dir("g") == expected
+        assert packaged_data_dir("g", "saves") == expected / "saves"
+    assert meipass not in expected.parents
+    assert str(expected) in caplog.text
+
+
+def test_packaged_without_home_on_macos_is_next_to_the_app_bundle(
+    monkeypatch, tmp_path
+):
+    root, _ = _bundle(
+        monkeypatch,
+        tmp_path,
+        ["Apps", "Game.app", "Contents", "MacOS", "game"],
+        "darwin",
+    )
+    assert user_data_dir("g") == root / "Apps" / "userdata" / "g"
+    assert packaged_data_dir("g", "saves") == root / "Apps" / "userdata" / "g" / "saves"
+
+
+@pytest.mark.parametrize("executable", ["", None])
+def test_packaged_without_home_and_executable_raises(monkeypatch, tmp_path, executable):
+    _bundle(monkeypatch, tmp_path, ["app", "game.exe"], "linux")
+    monkeypatch.setattr(sys, "executable", executable)
+    with pytest.raises(RuntimeError, match="sys.executable"):
+        user_data_dir("g")
+    with pytest.raises(RuntimeError, match="sys.executable"):
+        packaged_data_dir("g", "saves")
+
+
+def test_source_without_home_keeps_the_relative_folder_even_without_executable(
+    monkeypatch,
+):
+    monkeypatch.delattr(sys, "_MEIPASS", raising=False)
+    monkeypatch.setattr(sys, "platform", "linux")
+    monkeypatch.setattr(sys, "executable", "")
+    _no_home(monkeypatch)
+    assert user_data_dir("g") == Path("userdata") / "g"
+
+
+@pytest.mark.parametrize("value", ["", "relative/dir"])
+def test_user_data_dir_windows_ignores_empty_or_relative_appdata(
+    monkeypatch, tmp_path, value
+):
+    monkeypatch.setattr(sys, "platform", "win32")
+    monkeypatch.setenv("APPDATA", value)
+    _fake_home(monkeypatch, tmp_path)
+    expected = tmp_path / "AppData" / "Roaming" / "VectorViolet" / "g"
+    assert user_data_dir("g") == expected
