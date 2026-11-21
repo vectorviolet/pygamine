@@ -25,13 +25,35 @@ copy-from file is named, copy it from highrise (the cleaner of the two) and adju
 - [ ] Jobs: `lint` (ruff check + format check), `spelling`, `typecheck`, `engine-tests`,
       `app-tests` (with coverage badge), smoke test (`scripts/smoke_test.py`), web stage check.
 - [ ] Every job is a required check in the `main` ruleset.
+- [ ] Triggers: pushes to `main`, pull requests to `main`, and `merge_group` (the merge queue
+      needs its own runs). Concurrency keyed on the event; runs on `main` are never canceled.
+- [ ] The coverage badge is published to the orphan `badges` branch, never committed to `main`
+      (the ruleset rejects it).
+- [ ] `.github/dependabot.yml`: weekly uv updates in one grouped PR.
+- [ ] `.coderabbit.yaml` (copied from highrise; adjust the tests rule) and CodeQL default
+      setup on.
 
 ## Release (`.github/workflows/release.yml`)
 
 - [ ] Triggered by a `v*` tag pushed after a "Release x.y.z" PR (version bump + CHANGELOG).
-- [ ] Jobs: desktop builds (PyInstaller, `<game>.spec`), browser build (`web/`,
-      `scripts/build_web.py`), Windows installer (`packaging/<game>.iss`), GitHub release with
-      every file attached, itch.io push (desktop channels + `html5`).
+- [ ] Builds, all attached to the GitHub release:
+  - [ ] desktop zips for Windows, macOS and Linux (PyInstaller, `<game>.spec`);
+  - [ ] the browser build (`web/`, `scripts/build_web.py`, pygbag) as `<game>-web.zip`;
+  - [ ] the Windows installer (`packaging/<game>.iss`, Inno Setup) as
+        `<game>-windows-setup.exe`.
+- [ ] Release and deployment are separate: the tag builds once and creates the GitHub release
+      (its files never change); deploy jobs push those same files to the stores.
+
+## Deployment (`.github/workflows/deploy-itch.yml`)
+
+- [ ] A reusable workflow (`workflow_call`) that downloads a release's files and pushes them to
+      itch.io with butler (desktop channels + `html5`). `release.yml` calls it at the end: a
+      release made with `GITHUB_TOKEN` does not trigger a `release: published` workflow.
+- [ ] It also has `workflow_dispatch` with a tag input, to redeploy an existing release without
+      rebuilding.
+- [ ] The deploy job runs in the `itch-io` environment (URL = the itch.io page), with the owner
+      as required reviewer, so every deploy waits for approval and shows under Deployments.
+      `BUTLER_API_KEY` is an environment secret, not a repo or org secret.
 
 ## Repository
 
@@ -44,11 +66,14 @@ copy-from file is named, copy it from highrise (the cleaner of the two) and adju
       `python`, plus the genre).
 - [ ] Social preview: `docs/design/social-preview.png` (1280x640, the logo over game art),
       uploaded by hand in Settings > Social preview (GitHub has no API for it).
-- [ ] Private vulnerability reporting is on (Settings > Security), to go with `SECURITY.md`.
+- [ ] Private vulnerability reporting and Dependabot alerts are on (Settings > Security), to go
+      with `SECURITY.md`.
+- [ ] Settings > General: automatically delete head branches on.
 
 ## Files
 
-- [ ] `README.md` (preview GIF and screenshots at 1920x1080), `CHANGELOG.md`, `LICENSE` (MIT),
+- [ ] `README.md` (badge row: CI, release, license, coverage, Python | pygame-ce; preview GIF
+      and screenshots at 1920x1080), `CHANGELOG.md`, `LICENSE` (MIT),
       `CONTRIBUTING.md`, `SECURITY.md`, `CREDITS.md`, `CLAUDE.md`.
 - [ ] `licenses/`: license texts of the bundled software (pygame-ce and its libraries).
 - [ ] `docs/ARCHITECTURE.md`, `docs/devlog/` (an illustrated entry per feature or design
