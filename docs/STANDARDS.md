@@ -39,6 +39,12 @@ copy-from file is named, copy it from highrise (the cleaner of the two) and adju
       deletion; `v*` tags can't be moved or deleted. (Rulesets need a public repo or GitHub Pro.)
 - [ ] The repo is on the Roadmap board, and every issue has a milestone (next release, 1.1,
       Someday).
+- [ ] About box: a one-line description ending in "Python + pygame-ce.", the itch.io page as
+      the website, and topics (`2d-game`, `game`, `indie-game`, `pygame`, `pygame-ce`,
+      `python`, plus the genre).
+- [ ] Social preview: `docs/design/social-preview.png` (1280x640, the logo over game art),
+      uploaded by hand in Settings > Social preview (GitHub has no API for it).
+- [ ] Private vulnerability reporting is on (Settings > Security), to go with `SECURITY.md`.
 
 ## Files
 
