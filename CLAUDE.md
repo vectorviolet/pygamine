@@ -11,9 +11,10 @@ as a git submodule at `src/pygamine`.
 
 - **Chokepoint** (`vectorviolet/chokepoint`)
 - **Highrise** (`vectorviolet/highrise`)
+- **The Hunted** (`vectorviolet/the-hunted`)
 
 **Every other game stays where it is.** Standoff, Logic Games and Artificial Chaos are frozen
-at the **`v0.24.0`** tag (the freeze point); Hunted and Terraria are not bumped either. Don't
+at the **`v0.24.0`** tag (the freeze point); Terraria is not bumped either. Don't
 move their submodules.
 
 So a new pygamine release is bumped into the active projects only. "Bump the others" or

@@ -66,8 +66,14 @@ copy-from file is named, copy it from highrise (the cleaner of the two) and adju
 
 ## Game
 
-- [ ] Saves go in the user data folder in packaged builds (pygamine `packaged_data_dir`) and in
-      localStorage in the browser build. Tests and play-tests never touch real saves.
+- [ ] If the game saves anything, saves go in the user data folder in packaged builds (pygamine
+      `packaged_data_dir`) and in localStorage in the browser build. Tests and play-tests never
+      touch real saves.
+
+### Optional (larger games)
+
+Not required: a small game (like The Hunted) is up to standard without them. A game that grows
+a settings page or several menus should add them.
+
 - [ ] Settings: master volume, language and UI scale, saved when changed.
 - [ ] UI built from YAML panels and config through pygamine's `PanelManager`.
-      *(Open question: required, or optional for small games?)*
